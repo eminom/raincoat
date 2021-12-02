@@ -294,7 +294,11 @@ func main() {
 			break
 		}
 		text = strings.TrimSuffix(text, "\n")
+		if strings.HasPrefix(text, "0x") || strings.HasPrefix(text, "0X") {
+			text = text[2:]
+		}
 		if len(text) <= 0 {
+			fmt.Printf("\n")
 			continue
 		}
 		val, err := strconv.ParseInt(text, 16, 32)
