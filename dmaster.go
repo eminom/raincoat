@@ -301,12 +301,12 @@ func main() {
 			fmt.Printf("\n")
 			continue
 		}
-		val, err := strconv.ParseInt(text, 16, 32)
+		val, err := strconv.ParseUint(text, 16, 32)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "error parse hex: %v\n", err)
 			break
 		}
-		lo, hi := val&0x1f, ((val >> 5) & 0x1f)
+		lo, hi := int64(val&0x1f), int64(((val >> 5) & 0x1f))
 		if *fDebug {
 			fmt.Printf("decode %v\n", text)
 			fmt.Printf("lo => %v, hi => %v\n", lo, hi)
