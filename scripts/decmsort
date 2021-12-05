@@ -10,4 +10,6 @@ for line in sys.stdin:
 keys = [k for k in dc]
 keys.sort()
 for k in keys:
+  if len(k)==0:
+    continue
   print("\"%s\"\t%d" % (k, dc[k]))
