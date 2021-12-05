@@ -24,4 +24,4 @@ PRODx4="0x$(python3 -c "print('%x' % (int('${PROD}', 16) * 4))")"
 
 echo \# dump from ${START} for ${PRODx4}
 
-sudo efsmt -d ${DEVID} -dmem dump ${START} ${PRODx4}|tail -n +6 |awk '{print $4}'|dmaster|sort -u
+sudo efsmt -d ${DEVID} -dmem dump ${START} ${PRODx4}|tail -n +6 |awk '{print $4}'|dmaster|decmsort

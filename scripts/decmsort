@@ -1,0 +1,13 @@
+#!/usr/bin/env python3
+
+import sys
+
+dc = {}
+for line in sys.stdin:
+  line = line.strip()
+  dc[line] = dc.get(line, 0) + 1
+
+keys = [k for k in dc]
+keys.sort()
+for k in keys:
+  print("\"%s\"\t%d" % (k, dc[k]))
