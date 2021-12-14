@@ -2,9 +2,11 @@ package main
 
 import (
 	"bufio"
+	"encoding/binary"
 	"errors"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"sort"
 	"strconv"
@@ -189,7 +191,10 @@ func (sess *Session) ProcessFullItem(text string, decoder *codec.DecodeMaster) (
 	if len(vs) != 4 {
 		return true, inputErr
 	}
+	return sess.ProcessItems(vs, decoder)
+}
 
+func (sess *Session) ProcessItems(vs []uint32, decoder *codec.DecodeMaster) (bool, error) {
 	item, err := NewDpfItem(vs, decoder)
 	if err != nil {
 		return true, err
@@ -208,9 +213,8 @@ func (sess *Session) ProcessFullItem(text string, decoder *codec.DecodeMaster) (
 	return true, nil
 }
 
-func DecodeDpfItem(sess *Session) {
+func DecodeDpfItem(sess *Session, decoder *codec.DecodeMaster) {
 	reader := bufio.NewReader(os.Stdin)
-	decoder := codec.NewDecodeMaster(*fArch)
 	errorCounter := 0
 	for {
 		// fmt.Print("-> ")
@@ -251,8 +255,47 @@ func DecodeDpfItem(sess *Session) {
 	}
 }
 
+func DecodeFromFile(sess *Session, filename string, decoder *codec.DecodeMaster) {
+	chunk, err := ioutil.ReadFile(filename)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error reading %v\n", filename)
+		os.Exit(1)
+	}
+	itemSize := len(chunk) / 16 * 16
+	errCount := 0
+	for i := 0; i < itemSize; i += 16 {
+		var u32vals = [4]uint32{
+			binary.LittleEndian.Uint32(chunk[i:]),
+			binary.LittleEndian.Uint32(chunk[i+4:]),
+			binary.LittleEndian.Uint32(chunk[i+8:]),
+			binary.LittleEndian.Uint32(chunk[i+12:]),
+		}
+		_, err := sess.ProcessItems(u32vals[:], decoder)
+		if err != nil {
+			errCount++
+		}
+	}
+	if *fCache {
+		if *fSort {
+			sort.Sort(DpfItems(sess.items))
+		}
+		for _, v := range sess.items {
+			fmt.Println(v.ToString())
+		}
+	}
+	if errCount > 0 {
+		fmt.Fprintf(os.Stderr, "error for file decode: %v\n", errCount)
+	}
+}
+
 func main() {
 
 	sess := NewSession()
-	DecodeDpfItem(sess)
+	decoder := codec.NewDecodeMaster(*fArch)
+	if len(flag.Args()) > 0 {
+		filename := flag.Args()[0]
+		DecodeFromFile(sess, filename, decoder)
+	} else {
+		DecodeDpfItem(sess, decoder)
+	}
 }
