@@ -297,3 +297,19 @@ func (md *DecodeMaster) GetEngineInfo(val uint32) (engineIdx int,
 	ok = true
 	return
 }
+
+/*
+// uint32_t master_id_ : 10;
+// uint32_t reserved_ : 22;
+*/
+func (md *DecodeMaster) GetEngineInfoV2(val uint32) (engineIdx int,
+	engineType string, ok bool) {
+	reserved := (val >> 10)
+	if reserved != 0 {
+		return
+	}
+	lo, hi := int64(val&0x1f), int64(((val >> 5) & 0x1f))
+	engineIdx, engineType = md.decoder(lo, hi)
+	ok = true
+	return
+}
