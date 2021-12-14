@@ -205,14 +205,6 @@ func (sess *Session) ProcessFullItem(text string, decoder *codec.DecodeMaster) (
 	} else {
 		fmt.Println(item.ToString())
 	}
-	if *fCache {
-		if *fSort {
-			sort.Sort(DpfItems(sess.items))
-		}
-		for _, v := range sess.items {
-			fmt.Println(v.ToString())
-		}
-	}
 	return true, nil
 }
 
@@ -242,6 +234,15 @@ func DecodeDpfItem(sess *Session) {
 			if !sess.ProcessMasterText(text, decoder) {
 				break
 			}
+		}
+	}
+
+	if *fCache {
+		if *fSort {
+			sort.Sort(DpfItems(sess.items))
+		}
+		for _, v := range sess.items {
+			fmt.Println(v.ToString())
 		}
 	}
 
