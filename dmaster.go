@@ -78,10 +78,10 @@ func toItems(vs []string) []uint32 {
 	return arr
 }
 
-func ProcessFullItem(text string, decoder *codec.DecodeMaster) (error, bool) {
+func ProcessFullItem(text string, decoder *codec.DecodeMaster) (bool, error) {
 	vs := toItems(strings.Split(text, " "))
 	if len(vs) != 4 {
-		return inputErr, true
+		return true, inputErr
 	}
 
 	if vs[0]&1 == 0 {
@@ -92,10 +92,10 @@ func ProcessFullItem(text string, decoder *codec.DecodeMaster) (error, bool) {
 		packet_id := (vs[0] >> 9)
 		engIdx, ctx, engTy, ok := decoder.GetEngineInfo(vs[1])
 		if !ok {
-			return decodeErr, true
+			return true, decodeErr
 		}
-		fmt.Printf("%v %v %v event=%v pkt_id=%v\n",
-			engTy, engIdx, ctx, event, packet_id)
+		fmt.Printf("%-10v %-2v %-2v event=%-4v pid=%v start_cy=%v end_cy=%v\n",
+			engTy, engIdx, ctx, event, packet_id, vs[2], vs[3])
 	} else {
 		// uint32_t flag_ : 1;  // should be always 1
 		// uint32_t event_ : 7;
@@ -104,13 +104,13 @@ func ProcessFullItem(text string, decoder *codec.DecodeMaster) (error, bool) {
 		payload := (vs[0] >> 8)
 		engineIdx, engTy, ok := decoder.GetEngineInfoV2(vs[1])
 		if !ok {
-			return decodeErr, true
+			return true, decodeErr
 		}
-		fmt.Printf("%v %v event=%v payload=%v\n",
-			engTy, engineIdx, event, payload)
+		fmt.Printf("%-6v %-2v event=%v payload=%v start_cy=%v end_cy=%v\n",
+			engTy, engineIdx, event, payload, vs[2], vs[3])
 	}
 
-	return nil, true
+	return true, nil
 }
 
 func DecodeDpfItem() {
@@ -128,7 +128,7 @@ func DecodeDpfItem() {
 		}
 		text = strings.TrimSuffix(text, "\n")
 		if *fDecodeFull {
-			err, shallCont := ProcessFullItem(text, decoder)
+			shallCont, err := ProcessFullItem(text, decoder)
 			if nil != err {
 				errorCounter++
 			}
