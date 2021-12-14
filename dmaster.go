@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -13,14 +14,86 @@ import (
 )
 
 var (
+	inputErr     = errors.New("input format error")
+	decodeErr    = errors.New("decode error")
+	malItemError = errors.New("malformed item error")
+)
+
+type DpfItem struct {
+	RawVale [4]uint32
+
+	Flag     int
+	PacketID int
+	Event    int
+	Context  int
+	Payload  int
+	Cycle    uint64
+
+	EngineTy    string
+	EngineIndex int
+}
+
+func (d DpfItem) ToString() string {
+	if d.Flag == 0 {
+		return fmt.Sprintf("%-10v %-2v %-2v event=%-4v pid=%v ts=%08x",
+			d.EngineTy, d.EngineIndex, d.Context, d.Event, d.PacketID, d.Cycle)
+	}
+	return fmt.Sprintf("%-6v %-2v event=%v payload=%v ts=%08x",
+		d.EngineTy, d.EngineIndex, d.Event, d.Payload, d.Cycle)
+}
+
+func NewDpfItem(vals []uint32, decoder *codec.DecodeMaster) (DpfItem, error) {
+	if len(vals) != 4 {
+		panic(malItemError)
+	}
+	ts := uint64(vals[2]) + uint64(vals[3])<<32
+	if vals[0]&1 == 0 {
+		// uint32_t flag_ : 1;  // should be always 0
+		// uint32_t event_ : 8;
+		// uint32_t packet_id_ : 23;
+		event := (vals[0] >> 1) & 0xFF
+		packet_id := (vals[0] >> 9)
+		engIdx, ctx, engTy, ok := decoder.GetEngineInfo(vals[1])
+		if !ok {
+			return DpfItem{}, decodeErr
+		}
+
+		return DpfItem{
+			Flag:        0,
+			PacketID:    int(packet_id),
+			Event:       int(event),
+			Context:     ctx,
+			EngineTy:    engTy,
+			EngineIndex: engIdx,
+			Cycle:       ts,
+		}, nil
+
+	}
+	// uint32_t flag_ : 1;  // should be always 1
+	// uint32_t event_ : 7;
+	// uint32_t payload_ : 24;
+	event := (vals[0] >> 1) & 0x7F
+	payload := (vals[0] >> 8)
+	engineIdx, engTy, ok := decoder.GetEngineInfoV2(vals[1])
+	if !ok {
+		return DpfItem{}, decodeErr
+	}
+	return DpfItem{
+		Flag:        1,
+		Event:       int(event),
+		Payload:     int(payload),
+		EngineTy:    engTy,
+		EngineIndex: engineIdx,
+	}, nil
+}
+
+var (
 	fDebug      = flag.Bool("debug", false, "for debug output")
 	fArch       = flag.String("arch", "dorado", "hardware arch")
 	fDecodeFull = flag.Bool("decodefull", false, "decode all line")
-)
-
-var (
-	inputErr  = errors.New("input format error")
-	decodeErr = errors.New("decode error")
+	fSort       = flag.Bool("sort", false, "sort by order")
+	fCache      = flag.Bool("cached", false, "cache result")
+	fEng        = flag.String("eng", "", "engine to filter in")
 )
 
 func init() {
@@ -35,7 +108,40 @@ func init() {
 	}
 }
 
-func ProcessMasterText(text string, decoder *codec.DecodeMaster) bool {
+type Session struct {
+	items []DpfItem
+}
+
+type DpfItems []DpfItem
+
+func (d DpfItems) Len() int {
+	return len(d)
+}
+
+func (d DpfItems) Swap(i, j int) {
+	d[i], d[j] = d[j], d[i]
+}
+
+func (d DpfItems) Less(i, j int) bool {
+	lhs, rhs := d[i], d[j]
+	if lhs.PacketID != rhs.PacketID {
+		return lhs.PacketID < rhs.PacketID
+	}
+	if lhs.Event != rhs.Event {
+		return lhs.Event < rhs.Event
+	}
+	return lhs.Cycle < rhs.Cycle
+}
+
+func NewSession() *Session {
+	return &Session{}
+}
+
+func (sess *Session) AppendItem(newItem DpfItem) {
+	sess.items = append(sess.items, newItem)
+}
+
+func (sess *Session) ProcessMasterText(text string, decoder *codec.DecodeMaster) bool {
 	if strings.HasPrefix(text, "0x") || strings.HasPrefix(text, "0X") {
 		text = text[2:]
 	}
@@ -78,42 +184,39 @@ func toItems(vs []string) []uint32 {
 	return arr
 }
 
-func ProcessFullItem(text string, decoder *codec.DecodeMaster) (bool, error) {
+func (sess *Session) ProcessFullItem(text string, decoder *codec.DecodeMaster) (bool, error) {
 	vs := toItems(strings.Split(text, " "))
 	if len(vs) != 4 {
 		return true, inputErr
 	}
 
-	if vs[0]&1 == 0 {
-		// uint32_t flag_ : 1;  // should be always 0
-		// uint32_t event_ : 8;
-		// uint32_t packet_id_ : 23;
-		event := (vs[0] >> 1) & 0xFF
-		packet_id := (vs[0] >> 9)
-		engIdx, ctx, engTy, ok := decoder.GetEngineInfo(vs[1])
-		if !ok {
-			return true, decodeErr
-		}
-		fmt.Printf("%-10v %-2v %-2v event=%-4v pid=%v start_cy=%v end_cy=%v\n",
-			engTy, engIdx, ctx, event, packet_id, vs[2], vs[3])
-	} else {
-		// uint32_t flag_ : 1;  // should be always 1
-		// uint32_t event_ : 7;
-		// uint32_t payload_ : 24;
-		event := (vs[0] >> 1) & 0x7F
-		payload := (vs[0] >> 8)
-		engineIdx, engTy, ok := decoder.GetEngineInfoV2(vs[1])
-		if !ok {
-			return true, decodeErr
-		}
-		fmt.Printf("%-6v %-2v event=%v payload=%v start_cy=%v end_cy=%v\n",
-			engTy, engineIdx, event, payload, vs[2], vs[3])
+	item, err := NewDpfItem(vs, decoder)
+	if err != nil {
+		return true, err
 	}
-
+	if *fCache {
+		var toAdd = true
+		if len(*fEng) > 0 && !strings.HasPrefix(item.EngineTy, *fEng) {
+			toAdd = false
+		}
+		if toAdd {
+			sess.AppendItem(item)
+		}
+	} else {
+		fmt.Println(item.ToString())
+	}
+	if *fCache {
+		if *fSort {
+			sort.Sort(DpfItems(sess.items))
+		}
+		for _, v := range sess.items {
+			fmt.Println(v.ToString())
+		}
+	}
 	return true, nil
 }
 
-func DecodeDpfItem() {
+func DecodeDpfItem(sess *Session) {
 	reader := bufio.NewReader(os.Stdin)
 	decoder := codec.NewDecodeMaster(*fArch)
 	errorCounter := 0
@@ -128,7 +231,7 @@ func DecodeDpfItem() {
 		}
 		text = strings.TrimSuffix(text, "\n")
 		if *fDecodeFull {
-			shallCont, err := ProcessFullItem(text, decoder)
+			shallCont, err := sess.ProcessFullItem(text, decoder)
 			if nil != err {
 				errorCounter++
 			}
@@ -136,7 +239,7 @@ func DecodeDpfItem() {
 				break
 			}
 		} else {
-			if !ProcessMasterText(text, decoder) {
+			if !sess.ProcessMasterText(text, decoder) {
 				break
 			}
 		}
@@ -149,5 +252,6 @@ func DecodeDpfItem() {
 
 func main() {
 
-	DecodeDpfItem()
+	sess := NewSession()
+	DecodeDpfItem(sess)
 }
