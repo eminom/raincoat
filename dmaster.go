@@ -151,6 +151,7 @@ func (sess *Session) ProcessMasterText(text string, decoder *codec.DecodeMaster)
 		fmt.Printf("\n")
 		return true
 	}
+	text = strings.Trim(text, " ")
 	val, err := strconv.ParseUint(text, 16, 32)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error parse hex: %v\n", err)
@@ -169,12 +170,13 @@ func (sess *Session) ProcessMasterText(text string, decoder *codec.DecodeMaster)
 func toItems(vs []string) []uint32 {
 	var arr []uint32
 	for _, s := range vs {
+		s = strings.Trim(s, " ")
 		if strings.HasPrefix(s, "0x") || strings.HasPrefix(s, "0X") {
 			s = s[2:]
 		}
 		if len(s) <= 0 {
-			fmt.Fprintf(os.Stderr, "not a valid number in hex format")
-			return nil
+			// fmt.Fprintf(os.Stderr, "not a valid number in hex format: '%v'\n", s)
+			continue
 		}
 		val, err := strconv.ParseUint(s, 16, 32)
 		if err != nil {
