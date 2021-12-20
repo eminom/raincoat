@@ -26,11 +26,22 @@ type DpfItem struct {
 
 func (d DpfItem) ToString() string {
 	if d.Flag == 0 {
+		switch d.EngineTy {
+		case ENGINE_PCIE:
+			return fmt.Sprintf("%-10v %-10v ts=%08x",
+				d.EngineTy, d.RawVale[0]>>1, d.Cycle)
+		}
 		return fmt.Sprintf("%-10v %-2v %-2v event=%-4v pid=%v ts=%08x",
 			d.EngineTy, d.EngineIndex, d.Context, d.Event, d.PacketID, d.Cycle)
 	}
 	return fmt.Sprintf("%-6v %-2v event=%v payload=%v ts=%08x",
 		d.EngineTy, d.EngineIndex, d.Event, d.Payload, d.Cycle)
+}
+
+func copyFrom(vals []uint32) [4]uint32 {
+	var buff [4]uint32
+	copy(buff[:], vals)
+	return buff
 }
 
 func (decoder *DecodeMaster) NewDpfItem(vals []uint32) (DpfItem, error) {
@@ -50,6 +61,7 @@ func (decoder *DecodeMaster) NewDpfItem(vals []uint32) (DpfItem, error) {
 		}
 
 		return DpfItem{
+			RawVale:     copyFrom(vals),
 			Flag:        0,
 			PacketID:    int(packet_id),
 			Event:       int(event),
@@ -70,6 +82,7 @@ func (decoder *DecodeMaster) NewDpfItem(vals []uint32) (DpfItem, error) {
 		return DpfItem{}, decodeErr
 	}
 	return DpfItem{
+		RawVale:     copyFrom(vals),
 		Flag:        1,
 		Event:       int(event),
 		Payload:     int(payload),
