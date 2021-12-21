@@ -1,5 +1,11 @@
 #!/bin/bash
 
+# For example
+# zdmaster 0 noforce xdumpfile
+#   dump device 0 into xdumpfile
+# zdmaster 0 force
+# zdmaster 0 noforce
+
 EOPT="--nc"
 DEVID=$1
 FORCE=$2
@@ -49,5 +55,7 @@ PRODx4="0x$(python3 -c "print('%x' % (int('${PROD}', 16) * 4))")"
 
 echo \# dump dtu ${DEVID} from ${START} for ${PRODx4}
 
-sudo efsmt -d ${DEVID} -dmem dump ${START} ${PRODx4}|tail -n +6 | tee ${OUTNAME}
+#sudo efsmt -d ${DEVID} -dmem dump ${START} ${PRODx4}|tail -n +6 | tee ${OUTNAME}
+sudo efsmt -d ${DEVID} -dmem dump ${START} ${PRODx4} >  ${OUTNAME}
+
 echo dumped to ${OUTNAME}
