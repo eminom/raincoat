@@ -88,6 +88,7 @@ func (decoder *DecodeMaster) NewDpfItem(vals []uint32) (DpfItem, error) {
 		Payload:     int(payload),
 		EngineTy:    engTy,
 		EngineIndex: engineIdx,
+		Cycle:       ts,
 	}, nil
 }
 
