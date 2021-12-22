@@ -20,8 +20,9 @@ type DpfItem struct {
 	Payload  int
 	Cycle    uint64
 
-	EngineTy    string
-	EngineIndex int
+	EngineTy      string
+	EngineUniqIdx int
+	EngineIndex   int
 }
 
 func (d DpfItem) ToString() string {
@@ -55,20 +56,21 @@ func (decoder *DecodeMaster) NewDpfItem(vals []uint32) (DpfItem, error) {
 		// uint32_t packet_id_ : 23;
 		event := (vals[0] >> 1) & 0xFF
 		packet_id := (vals[0] >> 9)
-		engIdx, ctx, engTy, ok := decoder.GetEngineInfo(vals[1])
+		engIdx, ctx, engUniqIdx, ok := decoder.GetEngineInfo(vals[1])
 		if !ok {
 			return DpfItem{}, decodeErr
 		}
 
 		return DpfItem{
-			RawVale:     copyFrom(vals),
-			Flag:        0,
-			PacketID:    int(packet_id),
-			Event:       int(event),
-			Context:     ctx,
-			EngineTy:    engTy,
-			EngineIndex: engIdx,
-			Cycle:       ts,
+			RawVale:       copyFrom(vals),
+			Flag:          0,
+			PacketID:      int(packet_id),
+			Event:         int(event),
+			Context:       ctx,
+			EngineUniqIdx: engUniqIdx,
+			EngineTy:      decoder.EngUniqueIndexToTypeName(engUniqIdx),
+			EngineIndex:   engIdx,
+			Cycle:         ts,
 		}, nil
 
 	}
@@ -77,18 +79,19 @@ func (decoder *DecodeMaster) NewDpfItem(vals []uint32) (DpfItem, error) {
 	// uint32_t payload_ : 24;
 	event := (vals[0] >> 1) & 0x7F
 	payload := (vals[0] >> 8)
-	engineIdx, engTy, ok := decoder.GetEngineInfoV2(vals[1])
+	engineIdx, engUniqIdx, ok := decoder.GetEngineInfoV2(vals[1])
 	if !ok {
 		return DpfItem{}, decodeErr
 	}
 	return DpfItem{
-		RawVale:     copyFrom(vals),
-		Flag:        1,
-		Event:       int(event),
-		Payload:     int(payload),
-		EngineTy:    engTy,
-		EngineIndex: engineIdx,
-		Cycle:       ts,
+		RawVale:       copyFrom(vals),
+		Flag:          1,
+		Event:         int(event),
+		Payload:       int(payload),
+		EngineUniqIdx: engUniqIdx,
+		EngineTy:      decoder.EngUniqueIndexToTypeName(engUniqIdx),
+		EngineIndex:   engineIdx,
+		Cycle:         ts,
 	}, nil
 }
 

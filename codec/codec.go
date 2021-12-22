@@ -35,12 +35,44 @@ type DpfEngineT struct {
 	MasterHi  int
 	MasterLo  int
 	EngineId  int
-	EnTy      string
+	EngType   string
+}
+
+func (d DpfEngineT) UniqueEngIdx() int {
+	return d.MasterLo | (d.MasterHi << 5)
+}
+
+type EngineTypeIndexMap struct {
+	fromIdxToString map[int]string
+}
+
+func newEngineTypeIndexMap(infos []DpfEngineT) EngineTypeIndexMap {
+	fromIdxToString := make(map[int]string)
+	for _, info := range infos {
+		u := info.UniqueEngIdx()
+		if _, ok := fromIdxToString[u]; ok {
+			panic("invalid engine index value: duplicated")
+		}
+		fromIdxToString[u] = info.EngType
+	}
+	return EngineTypeIndexMap{
+		fromIdxToString: fromIdxToString,
+	}
+}
+
+func (e EngineTypeIndexMap) Lookup(engineUniqIdx int) string {
+	if nameStr, ok := e.fromIdxToString[engineUniqIdx]; ok {
+		return nameStr
+	}
+	return "Unknown"
 }
 
 var (
 	doradoDpfTy []DpfEngineT
 	pavoDpfTy   []DpfEngineT
+
+	doradoEngIdxMap EngineTypeIndexMap
+	pavoEngIdxMap   EngineTypeIndexMap
 )
 
 func init() {
@@ -235,45 +267,57 @@ func init() {
 		// make sure this is the last one
 		{-1, -1, -1, -1, ENGINE_UNKNOWN},
 	}
+
+	// Build from this descriptive lang
+	doradoEngIdxMap = newEngineTypeIndexMap(doradoDpfTy)
+	pavoEngIdxMap = newEngineTypeIndexMap(pavoDpfTy)
 }
 
-func getEngInfo(lo, hi int, dpfInfo []DpfEngineT) (int, string) {
+func getEngInfo(lo, hi int, dpfInfo []DpfEngineT) (int, int) {
 	for _, item := range dpfInfo {
 		if item.MasterLo == lo && item.MasterHi == hi {
-			return item.EngineId, item.EnTy
+			return item.EngineId, item.UniqueEngIdx()
 		}
 	}
-	return -1, ENGINE_UNKNOWN
+	return -1, -1
 }
 
-func GetEngInfoDorado(lo, hi int64) (int, string) {
+func GetEngInfoDorado(lo, hi int64) (int, int) {
 	return getEngInfo(int(lo), int(hi), doradoDpfTy)
 }
 
-func GetEngInfoPavo(lo, hi int64) (int, string) {
+func GetEngInfoPavo(lo, hi int64) (int, int) {
 	return getEngInfo(int(lo), int(hi), pavoDpfTy)
 }
 
 type DecodeMaster struct {
-	Arch    string
-	decoder func(int64, int64) (int, string)
+	Arch            string
+	decoder         func(int64, int64) (int, int)
+	engIdxToNameMap EngineTypeIndexMap
 }
 
 func NewDecodeMaster(arch string) *DecodeMaster {
-	var decoder func(int64, int64) (int, string)
+	var decoder func(int64, int64) (int, int)
+	var engIdxNameMap EngineTypeIndexMap
 	switch arch {
 	case "pavo":
 		decoder = GetEngInfoPavo
+		engIdxNameMap = pavoEngIdxMap
 	case "dorado":
 		decoder = GetEngInfoDorado
+		engIdxNameMap = doradoEngIdxMap
 	default:
 		return nil
 	}
 	return &DecodeMaster{
-		Arch:    arch,
-		decoder: decoder,
+		Arch:            arch,
+		decoder:         decoder,
+		engIdxToNameMap: engIdxNameMap,
 	}
+}
 
+func (md *DecodeMaster) EngUniqueIndexToTypeName(engineUniqIdx int) string {
+	return md.engIdxToNameMap.Lookup(engineUniqIdx)
 }
 
 /*
@@ -285,16 +329,16 @@ func NewDecodeMaster(arch string) *DecodeMaster {
 
 // return value
 func (md *DecodeMaster) GetEngineInfo(val uint32) (engineIdx int,
-	ctxIdx int, engineType string, ok bool) {
+	ctxIdx int, engineUniqueIndex int, ok bool) {
 	reserved_1 := (val >> 10) & 3
 	reserved_2 := (val >> 16) & 0xFFFF
 	if reserved_1 != 0 || reserved_2 != 0 {
 		return
 	}
-	lo, hi := int64(val&0x1f), int64(((val >> 5) & 0x1f))
 	ctxIdx = int((val >> 12) & 0xF)
-	engineIdx, engineType = md.decoder(lo, hi)
-	ok = true
+	lo, hi := int64(val&0x1f), int64(((val >> 5) & 0x1f))
+	engineIdx, engineUniqueIndex = md.decoder(lo, hi)
+	ok = engineUniqueIndex >= 0
 	return
 }
 
@@ -303,13 +347,13 @@ func (md *DecodeMaster) GetEngineInfo(val uint32) (engineIdx int,
 // uint32_t reserved_ : 22;
 */
 func (md *DecodeMaster) GetEngineInfoV2(val uint32) (engineIdx int,
-	engineType string, ok bool) {
+	engineUniqueIndex int, ok bool) {
 	reserved := (val >> 10)
 	if reserved != 0 {
 		return
 	}
 	lo, hi := int64(val&0x1f), int64(((val >> 5) & 0x1f))
-	engineIdx, engineType = md.decoder(lo, hi)
-	ok = true
+	engineIdx, engineUniqueIndex = md.decoder(lo, hi)
+	ok = engineUniqueIndex >= 0
 	return
 }
