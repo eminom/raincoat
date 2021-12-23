@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"os"
 
+	"git.enflame.cn/hai.bai/dmaster/algo"
 	"git.enflame.cn/hai.bai/dmaster/codec"
 	"git.enflame.cn/hai.bai/dmaster/sess"
+	"git.enflame.cn/hai.bai/dmaster/utils"
 )
 
 var (
@@ -32,6 +34,25 @@ func init() {
 	}
 }
 
+func DoProcess(sess *sess.Session) {
+	cqmOpDbgCount := 0
+	allCount := 0
+	qm := utils.NewCqmEventQueue(algo.NewAlgo1())
+	doFunc := func(evt codec.DpfEvent) {
+		allCount++
+		if codec.IsCqmOpEvent(evt) {
+			if err := qm.PutEvent(evt); err != nil {
+				fmt.Fprintf(os.Stderr, "%v\n", err)
+			}
+			cqmOpDbgCount++
+		}
+	}
+	sess.EmitForEach(doFunc)
+	fmt.Printf("op debug event count %v\n", cqmOpDbgCount)
+	fmt.Printf("event %v(0x%x) in all\n", allCount, allCount)
+	qm.DumpInfo()
+}
+
 func main() {
 	sess := sess.NewSession(sess.SessionOpt{
 		Debug:        *fDebug,
@@ -51,19 +72,6 @@ func main() {
 	}
 
 	if *fProc {
-		cqmCount := 0
-		allCount := 0
-		doFunc := func(evt codec.DpfEvent) {
-			allCount++
-			switch evt.EngineTypeCode {
-			case codec.EngCat_CQM:
-				fmt.Printf("=> %v\n", evt.ToString())
-				cqmCount++
-			default:
-				fmt.Fprintf(os.Stderr, "unrecoginized: %v\n", evt.EngineTypeCode.ToString())
-			}
-		}
-		sess.EmitForEach(doFunc)
-		fmt.Printf("%v in all\n", allCount)
+		DoProcess(sess)
 	}
 }

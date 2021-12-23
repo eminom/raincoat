@@ -9,4 +9,9 @@ make
 
 #echo decode for ${INF}
 INF="raw_dpf.bin"
-$(pwd)/build/dmaster -proc ${INF}> process.txt
+OUT="process.txt"
+$(pwd)/build/dmaster -proc ${INF} | tee ${OUT}
+
+if [[ x$? == x0 ]]; then
+  echo result save to ${OUT}
+fi

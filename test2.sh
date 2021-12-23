@@ -9,4 +9,9 @@ make
 
 #echo decode for ${INF}
 INF="raw_dpf.bin"
-$(pwd)/build/dmaster -dump -raw ${INF} | tee result.txt
+OUT="result.txt"
+$(pwd)/build/dmaster -dump -raw ${INF} > ${OUT}
+
+if [[ x$? == x0 ]]; then
+  echo result save to ${OUT}
+fi
