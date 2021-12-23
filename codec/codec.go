@@ -1,6 +1,7 @@
 package codec
 
 /*
+Descriptive in C++
 
 typedef struct {
   int32_t cluster_id;
@@ -320,14 +321,11 @@ func (md *DecodeMaster) EngUniqueIndexToTypeName(engineUniqIdx int) string {
 	return md.engIdxToNameMap.Lookup(engineUniqIdx)
 }
 
-/*
-  uint32_t master_id_ : 10;
-  uint32_t reserved1_ : 2;
-  uint32_t context_id_ : 4;
-  uint32_t reserved2_ : 16;
-*/
-
-// return value
+// Format V1: flag = 0
+//   master_id_ : 10;
+//   reserved1_ : 2;
+//   context_id_ : 4;
+//   reserved2_ : 16;
 func (md *DecodeMaster) GetEngineInfo(val uint32) (engineIdx int,
 	ctxIdx int, engineUniqueIndex int, ok bool) {
 	reserved_1 := (val >> 10) & 3
@@ -342,10 +340,9 @@ func (md *DecodeMaster) GetEngineInfo(val uint32) (engineIdx int,
 	return
 }
 
-/*
-// uint32_t master_id_ : 10;
-// uint32_t reserved_ : 22;
-*/
+// Format V2: flag = 1
+// master_id_ : 10;
+// reserved_ : 22;
 func (md *DecodeMaster) GetEngineInfoV2(val uint32) (engineIdx int,
 	engineUniqueIndex int, ok bool) {
 	reserved := (val >> 10)
