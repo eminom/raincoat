@@ -27,7 +27,7 @@ func init() {
 	case "dorado":
 	default:
 		fmt.Fprintf(os.Stderr, "unknown arch %v\n", *fArch)
-		os.Exit(0)
+		os.Exit(1)
 	}
 }
 
@@ -38,15 +38,14 @@ func main() {
 		DecodeFull:   *fDecodeFull,
 		EngineFilter: *fEng,
 	})
-
 	decoder := codec.NewDecodeMaster(*fArch)
 	if len(flag.Args()) > 0 {
 		filename := flag.Args()[0]
 		sess.DecodeFromFile(filename, decoder)
-		if *fDump {
-			sess.PrintItems(*fRaw)
-		}
 	} else {
 		sess.DecodeFromTextStream(os.Stdin, decoder)
+	}
+	if *fDump {
+		sess.PrintItems(*fRaw)
 	}
 }

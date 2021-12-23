@@ -14,7 +14,7 @@ import (
 )
 
 var (
-	inputErr = errors.New("input error")
+	errInputValue = errors.New("input error")
 )
 
 type SessionOpt struct {
@@ -30,7 +30,7 @@ type Session struct {
 }
 
 func NewSession(sessOpt SessionOpt) *Session {
-	return &Session{}
+	return &Session{sessOpt: sessOpt}
 }
 
 func (sess *Session) AppendItem(newItem codec.DpfItem) {
@@ -91,7 +91,7 @@ func (sess *Session) ProcessFullItem(
 ) (bool, error) {
 	vs := toItems(strings.Split(text, " "))
 	if len(vs) != 4 {
-		return true, inputErr
+		return true, errInputValue
 	}
 	return sess.ProcessItems(vs, offsetIdx, decoder)
 }
