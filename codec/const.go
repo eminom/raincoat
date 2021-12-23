@@ -5,6 +5,11 @@ const (
 	CqmEventOpEnd   = 8
 )
 
+const (
+	TsLaunchCqmStart = 23
+	TsLaunchCqmEnd   = 22
+)
+
 func IsCqmOpEvent(evt DpfEvent) bool {
 	return evt.EngineTypeCode == EngCat_CQM &&
 		(evt.Event == CqmEventOpStart || evt.Event == CqmEventOpEnd)

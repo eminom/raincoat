@@ -35,7 +35,9 @@ func (q *CqmEventQueue) PutEvent(este codec.DpfEvent) error {
 		q.distr[index].AppendNode(este)
 		return nil
 	}
-	if start := q.distr[index].Extract(este); start != nil {
+	if start := q.distr[index].Extract(func(one codec.DpfEvent) bool {
+		return one.PacketID+1 == este.PacketID
+	}); start != nil {
 		q.acts = append(q.acts, DpfAct{
 			Start: *start,
 			End:   este,

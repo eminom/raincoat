@@ -25,11 +25,15 @@ func (l *Lnk) AppendNode(d codec.DpfEvent) {
 	l.elCount++
 }
 
-func (l *Lnk) Extract(target codec.DpfEvent) *codec.DpfEvent {
+func (l Lnk) ElementCount() int {
+	return l.elCount
+}
+
+func (l *Lnk) Extract(tester func(codec.DpfEvent) bool) *codec.DpfEvent {
 	var prev = &l.head
 	var start *codec.DpfEvent
 	for ptr := l.head.Next; ptr != nil; ptr = ptr.Next {
-		if ptr.dpfEvent.PacketID+1 == target.PacketID {
+		if tester(ptr.dpfEvent) {
 			start = &ptr.dpfEvent
 			prev.Next = ptr.Next
 			if l.tail == ptr {
@@ -49,4 +53,11 @@ func NewLnkArray(num int) []Lnk {
 		distr[i].DoInit()
 	}
 	return distr
+}
+
+// Do not return Lnk
+func NewLnkHead() *Lnk {
+	var rv Lnk
+	rv.DoInit()
+	return &rv
 }
