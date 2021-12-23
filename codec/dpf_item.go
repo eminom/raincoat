@@ -11,7 +11,7 @@ var (
 )
 
 type DpfItem struct {
-	RawVale [4]uint32
+	RawValue [4]uint32
 
 	Flag     int
 	PacketID int
@@ -23,6 +23,8 @@ type DpfItem struct {
 	EngineTy      string
 	EngineUniqIdx int
 	EngineIndex   int
+
+	OffsetIndex int
 }
 
 func (d DpfItem) ToString() string {
@@ -30,13 +32,20 @@ func (d DpfItem) ToString() string {
 		switch d.EngineTy {
 		case ENGINE_PCIE:
 			return fmt.Sprintf("%-10v %-10v ts=%08x",
-				d.EngineTy, d.RawVale[0]>>1, d.Cycle)
+				d.EngineTy, d.RawValue[0]>>1, d.Cycle)
 		}
 		return fmt.Sprintf("%-10v %-2v %-2v event=%-4v pid=%v ts=%08x",
 			d.EngineTy, d.EngineIndex, d.Context, d.Event, d.PacketID, d.Cycle)
 	}
 	return fmt.Sprintf("%-6v %-2v event=%v payload=%v ts=%08x",
 		d.EngineTy, d.EngineIndex, d.Event, d.Payload, d.Cycle)
+}
+
+func (d DpfItem) RawRepr() string {
+	return fmt.Sprintf("[%08x: %08x %08x %08x %08x]",
+		d.OffsetIndex*16,
+		d.RawValue[0], d.RawValue[1],
+		d.RawValue[2], d.RawValue[3])
 }
 
 func copyFrom(vals []uint32) [4]uint32 {
@@ -59,7 +68,7 @@ func (decoder *DecodeMaster) createFormatV1(vals []uint32) (DpfItem, error) {
 	}
 
 	return DpfItem{
-		RawVale:       copyFrom(vals),
+		RawValue:      copyFrom(vals),
 		Flag:          0,
 		PacketID:      int(packet_id),
 		Event:         int(event),
@@ -84,7 +93,7 @@ func (decoder *DecodeMaster) createFormatV2(vals []uint32) (DpfItem, error) {
 		return DpfItem{}, errDpfItemDecodeErr
 	}
 	return DpfItem{
-		RawVale:       copyFrom(vals),
+		RawValue:      copyFrom(vals),
 		Flag:          1,
 		Event:         int(event),
 		Payload:       int(payload),
@@ -95,14 +104,21 @@ func (decoder *DecodeMaster) createFormatV2(vals []uint32) (DpfItem, error) {
 	}, nil
 }
 
-func (decoder *DecodeMaster) NewDpfItem(vals []uint32) (DpfItem, error) {
+func (decoder *DecodeMaster) NewDpfEvent(
+	vals []uint32,
+	offsetIdx int,
+) (DpfItem, error) {
 	if len(vals) != 4 {
 		panic(errMalFormattedError)
 	}
 	if vals[0]&1 == 0 {
-		return decoder.createFormatV1(vals)
+		rv, err := decoder.createFormatV1(vals)
+		rv.OffsetIndex = offsetIdx
+		return rv, err
 	}
-	return decoder.createFormatV2(vals)
+	rv, err := decoder.createFormatV2(vals)
+	rv.OffsetIndex = offsetIdx
+	return rv, err
 }
 
 type DpfItems []DpfItem

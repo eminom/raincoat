@@ -14,8 +14,10 @@ var (
 	fArch       = flag.String("arch", "dorado", "hardware arch")
 	fDecodeFull = flag.Bool("decodefull", false, "decode all line")
 	fSort       = flag.Bool("sort", false, "sort by order")
-	fCache      = flag.Bool("cached", false, "cache result")
+	fCache      = flag.Bool("cached", true, "cache result")
 	fEng        = flag.String("eng", "", "engine to filter in")
+	fDump       = flag.Bool("dump", false, "decode file and dump to stdout")
+	fRaw        = flag.Bool("raw", false, "dump raw value")
 )
 
 func init() {
@@ -43,7 +45,10 @@ func main() {
 	if len(flag.Args()) > 0 {
 		filename := flag.Args()[0]
 		sess.DecodeFromFile(filename, decoder)
+		if *fDump {
+			sess.PrintItems(*fRaw)
+		}
 	} else {
-		sess.DecodeDpfItem(decoder)
+		sess.DecodeFromTextStream(os.Stdin, decoder)
 	}
 }

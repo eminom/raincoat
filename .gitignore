@@ -2,3 +2,6 @@ dmaster.tar.gz
 *.dump
 dmaster
 /build
+libprofile.data
+result.txt
+
