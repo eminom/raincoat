@@ -10,7 +10,7 @@ var (
 	errDpfItemDecodeErr  = errors.New("decode error")
 )
 
-type DpfItem struct {
+type DpfEvent struct {
 	RawValue [4]uint32
 
 	Flag     int
@@ -27,7 +27,7 @@ type DpfItem struct {
 	OffsetIndex int
 }
 
-func (d DpfItem) ToString() string {
+func (d DpfEvent) ToString() string {
 	if d.Flag == 0 {
 		switch d.EngineTy {
 		case ENGINE_PCIE:
@@ -41,7 +41,7 @@ func (d DpfItem) ToString() string {
 		d.EngineTy, d.EngineIndex, d.Event, d.Payload, d.Cycle)
 }
 
-func (d DpfItem) RawRepr() string {
+func (d DpfEvent) RawRepr() string {
 	return fmt.Sprintf("[%08x: %08x %08x %08x %08x]",
 		d.OffsetIndex*16,
 		d.RawValue[0], d.RawValue[1],
@@ -55,7 +55,7 @@ func copyFrom(vals []uint32) [4]uint32 {
 }
 
 // helper API for format V1
-func (decoder *DecodeMaster) createFormatV1(vals []uint32) (DpfItem, error) {
+func (decoder *DecodeMaster) createFormatV1(vals []uint32) (DpfEvent, error) {
 	ts := uint64(vals[2]) + uint64(vals[3])<<32
 	// flag_ : 1;  // should be always 0
 	// event_ : 8;
@@ -64,10 +64,10 @@ func (decoder *DecodeMaster) createFormatV1(vals []uint32) (DpfItem, error) {
 	packet_id := (vals[0] >> 9)
 	engIdx, ctx, engUniqIdx, ok := decoder.GetEngineInfo(vals[1])
 	if !ok {
-		return DpfItem{}, errDpfItemDecodeErr
+		return DpfEvent{}, errDpfItemDecodeErr
 	}
 
-	return DpfItem{
+	return DpfEvent{
 		RawValue:      copyFrom(vals),
 		Flag:          0,
 		PacketID:      int(packet_id),
@@ -81,7 +81,7 @@ func (decoder *DecodeMaster) createFormatV1(vals []uint32) (DpfItem, error) {
 }
 
 // helper API for format V2
-func (decoder *DecodeMaster) createFormatV2(vals []uint32) (DpfItem, error) {
+func (decoder *DecodeMaster) createFormatV2(vals []uint32) (DpfEvent, error) {
 	// flag_ : 1; // should always be 1
 	// event_ : 7;
 	// payload_ : 24;
@@ -90,9 +90,9 @@ func (decoder *DecodeMaster) createFormatV2(vals []uint32) (DpfItem, error) {
 	payload := (vals[0] >> 8)
 	engineIdx, engUniqIdx, ok := decoder.GetEngineInfoV2(vals[1])
 	if !ok {
-		return DpfItem{}, errDpfItemDecodeErr
+		return DpfEvent{}, errDpfItemDecodeErr
 	}
-	return DpfItem{
+	return DpfEvent{
 		RawValue:      copyFrom(vals),
 		Flag:          1,
 		Event:         int(event),
@@ -107,7 +107,7 @@ func (decoder *DecodeMaster) createFormatV2(vals []uint32) (DpfItem, error) {
 func (decoder *DecodeMaster) NewDpfEvent(
 	vals []uint32,
 	offsetIdx int,
-) (DpfItem, error) {
+) (DpfEvent, error) {
 	if len(vals) != 4 {
 		panic(errMalFormattedError)
 	}
@@ -121,7 +121,7 @@ func (decoder *DecodeMaster) NewDpfEvent(
 	return rv, err
 }
 
-type DpfItems []DpfItem
+type DpfItems []DpfEvent
 
 func (d DpfItems) Len() int {
 	return len(d)

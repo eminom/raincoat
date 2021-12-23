@@ -25,7 +25,7 @@ type SessionOpt struct {
 }
 
 type Session struct {
-	items   []codec.DpfItem
+	items   []codec.DpfEvent
 	sessOpt SessionOpt
 }
 
@@ -33,7 +33,7 @@ func NewSession(sessOpt SessionOpt) *Session {
 	return &Session{sessOpt: sessOpt}
 }
 
-func (sess *Session) AppendItem(newItem codec.DpfItem) {
+func (sess *Session) AppendItem(newItem codec.DpfEvent) {
 	sess.items = append(sess.items, newItem)
 }
 
@@ -200,5 +200,11 @@ func (sess Session) PrintItems(printRaw bool) {
 		for _, v := range sess.items {
 			fmt.Println(v.ToString())
 		}
+	}
+}
+
+func (sess Session) EmitForEach(doFunc func(event codec.DpfEvent)) {
+	for _, v := range sess.items {
+		doFunc(v)
 	}
 }
