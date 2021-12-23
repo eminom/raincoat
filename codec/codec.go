@@ -326,8 +326,13 @@ func (md *DecodeMaster) EngUniqueIndexToTypeName(engineUniqIdx int) string {
 //   reserved1_ : 2;
 //   context_id_ : 4;
 //   reserved2_ : 16;
-func (md *DecodeMaster) GetEngineInfo(val uint32) (engineIdx int,
-	ctxIdx int, engineUniqueIndex int, ok bool) {
+func (md *DecodeMaster) GetEngineInfo(val uint32) (
+	engineIdx int,
+	engineUniqueIndex int,
+	ctxIdx int,
+	ok bool,
+) {
+	engineIdx, engineUniqueIndex, ctxIdx = -1, -1, -1
 	reserved_1 := (val >> 10) & 3
 	reserved_2 := (val >> 16) & 0xFFFF
 	if reserved_1 != 0 || reserved_2 != 0 {
@@ -345,6 +350,7 @@ func (md *DecodeMaster) GetEngineInfo(val uint32) (engineIdx int,
 // reserved_ : 22;
 func (md *DecodeMaster) GetEngineInfoV2(val uint32) (engineIdx int,
 	engineUniqueIndex int, ok bool) {
+	engineIdx, engineUniqueIndex = -1, -1
 	reserved := (val >> 10)
 	if reserved != 0 {
 		return
