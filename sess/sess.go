@@ -44,7 +44,6 @@ func (sess *Session) ProcessMasterText(text string, decoder *codec.DecodeMaster)
 		text = text[2:]
 	}
 	if len(text) <= 0 {
-		fmt.Printf("\n")
 		return true
 	}
 	text = strings.Trim(text, " ")
@@ -58,8 +57,7 @@ func (sess *Session) ProcessMasterText(text string, decoder *codec.DecodeMaster)
 		fmt.Fprintf(os.Stderr, "decode error for 0x%08x\n", val)
 		return false
 	}
-	fmt.Printf("%08x  %v %v %v", val, engineType, engineId, ctx)
-	fmt.Printf("\n")
+	fmt.Printf("%08x  %v %v %v\n", val, engineType, engineId, ctx)
 	return true
 }
 
@@ -158,10 +156,8 @@ func (sess *Session) DecodeFromTextStream(
 func (sess *Session) DecodeFromFile(filename string,
 	decoder *codec.DecodeMaster,
 ) {
-	// fmt.Printf("Processing %v\n", filename)
 	// realpath, e2 := os.Readlink(filename)
 	// if nil == e2 {
-	// 	fmt.Printf("read from %v\n", realpath)
 	// 	filename = realpath
 	// }
 	chunk, err := os.ReadFile(filename)
