@@ -14,7 +14,6 @@ var (
 	fArch       = flag.String("arch", "dorado", "hardware arch")
 	fDecodeFull = flag.Bool("decodefull", false, "decode all line")
 	fSort       = flag.Bool("sort", false, "sort by order")
-	fCache      = flag.Bool("cached", true, "cache result")
 	fEng        = flag.String("eng", "", "engine to filter in")
 	fDump       = flag.Bool("dump", false, "decode file and dump to stdout")
 	fRaw        = flag.Bool("raw", false, "dump raw value")
@@ -36,7 +35,6 @@ func main() {
 	sess := sess.NewSession(sess.SessionOpt{
 		Debug:        *fDebug,
 		Sort:         *fSort,
-		Cached:       *fCache,
 		DecodeFull:   *fDecodeFull,
 		EngineFilter: *fEng,
 	})

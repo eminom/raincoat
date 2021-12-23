@@ -18,7 +18,6 @@ var (
 )
 
 type SessionOpt struct {
-	Cached       bool
 	EngineFilter string
 	Debug        bool
 	DecodeFull   bool
