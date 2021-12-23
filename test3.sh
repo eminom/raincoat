@@ -9,4 +9,4 @@ make
 
 #echo decode for ${INF}
 INF="raw_dpf.bin"
-$(pwd)/build/dmaster -dump -raw ${INF} | tee result.txt
+$(pwd)/build/dmaster -proc ${INF}> process.txt

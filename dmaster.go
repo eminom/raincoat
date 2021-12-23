@@ -17,6 +17,7 @@ var (
 	fEng        = flag.String("eng", "", "engine to filter in")
 	fDump       = flag.Bool("dump", false, "decode file and dump to stdout")
 	fRaw        = flag.Bool("raw", false, "dump raw value")
+	fProc       = flag.Bool("proc", false, "post-processing")
 )
 
 func init() {
@@ -47,5 +48,22 @@ func main() {
 	}
 	if *fDump {
 		sess.PrintItems(*fRaw)
+	}
+
+	if *fProc {
+		cqmCount := 0
+		allCount := 0
+		doFunc := func(evt codec.DpfEvent) {
+			allCount++
+			switch evt.EngineTypeCode {
+			case codec.EngCat_CQM:
+				fmt.Printf("=> %v\n", evt.ToString())
+				cqmCount++
+			default:
+				fmt.Fprintf(os.Stderr, "unrecoginized: %v\n", evt.EngineTypeCode.ToString())
+			}
+		}
+		sess.EmitForEach(doFunc)
+		fmt.Printf("%v in all\n", allCount)
 	}
 }

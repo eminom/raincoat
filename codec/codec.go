@@ -360,3 +360,86 @@ func (md *DecodeMaster) GetEngineInfoV2(val uint32) (engineIdx int,
 	ok = engineUniqueIndex >= 0
 	return
 }
+
+type EngineTypeCode int
+
+const (
+	EngCat_SIP EngineTypeCode = iota + 100
+	EngCat_SDMA
+	EngCat_CDMA
+	EngCat_CQM
+	EngCat_GSYNC
+	EngCat_SIP_LITE
+	EngCat_SDMA_LITE
+	EngCat_CDMA_LITE
+	EngCat_PCIE
+	EngCat_TS
+	EngCat_ODMA
+	EngCat_HCVG
+	EngCat_VDEC
+	EngCat_UNKNOWN
+)
+
+func ToEngineTypeCode(engingDesc string) EngineTypeCode {
+	switch engingDesc {
+	case ENGINE_SIP:
+		return EngCat_SIP
+	case ENGINE_SDMA:
+		return EngCat_SDMA
+	case ENGINE_CDMA:
+		return EngCat_CDMA
+	case ENGINE_CQM:
+		return EngCat_CQM
+	case ENGINE_GSYNC:
+		return EngCat_GSYNC
+	case ENGINE_SIP_LITE:
+		return EngCat_SIP_LITE
+	case ENGINE_SDMA_LITE:
+		return EngCat_SDMA_LITE
+	case ENGINE_CDMA_LITE:
+		return EngCat_CDMA_LITE
+	case ENGINE_PCIE:
+		return EngCat_PCIE
+	case ENGINE_TS:
+		return EngCat_TS
+	case ENGINE_ODMA:
+		return EngCat_ODMA
+	case ENGINE_HCVG:
+		return EngCat_HCVG
+	case ENGINE_VDEC:
+		return EngCat_VDEC
+	}
+	return EngCat_UNKNOWN
+}
+
+func (e EngineTypeCode) ToString() string {
+	switch e {
+	case EngCat_SIP:
+		return ENGINE_SIP
+	case EngCat_SDMA:
+		return ENGINE_SDMA
+	case EngCat_CDMA:
+		return ENGINE_CDMA
+	case EngCat_CQM:
+		return ENGINE_CQM
+	case EngCat_GSYNC:
+		return ENGINE_GSYNC
+	case EngCat_SIP_LITE:
+		return ENGINE_SIP_LITE
+	case EngCat_SDMA_LITE:
+		return ENGINE_SDMA_LITE
+	case EngCat_CDMA_LITE:
+		return ENGINE_CDMA_LITE
+	case EngCat_PCIE:
+		return ENGINE_PCIE
+	case EngCat_TS:
+		return ENGINE_TS
+	case EngCat_ODMA:
+		return ENGINE_ODMA
+	case EngCat_HCVG:
+		return ENGINE_HCVG
+	case EngCat_VDEC:
+		return ENGINE_VDEC
+	}
+	return ENGINE_UNKNOWN
+}

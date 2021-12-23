@@ -24,7 +24,8 @@ type DpfEvent struct {
 	EngineUniqIdx int
 	EngineIndex   int
 
-	OffsetIndex int
+	OffsetIndex    int
+	EngineTypeCode EngineTypeCode
 }
 
 func (d DpfEvent) ToString() string {
@@ -62,11 +63,10 @@ func (decoder *DecodeMaster) createFormatV1(vals []uint32) (DpfEvent, error) {
 	// packet_id_ : 23;
 	event := (vals[0] >> 1) & 0xFF
 	packet_id := (vals[0] >> 9)
-	engIdx, ctx, engUniqIdx, ok := decoder.GetEngineInfo(vals[1])
+	engIdx, engUniqIdx, ctx, ok := decoder.GetEngineInfo(vals[1])
 	if !ok {
 		return DpfEvent{}, errDpfItemDecodeErr
 	}
-
 	return DpfEvent{
 		RawValue:      copyFrom(vals),
 		Flag:          0,
@@ -107,18 +107,19 @@ func (decoder *DecodeMaster) createFormatV2(vals []uint32) (DpfEvent, error) {
 func (decoder *DecodeMaster) NewDpfEvent(
 	vals []uint32,
 	offsetIdx int,
-) (DpfEvent, error) {
+) (dpf DpfEvent, err error) {
 	if len(vals) != 4 {
 		panic(errMalFormattedError)
 	}
-	if vals[0]&1 == 0 {
-		rv, err := decoder.createFormatV1(vals)
-		rv.OffsetIndex = offsetIdx
-		return rv, err
-	}
-	rv, err := decoder.createFormatV2(vals)
-	rv.OffsetIndex = offsetIdx
-	return rv, err
+	dpf, err = func() (DpfEvent, error) {
+		if vals[0]&1 == 0 {
+			return decoder.createFormatV1(vals)
+		}
+		return decoder.createFormatV2(vals)
+	}()
+	dpf.OffsetIndex = offsetIdx
+	dpf.EngineTypeCode = ToEngineTypeCode(dpf.EngineTy)
+	return
 }
 
 type DpfItems []DpfEvent
