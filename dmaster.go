@@ -63,6 +63,7 @@ func DoProcess(sess *sess.Session) {
 	fmt.Printf("event %v(0x%x) in all\n", allCount, allCount)
 	qm.DumpInfo()
 	if rtDict != nil {
+		rtDict.LoadMeta("/home/hai.bai/data16/meta")
 		rtDict.DumpInfo()
 	}
 }
