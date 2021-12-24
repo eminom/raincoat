@@ -49,6 +49,24 @@ func (q *CqmEventQueue) PutEvent(este codec.DpfEvent) error {
 
 func (q CqmEventQueue) DumpInfo() {
 	fmt.Printf("%v acts found\n", len(q.acts))
+
+	chDictInAll := make(map[int]int)
+	for _, v := range q.acts {
+		index := q.algo.MapToChan(
+			v.Start.EngineIndex,
+			v.Start.Context,
+		)
+		chDictInAll[index]++
+	}
+
+	fmt.Printf("Cqm Op debug packet distribution:\n")
+	for index, count := range chDictInAll {
+		engId, ctx := q.algo.DecodeChan(index)
+		fmt.Printf(" Cqm(%v) ctx(%v) count: %v\n",
+			engId, ctx, count,
+		)
+	}
+
 	for ch, v := range q.distr {
 		if v.elCount > 0 {
 			engIdx, ctx := q.algo.DecodeChan(ch)

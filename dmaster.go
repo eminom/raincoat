@@ -40,7 +40,6 @@ func DoProcess(sess *sess.Session) {
 	allCount := 0
 
 	rtDict := rtinfo.LoadRuntimeTask("runtime_task.txt")
-
 	qm := utils.NewCqmEventQueue(algo.NewAlgo1())
 	doFunc := func(evt codec.DpfEvent) {
 		allCount++
