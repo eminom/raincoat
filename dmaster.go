@@ -63,9 +63,9 @@ func DoProcess(sess *sess.Session) {
 
 	if rtDict != nil {
 		rtDict.LoadMeta("/home/hai.bai/data16/meta")
+		rtDict.BuildOrderInfo()
 		rtDict.DumpInfo()
-		// rtDict.CookCqm()
-
+		rtDict.CookCqm(qm.CqmActBundle())
 	}
 }
 

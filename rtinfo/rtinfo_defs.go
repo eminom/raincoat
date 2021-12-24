@@ -10,7 +10,19 @@ type DpfAct struct {
 	End   codec.DpfEvent
 }
 
-type DpfActBundle struct {
-	act   DpfAct
+type CqmActBundle struct {
+	DpfAct
 	opRef *meta.DtuOp
+}
+
+func (q CqmActBundle) StartCycle() uint64 {
+	return q.Start.Cycle
+}
+
+func (q CqmActBundle) EndCycle() uint64 {
+	return q.End.Cycle
+}
+
+func (q CqmActBundle) Duration() int64 {
+	return int64(q.EndCycle()) - int64(q.StartCycle())
 }

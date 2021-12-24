@@ -10,7 +10,7 @@ import (
 
 type CqmEventQueue struct {
 	distr []linklist.Lnk
-	acts  []DpfAct
+	acts  []CqmActBundle
 	algo  algo.ActMatchAlgo
 }
 
@@ -20,6 +20,11 @@ func NewCqmEventQueue(algo algo.ActMatchAlgo) *CqmEventQueue {
 		algo:  algo,
 	}
 	return &rv
+}
+
+// In-place cook
+func (q *CqmEventQueue) CqmActBundle() []CqmActBundle {
+	return q.acts
 }
 
 func (q *CqmEventQueue) PutEvent(este codec.DpfEvent) error {
@@ -36,9 +41,11 @@ func (q *CqmEventQueue) PutEvent(este codec.DpfEvent) error {
 		return un.PacketID+1 == este.PacketID
 	}); start != nil {
 		startUn := start.(codec.DpfEvent)
-		q.acts = append(q.acts, DpfAct{
-			Start: startUn,
-			End:   este,
+		q.acts = append(q.acts, CqmActBundle{
+			DpfAct: DpfAct{
+				Start: startUn,
+				End:   este,
+			},
 		})
 		return nil
 	}

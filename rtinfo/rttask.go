@@ -2,6 +2,7 @@ package rtinfo
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -14,6 +15,11 @@ import (
 	"git.enflame.cn/hai.bai/dmaster/meta"
 )
 
+var (
+	errNoMeta       = errors.New("no meta info for runtime")
+	errNoSuchPacket = errors.New("no such packet")
+)
+
 type RuntimeTask struct {
 	TaskID         int
 	ExecutableUUID uint64
@@ -21,8 +27,31 @@ type RuntimeTask struct {
 
 	StartCycle uint64
 	EndCycle   uint64
-	Valid      bool
+	CycleValid bool
 	MetaValid  bool
+}
+
+type OrderTask struct {
+	StartCy   uint64
+	refToTask *RuntimeTask
+}
+
+func (ot OrderTask) IsValid() bool {
+	return ot.refToTask.CycleValid && ot.refToTask.MetaValid
+}
+
+type OrderTasks []OrderTask
+
+func (o OrderTasks) Len() int {
+	return len(o)
+}
+
+func (o OrderTasks) Swap(i, j int) {
+	o[i], o[j] = o[j], o[i]
+}
+
+func (o OrderTasks) Less(i, j int) bool {
+	return o[i].StartCy < o[j].StartCy
 }
 
 func (r RuntimeTask) ToString() string {
@@ -36,10 +65,11 @@ func (r RuntimeTask) ToString() string {
 }
 
 type RuntimeTaskManager struct {
-	taskIdToTask  map[int]*RuntimeTask
-	tsHead        *linklist.Lnk
-	seq           []int
-	execKnowledge *meta.ExecRaw
+	taskIdToTask      map[int]*RuntimeTask
+	tsHead            *linklist.Lnk
+	seq               []int
+	execKnowledge     *meta.ExecRaw
+	orderedTaskVector []OrderTask
 }
 
 func LoadRuntimeTask(filename string) *RuntimeTaskManager {
@@ -112,7 +142,7 @@ func (r *RuntimeTaskManager) CollectTsEvent(evt codec.DpfEvent) {
 			} else {
 				task.StartCycle = startUn.Cycle
 				task.EndCycle = evt.Cycle
-				task.Valid = true
+				task.CycleValid = true
 			}
 		}
 		return
@@ -126,21 +156,130 @@ func (r RuntimeTaskManager) DumpInfo() {
 	}
 	fmt.Printf("# runtimetask:\n")
 	for _, taskId := range r.seq {
-		if r.taskIdToTask[taskId].Valid {
+		if r.taskIdToTask[taskId].CycleValid {
 			fmt.Printf("%v\n", r.taskIdToTask[taskId].ToString())
 		}
 	}
 	fmt.Println()
 }
 
+func (r *RuntimeTaskManager) BuildOrderInfo() {
+	var orders []OrderTask
+	for _, task := range r.taskIdToTask {
+		if task.CycleValid && task.MetaValid {
+			orders = append(orders, OrderTask{
+				StartCy:   task.StartCycle,
+				refToTask: task,
+			})
+		}
+	}
+	sort.Sort(OrderTasks(orders))
+	r.orderedTaskVector = orders
+
+	log.Printf("%v order task has been built", len(orders))
+}
+
 func (r *RuntimeTaskManager) LoadMeta(startPath string) {
 	execKm := meta.NewExecRaw(startPath)
 	for _, taskId := range r.seq {
-		if r.taskIdToTask[taskId].Valid {
+		if r.taskIdToTask[taskId].CycleValid {
 			if execKm.LoadMeta(r.taskIdToTask[taskId].ExecutableUUID) {
 				r.taskIdToTask[taskId].MetaValid = true
 			}
 		}
 	}
 	r.execKnowledge = execKm
+}
+
+func (r *RuntimeTaskManager) LookupOpIdByPacketID(
+	execUuid uint64,
+	packetId int,
+) (meta.DtuOp, error) {
+	if r.execKnowledge == nil {
+		return meta.DtuOp{}, errNoMeta
+	}
+	exec, ok := r.execKnowledge.FindExecScope(execUuid)
+	if !ok {
+		log.Printf("exec %016x is not loaded", exec)
+		return meta.DtuOp{}, errNoMeta
+	}
+	if dtuOp, ok := exec.FindOp(packetId); ok {
+		return dtuOp, nil
+	}
+	return meta.DtuOp{}, fmt.Errorf("no packet %v in %016x",
+		packetId,
+		execUuid,
+	)
+}
+
+func (r RuntimeTaskManager) lowerBound(cycle uint64) int {
+	lz := len(r.orderedTaskVector)
+	lo, hi := 0, lz
+	vec := r.orderedTaskVector
+	for lo < hi {
+		md := (lo + hi) >> 1
+		if cycle >= vec[md].StartCy {
+			hi = md
+		} else {
+			lo = md + 1
+		}
+	}
+	return lo
+}
+
+func (r RuntimeTaskManager) upperBound(cycle uint64) int {
+	lz := len(r.orderedTaskVector)
+	lo, hi := 0, lz
+	vec := r.orderedTaskVector
+	for lo < hi {
+		md := (lo + hi) >> 1
+		if cycle < vec[md].StartCy {
+			hi = md
+		} else {
+			lo = md + 1
+		}
+	}
+	return lo
+}
+
+func (r *RuntimeTaskManager) CookCqm(dtuBundle []CqmActBundle) {
+	vec := r.orderedTaskVector
+	fmt.Printf("vec len is %v\n", len(vec))
+	bingoCount := 0
+	for i := 0; i < len(dtuBundle); i++ {
+		curAct := &dtuBundle[i]
+		start := curAct.StartCycle()
+		idxStart := r.upperBound(start)
+		// backtrace for no more than 5
+		const maxBacktraceTaskCount = 2
+		found := false
+		for _, j := range []int{idxStart - 1, idxStart - 2, idxStart, idxStart + 1} {
+			if j < 0 || j >= len(vec) {
+				continue
+			}
+			taskInOrder := vec[j]
+			if !taskInOrder.IsValid() {
+				continue
+			}
+			thisExecUuid := taskInOrder.refToTask.ExecutableUUID
+			if taskInOrder.refToTask.MatchCqm(*curAct) {
+				if opInfo, err := r.LookupOpIdByPacketID(
+					thisExecUuid,
+					curAct.Start.PacketID); err == nil {
+					curAct.opRef = &opInfo
+					found = true
+					break
+				} else {
+					// fmt.Printf("error: %v\n", err)
+				}
+			}
+		}
+		if found {
+			bingoCount++
+		}
+	}
+	fmt.Printf("success matched count: %v out of %v\n",
+		bingoCount,
+		len(dtuBundle),
+	)
 }

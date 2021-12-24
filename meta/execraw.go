@@ -16,8 +16,26 @@ type DtuOp struct {
 }
 
 type ExecScope struct {
+	execUuid  uint64
 	pktIdToOp map[int]int
 	opMap     map[int]DtuOp
+}
+
+func (es ExecScope) DumpToOstream(fout *os.File) {
+	fmt.Fprintf(fout, "# Packet to op id map\n")
+	for pktId, opId := range es.pktIdToOp {
+		fmt.Fprintf(fout, "%v %v\n", pktId, opId)
+	}
+	//TODO: Dump OP MAP
+}
+
+func (es ExecScope) FindOp(packetId int) (DtuOp, bool) {
+	if opId, ok := es.pktIdToOp[packetId]; ok {
+		if rv, ok1 := es.opMap[opId]; ok1 {
+			return rv, true
+		}
+	}
+	return DtuOp{}, false
 }
 
 func loadPktToOpMap(execUuid uint64, prefix string) map[int]int {
@@ -106,6 +124,7 @@ func LoadExecScope(execUuid uint64, prefix string) *ExecScope {
 	pktMap := loadPktToOpMap(execUuid, prefix)
 	if opMap != nil && pktMap != nil {
 		return &ExecScope{
+			execUuid:  execUuid,
 			opMap:     opMap,
 			pktIdToOp: pktMap,
 		}
@@ -132,6 +151,13 @@ func (e *ExecRaw) LoadMeta(execUuid uint64) bool {
 		return true
 	}
 	return false
+}
+
+func (e ExecRaw) FindExecScope(execUuid uint64) (ExecScope, bool) {
+	if rv, ok := e.bundle[execUuid]; ok {
+		return *rv, true
+	}
+	return ExecScope{}, false
 }
 
 func NewExecRaw(startPath string) *ExecRaw {
