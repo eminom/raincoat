@@ -244,7 +244,6 @@ func (r RuntimeTaskManager) upperBound(cycle uint64) int {
 
 func (r *RuntimeTaskManager) CookCqm(dtuBundle []CqmActBundle) {
 	vec := r.orderedTaskVector
-	fmt.Printf("vec len is %v\n", len(vec))
 	bingoCount := 0
 	for i := 0; i < len(dtuBundle); i++ {
 		curAct := &dtuBundle[i]
