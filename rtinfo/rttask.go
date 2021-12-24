@@ -9,8 +9,9 @@ import (
 	"strconv"
 	"strings"
 
+	"git.enflame.cn/hai.bai/dmaster/algo/linklist"
 	"git.enflame.cn/hai.bai/dmaster/codec"
-	"git.enflame.cn/hai.bai/dmaster/utils"
+	"git.enflame.cn/hai.bai/dmaster/meta"
 )
 
 type RuntimeTask struct {
@@ -36,9 +37,9 @@ func (r RuntimeTask) ToString() string {
 
 type RuntimeTaskManager struct {
 	taskIdToTask  map[int]*RuntimeTask
-	tsHead        *utils.Lnk
+	tsHead        *linklist.Lnk
 	seq           []int
-	execKnowledge *ExecRaw
+	execKnowledge *meta.ExecRaw
 }
 
 func LoadRuntimeTask(filename string) *RuntimeTaskManager {
@@ -89,7 +90,7 @@ func LoadRuntimeTask(filename string) *RuntimeTaskManager {
 	sort.Ints(seq)
 	return &RuntimeTaskManager{
 		taskIdToTask: dc,
-		tsHead:       utils.NewLnkHead(),
+		tsHead:       linklist.NewLnkHead(),
 		seq:          seq,
 	}
 }
@@ -100,14 +101,16 @@ func (r *RuntimeTaskManager) CollectTsEvent(evt codec.DpfEvent) {
 		return
 	}
 	if evt.Event == codec.TsLaunchCqmEnd {
-		if start := r.tsHead.Extract(func(one codec.DpfEvent) bool {
-			return one.Payload == evt.Payload
+		if start := r.tsHead.Extract(func(one interface{}) bool {
+			un := one.(codec.DpfEvent)
+			return un.Payload == evt.Payload
 		}); start != nil {
-			taskID := start.Payload
+			startUn := start.(codec.DpfEvent)
+			taskID := startUn.Payload
 			if task, ok := r.taskIdToTask[taskID]; !ok {
 				panic(fmt.Errorf("no start for cqm launch exec"))
 			} else {
-				task.StartCycle = start.Cycle
+				task.StartCycle = startUn.Cycle
 				task.EndCycle = evt.Cycle
 				task.Valid = true
 			}
@@ -131,7 +134,7 @@ func (r RuntimeTaskManager) DumpInfo() {
 }
 
 func (r *RuntimeTaskManager) LoadMeta(startPath string) {
-	execKm := NewExecRaw(startPath)
+	execKm := meta.NewExecRaw(startPath)
 	for _, taskId := range r.seq {
 		if r.taskIdToTask[taskId].Valid {
 			if execKm.LoadMeta(r.taskIdToTask[taskId].ExecutableUUID) {

@@ -9,7 +9,6 @@ import (
 	"git.enflame.cn/hai.bai/dmaster/codec"
 	"git.enflame.cn/hai.bai/dmaster/rtinfo"
 	"git.enflame.cn/hai.bai/dmaster/sess"
-	"git.enflame.cn/hai.bai/dmaster/utils"
 )
 
 var (
@@ -40,7 +39,7 @@ func DoProcess(sess *sess.Session) {
 	allCount := 0
 
 	rtDict := rtinfo.LoadRuntimeTask("runtime_task.txt")
-	qm := utils.NewCqmEventQueue(algo.NewAlgo1())
+	qm := rtinfo.NewCqmEventQueue(algo.NewAlgo1())
 	doFunc := func(evt codec.DpfEvent) {
 		allCount++
 		switch evt.EngineTypeCode {
@@ -61,9 +60,12 @@ func DoProcess(sess *sess.Session) {
 	fmt.Printf("op debug event count %v\n", cqmOpDbgCount)
 	fmt.Printf("event %v(0x%x) in all\n", allCount, allCount)
 	qm.DumpInfo()
+
 	if rtDict != nil {
 		rtDict.LoadMeta("/home/hai.bai/data16/meta")
 		rtDict.DumpInfo()
+		// rtDict.CookCqm()
+
 	}
 }
 

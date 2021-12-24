@@ -1,26 +1,22 @@
-package utils
+package rtinfo
 
 import (
 	"fmt"
 
 	"git.enflame.cn/hai.bai/dmaster/algo"
+	"git.enflame.cn/hai.bai/dmaster/algo/linklist"
 	"git.enflame.cn/hai.bai/dmaster/codec"
 )
 
-type DpfAct struct {
-	Start codec.DpfEvent
-	End   codec.DpfEvent
-}
-
 type CqmEventQueue struct {
-	distr []Lnk
+	distr []linklist.Lnk
 	acts  []DpfAct
 	algo  algo.ActMatchAlgo
 }
 
 func NewCqmEventQueue(algo algo.ActMatchAlgo) *CqmEventQueue {
 	rv := CqmEventQueue{
-		distr: NewLnkArray(algo.GetChannelNum()),
+		distr: linklist.NewLnkArray(algo.GetChannelNum()),
 		algo:  algo,
 	}
 	return &rv
@@ -35,11 +31,13 @@ func (q *CqmEventQueue) PutEvent(este codec.DpfEvent) error {
 		q.distr[index].AppendNode(este)
 		return nil
 	}
-	if start := q.distr[index].Extract(func(one codec.DpfEvent) bool {
-		return one.PacketID+1 == este.PacketID
+	if start := q.distr[index].Extract(func(one interface{}) bool {
+		un := one.(codec.DpfEvent)
+		return un.PacketID+1 == este.PacketID
 	}); start != nil {
+		startUn := start.(codec.DpfEvent)
 		q.acts = append(q.acts, DpfAct{
-			Start: *start,
+			Start: startUn,
 			End:   este,
 		})
 		return nil
@@ -68,17 +66,18 @@ func (q CqmEventQueue) DumpInfo() {
 	}
 
 	for ch, v := range q.distr {
-		if v.elCount > 0 {
+		if v.ElementCount() > 0 {
 			engIdx, ctx := q.algo.DecodeChan(ch)
 			fmt.Printf("Engine(%d) Ctx(%d) has %v in dangle\n",
-				engIdx, ctx, v.elCount,
+				engIdx, ctx, v.ElementCount(),
 			)
-			for ptr := v.head.Next; ptr != nil; ptr = ptr.Next {
+			v.ConstForEach(func(evt interface{}) {
+				dpfEvent := evt.(codec.DpfEvent)
 				fmt.Printf("%v %v\n",
-					ptr.dpfEvent.ToString(),
-					ptr.dpfEvent.RawRepr(),
+					dpfEvent.ToString(),
+					dpfEvent.RawRepr(),
 				)
-			}
+			})
 		}
 	}
 }

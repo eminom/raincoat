@@ -1,10 +1,8 @@
-package utils
-
-import "git.enflame.cn/hai.bai/dmaster/codec"
+package linklist
 
 type LnkNode struct {
-	Next     *LnkNode
-	dpfEvent codec.DpfEvent
+	Next *LnkNode
+	item interface{}
 }
 
 type Lnk struct {
@@ -17,9 +15,9 @@ func (l *Lnk) DoInit() {
 	l.tail = &l.head
 }
 
-func (l *Lnk) AppendNode(d codec.DpfEvent) {
+func (l *Lnk) AppendNode(item interface{}) {
 	l.tail.Next = &LnkNode{
-		dpfEvent: d,
+		item: item,
 	}
 	l.tail = l.tail.Next
 	l.elCount++
@@ -29,12 +27,12 @@ func (l Lnk) ElementCount() int {
 	return l.elCount
 }
 
-func (l *Lnk) Extract(tester func(codec.DpfEvent) bool) *codec.DpfEvent {
+func (l *Lnk) Extract(tester func(interface{}) bool) interface{} {
 	var prev = &l.head
-	var start *codec.DpfEvent
+	var start interface{}
 	for ptr := l.head.Next; ptr != nil; ptr = ptr.Next {
-		if tester(ptr.dpfEvent) {
-			start = &ptr.dpfEvent
+		if tester(ptr.item) {
+			start = ptr.item
 			prev.Next = ptr.Next
 			if l.tail == ptr {
 				l.tail = prev
@@ -45,6 +43,12 @@ func (l *Lnk) Extract(tester func(codec.DpfEvent) bool) *codec.DpfEvent {
 		prev = ptr
 	}
 	return start
+}
+
+func (l *Lnk) ConstForEach(forEach func(interface{})) {
+	for ptr := l.head.Next; ptr != nil; ptr = ptr.Next {
+		forEach(ptr.item)
+	}
 }
 
 func NewLnkArray(num int) []Lnk {

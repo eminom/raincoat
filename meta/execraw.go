@@ -1,4 +1,4 @@
-package rtinfo
+package meta
 
 import (
 	"bufio"
