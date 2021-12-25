@@ -10,9 +10,14 @@ type DpfAct struct {
 	End   codec.DpfEvent
 }
 
+type OpRef struct {
+	pgMask int
+	dtuOp  *meta.DtuOp
+}
+
 type CqmActBundle struct {
 	DpfAct
-	opRef *meta.DtuOp
+	opRef OpRef
 }
 
 func (q CqmActBundle) StartCycle() uint64 {

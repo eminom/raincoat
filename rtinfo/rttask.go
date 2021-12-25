@@ -265,7 +265,10 @@ func (r *RuntimeTaskManager) CookCqm(dtuBundle []CqmActBundle) {
 				if opInfo, err := r.LookupOpIdByPacketID(
 					thisExecUuid,
 					curAct.Start.PacketID); err == nil {
-					curAct.opRef = &opInfo
+					curAct.opRef = OpRef{
+						pgMask: taskInOrder.refToTask.PgMask,
+						dtuOp:  &opInfo,
+					}
 					found = true
 					break
 				} else {

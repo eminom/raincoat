@@ -66,6 +66,11 @@ func DoProcess(sess *sess.Session) {
 		rtDict.BuildOrderInfo()
 		rtDict.DumpInfo()
 		rtDict.CookCqm(qm.CqmActBundle())
+		rtinfo.CqmActBundles(
+			qm.CqmActBundle(),
+		).DumpToEventTrace(
+			"dtuop_trace.json",
+		)
 	}
 }
 
