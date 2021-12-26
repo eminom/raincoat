@@ -72,22 +72,30 @@ func (r RuntimeTask) ToShortString() string {
 }
 
 type RuntimeTaskManager struct {
-	taskIdToTask      map[int]*RuntimeTask
-	tsHead            *linklist.Lnk
-	seq               []int
+	taskIdToTask map[int]*RuntimeTask
+	taskIdVec    []int
+	tsHead       *linklist.Lnk
+
 	execKnowledge     *meta.ExecRaw
 	orderedTaskVector []OrderTask
 }
 
-func LoadRuntimeTask(filename string) *RuntimeTaskManager {
+func NewRuntimeTaskManager() *RuntimeTaskManager {
+	return &RuntimeTaskManager{
+		tsHead: linklist.NewLnkHead(),
+	}
+}
+
+func (self *RuntimeTaskManager) LoadRuntimeTask(filename string) bool {
 	fin, err := os.Open(filename)
 	if err != nil {
-		return nil
+		log.Printf("error load runtime info:%v\n", err)
+		return false
 	}
 	defer fin.Close()
 
 	dc := make(map[int]*RuntimeTask)
-	var seq []int
+	var taskSequentials []int
 	scan := bufio.NewScanner(fin)
 	for {
 		if !scan.Scan() {
@@ -122,14 +130,12 @@ func LoadRuntimeTask(filename string) *RuntimeTaskManager {
 			ExecutableUUID: exec,
 			PgMask:         pgMask,
 		}
-		seq = append(seq, taskId)
+		taskSequentials = append(taskSequentials, taskId)
 	}
-	sort.Ints(seq)
-	return &RuntimeTaskManager{
-		taskIdToTask: dc,
-		tsHead:       linklist.NewLnkHead(),
-		seq:          seq,
-	}
+	sort.Ints(taskSequentials)
+	// update to self
+	self.taskIdToTask, self.taskIdVec = dc, taskSequentials
+	return true
 }
 
 func (r *RuntimeTaskManager) CollectTsEvent(evt codec.DpfEvent) {
@@ -162,7 +168,7 @@ func (r RuntimeTaskManager) DumpInfo() {
 			r.tsHead.ElementCount())
 	}
 	fmt.Printf("# runtimetask:\n")
-	for _, taskId := range r.seq {
+	for _, taskId := range r.taskIdVec {
 		if r.taskIdToTask[taskId].CycleValid {
 			fmt.Printf("%v\n", r.taskIdToTask[taskId].ToString())
 		}
@@ -188,7 +194,7 @@ func (r *RuntimeTaskManager) BuildOrderInfo() {
 
 func (r *RuntimeTaskManager) LoadMeta(startPath string) {
 	execKm := meta.NewExecRaw(startPath)
-	for _, taskId := range r.seq {
+	for _, taskId := range r.taskIdVec {
 		if r.taskIdToTask[taskId].CycleValid {
 			if execKm.LoadMeta(r.taskIdToTask[taskId].ExecutableUUID) {
 				r.taskIdToTask[taskId].MetaValid = true

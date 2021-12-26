@@ -7,6 +7,7 @@ import (
 
 	"git.enflame.cn/hai.bai/dmaster/algo"
 	"git.enflame.cn/hai.bai/dmaster/codec"
+	decmconf "git.enflame.cn/hai.bai/dmaster/conf"
 	"git.enflame.cn/hai.bai/dmaster/rtinfo"
 	"git.enflame.cn/hai.bai/dmaster/sess"
 )
@@ -38,7 +39,10 @@ func DoProcess(sess *sess.Session) {
 	cqmOpDbgCount := 0
 	allCount := 0
 
-	rtDict := rtinfo.LoadRuntimeTask("runtime_task.txt")
+	pathConf := decmconf.NewDecmConf("/home/hai.bai/data16/meta")
+
+	rtDict := rtinfo.NewRuntimeTaskManager()
+	rtDict.LoadRuntimeTask(pathConf.GetRuntimeTaskPath())
 	qm := rtinfo.NewCqmEventQueue(algo.NewAlgo1())
 	doFunc := func(evt codec.DpfEvent) {
 		allCount++
@@ -62,7 +66,7 @@ func DoProcess(sess *sess.Session) {
 	qm.DumpInfo()
 
 	if rtDict != nil {
-		rtDict.LoadMeta("/home/hai.bai/data16/meta")
+		rtDict.LoadMeta(pathConf.GetMetaStartupPath())
 		rtDict.BuildOrderInfo()
 		rtDict.DumpInfo()
 		rtDict.CookCqm(qm.CqmActBundle())
