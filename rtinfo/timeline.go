@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"unicode"
 
+	"git.enflame.cn/hai.bai/dmaster/assert"
 	"git.enflame.cn/hai.bai/dmaster/codec"
 )
 
@@ -40,6 +41,44 @@ type TimelineManager struct {
 
 func NewTimelineManager() *TimelineManager {
 	return &TimelineManager{}
+}
+
+func ratioMapTo(a, b uint64, c uint64) uint64 {
+	return uint64(float64(a) / float64(b) * float64(c))
+}
+
+// helper for find the legal span for cycle to belong to
+func (tm *TimelineManager) MapToHosttime(targetCycle uint64) (uint64, bool) {
+	alignedVec := tm.alignedVec
+	lz := len(alignedVec)
+	lo, hi := 0, lz
+	for lo < hi {
+		md := (lo + hi) >> 1
+		if alignedVec[md].devCycle >= targetCycle {
+			hi = md
+		} else {
+			lo = 1 + md
+		}
+	}
+	bound := lo
+	if bound < lz && alignedVec[bound].devCycle > targetCycle {
+		bound--
+	}
+	if bound < lz-1 && bound >= 0 {
+		hostStart, hostClose := alignedVec[bound].hosttime,
+			alignedVec[bound+1].hosttime
+		assert.Assert(hostStart < hostClose, "must be valid host time span")
+		hostSpan := hostClose - hostStart
+
+		cyStart, cyClose := alignedVec[bound].devCycle,
+			alignedVec[bound+1].devCycle
+		assert.Assert(cyStart < cyClose, "cycle must valid")
+		cySpan := cyClose - cyStart
+		hostAligned := hostStart +
+			ratioMapTo(targetCycle-cyStart, cySpan, hostSpan)
+		return hostAligned, true
+	}
+	return 0, false
 }
 
 func (tm *TimelineManager) PutEvent(evt codec.DpfEvent) {

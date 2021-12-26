@@ -91,6 +91,7 @@ func DoProcess(sess *sess.Session) {
 			qm.CqmActBundle(),
 		).DumpToEventTrace(
 			"dtuop_trace.json",
+			tm,
 		)
 	}
 }

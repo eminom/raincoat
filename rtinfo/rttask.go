@@ -228,7 +228,7 @@ func (r *RuntimeTaskManager) LookupOpIdByPacketID(
 	)
 }
 
-func (r RuntimeTaskManager) lowerBound(cycle uint64) int {
+func (r RuntimeTaskManager) lowerBoundForTaskVec(cycle uint64) int {
 	lz := len(r.orderedTaskVector)
 	lo, hi := 0, lz
 	vec := r.orderedTaskVector
@@ -243,7 +243,7 @@ func (r RuntimeTaskManager) lowerBound(cycle uint64) int {
 	return lo
 }
 
-func (r RuntimeTaskManager) upperBound(cycle uint64) int {
+func (r RuntimeTaskManager) upperBoundForTaskVec(cycle uint64) int {
 	lz := len(r.orderedTaskVector)
 	lo, hi := 0, lz
 	vec := r.orderedTaskVector
@@ -258,17 +258,18 @@ func (r RuntimeTaskManager) upperBound(cycle uint64) int {
 	return lo
 }
 
+// CookCqm:  find dtu-op meta information for the Cqm Act
 func (r *RuntimeTaskManager) CookCqm(dtuBundle []CqmActBundle) {
 	vec := r.orderedTaskVector
 	bingoCount := 0
 	for i := 0; i < len(dtuBundle); i++ {
 		curAct := &dtuBundle[i]
 		start := curAct.StartCycle()
-		idxStart := r.upperBound(start)
+		idxStart := r.upperBoundForTaskVec(start)
 		// backtrace for no more than 5
 		const maxBacktraceTaskCount = 2
 		found := false
-		for _, j := range []int{idxStart - 1, idxStart - 2, idxStart, idxStart + 1} {
+		for _, j := range []int{idxStart - 1} {
 			if j < 0 || j >= len(vec) {
 				continue
 			}
@@ -298,7 +299,7 @@ func (r *RuntimeTaskManager) CookCqm(dtuBundle []CqmActBundle) {
 			bingoCount++
 		}
 	}
-	fmt.Printf("success matched count: %v out of %v\n",
+	fmt.Printf("Dbg op/Dtu-op meta success matched count: %v out of %v\n",
 		bingoCount,
 		len(dtuBundle),
 	)
