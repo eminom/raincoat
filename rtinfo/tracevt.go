@@ -16,11 +16,11 @@ import (
 */
 
 type TraceEvent struct {
-	Name string `json:"name"`
-	Ph   string `json:"ph"`
-	Pid  string `json:"pid"`
-	Tid  string `json:"tid"`
-	Ts   uint64 `json:"ts"`
+	Name string  `json:"name"`
+	Ph   string  `json:"ph"`
+	Pid  string  `json:"pid"`
+	Tid  string  `json:"tid"`
+	Ts   float64 `json:"ts"`
 }
 
 type TraceEvents []TraceEvent
@@ -37,6 +37,10 @@ func (t TraceEvents) Less(i, j int) bool {
 	return t[i].Ts < t[j].Ts
 }
 
+func toMs(hosttime uint64) float64 {
+	return float64(hosttime) / (1000 * 1000)
+}
+
 func NewTraceEventBegin(
 	rtTask RuntimeTask,
 	op meta.DtuOp,
@@ -44,7 +48,7 @@ func NewTraceEventBegin(
 ) TraceEvent {
 	return TraceEvent{
 		Ph:   "B",
-		Ts:   ts,
+		Ts:   toMs(ts),
 		Pid:  rtTask.ToShortString(),
 		Name: op.OpName,
 	}
@@ -57,7 +61,7 @@ func NewTraceEventEnd(
 ) TraceEvent {
 	return TraceEvent{
 		Ph:   "E",
-		Ts:   ts,
+		Ts:   toMs(ts),
 		Pid:  rtTask.ToShortString(),
 		Name: op.OpName,
 	}

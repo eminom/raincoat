@@ -25,7 +25,7 @@ def xMain():
     print("dev max: ", cycleMax)
     print("host span: ", hostMax - hostMin)
     print("cycle span: ", cycleMax - cycleMin)
-
+    print("host span in seconds: ", (hostMax - hostMin) / (1000*1000*1000))
 
 if '__main__' == __name__:
   xMain()

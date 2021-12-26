@@ -128,13 +128,13 @@ func (bundle CqmActBundles) DumpToEventTrace(
 	for _, act := range bundle {
 		if act.IsOpRefValid() {
 			dtuOpCount++
-			startHosttime, startOK := tm.MapToHosttime(act.StartCycle())
+			startHostTime, startOK := tm.MapToHosttime(act.StartCycle())
 			endHostTime, endOK := tm.MapToHosttime(act.EndCycle())
 			if startOK && endOK {
 				eventVec = append(eventVec, NewTraceEventBegin(
 					act.GetTask(),
 					act.GetOp(),
-					startHosttime,
+					startHostTime,
 				))
 				eventVec = append(eventVec, NewTraceEventEnd(
 					act.GetTask(),
