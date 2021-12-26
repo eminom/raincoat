@@ -24,8 +24,13 @@ type DpfEvent struct {
 	EngineUniqIdx int
 	EngineIndex   int
 
-	OffsetIndex    int
+	OffsetIndex    int // Offset int the DPF buffer from the beginning
 	EngineTypeCode EngineTypeCode
+}
+
+// This field is at-most 31-bit width
+func (d DpfEvent) DpfSyncIndex() int {
+	return int(d.RawValue[0] >> 1)
 }
 
 func (d DpfEvent) ToString() string {
@@ -33,7 +38,7 @@ func (d DpfEvent) ToString() string {
 		switch d.EngineTy {
 		case ENGINE_PCIE:
 			return fmt.Sprintf("%-10v %-10v ts=%08x",
-				d.EngineTy, d.RawValue[0]>>1, d.Cycle)
+				d.EngineTy, d.DpfSyncIndex(), d.Cycle)
 		}
 		return fmt.Sprintf("%-10v %-2v %-2v event=%-4v pid=%v ts=%08x",
 			d.EngineTy, d.EngineIndex, d.Context, d.Event, d.PacketID, d.Cycle)
@@ -120,25 +125,4 @@ func (decoder *DecodeMaster) NewDpfEvent(
 	dpf.OffsetIndex = offsetIdx
 	dpf.EngineTypeCode = ToEngineTypeCode(dpf.EngineTy)
 	return
-}
-
-type DpfItems []DpfEvent
-
-func (d DpfItems) Len() int {
-	return len(d)
-}
-
-func (d DpfItems) Swap(i, j int) {
-	d[i], d[j] = d[j], d[i]
-}
-
-func (d DpfItems) Less(i, j int) bool {
-	lhs, rhs := d[i], d[j]
-	if lhs.PacketID != rhs.PacketID {
-		return lhs.PacketID < rhs.PacketID
-	}
-	if lhs.Event != rhs.Event {
-		return lhs.Event < rhs.Event
-	}
-	return lhs.Cycle < rhs.Cycle
 }

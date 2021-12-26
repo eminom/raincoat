@@ -176,6 +176,8 @@ func (r RuntimeTaskManager) DumpInfo() {
 	fmt.Println()
 }
 
+// After meta is loaded
+// Ordered-task vector, element is placed in cycle orders
 func (r *RuntimeTaskManager) BuildOrderInfo() {
 	var orders []OrderTask
 	for _, task := range r.taskIdToTask {
@@ -192,6 +194,7 @@ func (r *RuntimeTaskManager) BuildOrderInfo() {
 	log.Printf("%v order task has been built", len(orders))
 }
 
+// LoadMeta will load executable raw from task info's executable-uuids
 func (r *RuntimeTaskManager) LoadMeta(startPath string) {
 	execKm := meta.NewExecRaw(startPath)
 	for _, taskId := range r.taskIdVec {

@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"log"
 	"os"
 
 	"git.enflame.cn/hai.bai/dmaster/algo"
@@ -25,6 +26,7 @@ var (
 
 func init() {
 	flag.Parse()
+	log.SetFlags(log.Lshortfile)
 
 	switch *fArch {
 	case "pavo":
@@ -44,9 +46,16 @@ func DoProcess(sess *sess.Session) {
 	rtDict := rtinfo.NewRuntimeTaskManager()
 	rtDict.LoadRuntimeTask(pathConf.GetRuntimeTaskPath())
 	qm := rtinfo.NewCqmEventQueue(algo.NewAlgo1())
+	tm := rtinfo.NewTimelineManager()
+	tm.LoadTimepoints(pathConf.GetTimepointsPath())
 	doFunc := func(evt codec.DpfEvent) {
 		allCount++
 		switch evt.EngineTypeCode {
+		case codec.EngCat_PCIE:
+			// For pavo/dorado there is only one kind of PCIE:
+			// Sync info
+			tm.PutEvent(evt)
+
 		case codec.EngCat_CQM:
 			if codec.IsCqmOpEvent(evt) {
 				if err := qm.PutEvent(evt); err != nil {
@@ -64,6 +73,14 @@ func DoProcess(sess *sess.Session) {
 	fmt.Printf("op debug event count %v\n", cqmOpDbgCount)
 	fmt.Printf("event %v(0x%x) in all\n", allCount, allCount)
 	qm.DumpInfo()
+	tm.AlignToHostTimeline()
+	if tm.Verify() {
+		log.Printf("timeline aligned verified successfully")
+	} else {
+		log.Printf("timeline aligned verified error")
+		panic("shall stop")
+	}
+	tm.DumpInfo()
 
 	if rtDict != nil {
 		rtDict.LoadMeta(pathConf.GetMetaStartupPath())
