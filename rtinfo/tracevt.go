@@ -1,8 +1,6 @@
 package rtinfo
 
 import (
-	"fmt"
-
 	"git.enflame.cn/hai.bai/dmaster/meta"
 )
 
@@ -15,8 +13,8 @@ import (
   {"name": "写代码", "ph": "E", "pid": "Main", "tid": "工作", "ts": 36000000000},
   {"name": "遛狗", "ph": "B", "pid": "Main", "tid": "休闲", "ts": 36000000000},
   {"name": "遛狗", "ph": "E", "pid": "Main", "tid": "休闲", "ts": 37800000000}
-
 */
+
 type TraceEvent struct {
 	Name string `json:"name"`
 	Ph   string `json:"ph"`
@@ -39,32 +37,28 @@ func (t TraceEvents) Less(i, j int) bool {
 	return t[i].Ts < t[j].Ts
 }
 
-func pgMaskToString(pgMask int) string {
-	return fmt.Sprintf("PG %v", pgMask)
-}
-
 func NewTraceEventBegin(
-	pgMask int,
+	rtTask RuntimeTask,
 	op meta.DtuOp,
 	ts uint64,
 ) TraceEvent {
 	return TraceEvent{
 		Ph:   "B",
 		Ts:   ts,
-		Pid:  pgMaskToString(pgMask),
+		Pid:  rtTask.ToShortString(),
 		Name: op.OpName,
 	}
 }
 
 func NewTraceEventEnd(
-	pgMask int,
+	rtTask RuntimeTask,
 	op meta.DtuOp,
 	ts uint64,
 ) TraceEvent {
 	return TraceEvent{
 		Ph:   "E",
 		Ts:   ts,
-		Pid:  pgMaskToString(pgMask),
+		Pid:  rtTask.ToShortString(),
 		Name: op.OpName,
 	}
 }

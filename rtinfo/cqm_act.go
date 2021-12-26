@@ -123,16 +123,16 @@ func (bundle CqmActBundles) DumpToEventTrace(out string) {
 	var eventVec []TraceEvent
 	var dtuOpCount = 0
 	for _, act := range bundle {
-		if act.opRef.dtuOp != nil {
+		if act.IsOpRefValid() {
 			dtuOpCount++
 			eventVec = append(eventVec, NewTraceEventBegin(
-				act.opRef.pgMask,
-				*act.opRef.dtuOp,
+				act.GetTask(),
+				act.GetOp(),
 				act.StartCycle(),
 			))
 			eventVec = append(eventVec, NewTraceEventEnd(
-				act.opRef.pgMask,
-				*act.opRef.dtuOp,
+				act.GetTask(),
+				act.GetOp(),
 				act.EndCycle(),
 			))
 		}

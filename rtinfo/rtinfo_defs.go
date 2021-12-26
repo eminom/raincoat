@@ -11,8 +11,8 @@ type DpfAct struct {
 }
 
 type OpRef struct {
-	pgMask int
-	dtuOp  *meta.DtuOp
+	dtuOp     *meta.DtuOp
+	refToTask *RuntimeTask
 }
 
 type CqmActBundle struct {
@@ -30,4 +30,16 @@ func (q CqmActBundle) EndCycle() uint64 {
 
 func (q CqmActBundle) Duration() int64 {
 	return int64(q.EndCycle()) - int64(q.StartCycle())
+}
+
+func (q CqmActBundle) IsOpRefValid() bool {
+	return q.opRef.dtuOp != nil && q.opRef.refToTask != nil
+}
+
+func (q CqmActBundle) GetOp() meta.DtuOp {
+	return *q.opRef.dtuOp
+}
+
+func (q CqmActBundle) GetTask() RuntimeTask {
+	return *q.opRef.refToTask
 }

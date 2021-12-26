@@ -64,6 +64,13 @@ func (r RuntimeTask) ToString() string {
 	)
 }
 
+func (r RuntimeTask) ToShortString() string {
+	return fmt.Sprintf("PG %v Task %v",
+		r.PgMask,
+		r.TaskID,
+	)
+}
+
 type RuntimeTaskManager struct {
 	taskIdToTask      map[int]*RuntimeTask
 	tsHead            *linklist.Lnk
@@ -265,9 +272,11 @@ func (r *RuntimeTaskManager) CookCqm(dtuBundle []CqmActBundle) {
 				if opInfo, err := r.LookupOpIdByPacketID(
 					thisExecUuid,
 					curAct.Start.PacketID); err == nil {
+					// There is always a dtuop related to dbg op
+					// and there is always a task
 					curAct.opRef = OpRef{
-						pgMask: taskInOrder.refToTask.PgMask,
-						dtuOp:  &opInfo,
+						dtuOp:     &opInfo,
+						refToTask: taskInOrder.refToTask,
 					}
 					found = true
 					break
