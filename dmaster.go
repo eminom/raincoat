@@ -92,13 +92,21 @@ func DoProcess(sess *sess.Session) {
 		rtDict.LoadMeta(pathConf.GetMetaStartupPath())
 		rtDict.BuildOrderInfo()
 		rtDict.DumpInfo()
-		rtDict.CookCqm(qm.CqmActBundle())
-		rtinfo.CqmActBundles(
-			qm.CqmActBundle(),
-		).DumpToEventTrace(
-			"dtuop_trace.json",
-			tm,
+
+		var tr rtinfo.TraceEventSession
+		unProcessed := rtDict.CookCqm(qm.CqmActBundle())
+		rtDict.OvercookCqm(unProcessed)
+		tr.DumpToEventTrace(qm.CqmActBundle(), tm,
+			func(act rtinfo.CqmActBundle) (string, string) {
+				return act.GetTask().ToShortString(), act.GetOp().OpName
+			},
 		)
+		tr.DumpToEventTrace(unProcessed, tm,
+			func(act rtinfo.CqmActBundle) (string, string) {
+				return "Wild " + act.GetTask().ToShortString(),
+					act.GetOp().OpName
+			})
+		tr.DumpToFile("dtuop_trace.json")
 	}
 }
 

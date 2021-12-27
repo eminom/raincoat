@@ -1,7 +1,10 @@
 package rtinfo
 
 import (
-	"git.enflame.cn/hai.bai/dmaster/meta"
+	"encoding/json"
+	"log"
+	"os"
+	"sort"
 )
 
 /*
@@ -42,27 +45,160 @@ func toMs(hosttime uint64) float64 {
 }
 
 func NewTraceEventBegin(
-	rtTask RuntimeTask,
-	op meta.DtuOp,
+	pid string,
+	name string,
 	ts uint64,
 ) TraceEvent {
 	return TraceEvent{
 		Ph:   "B",
 		Ts:   toMs(ts),
-		Pid:  rtTask.ToShortString(),
-		Name: op.OpName,
+		Pid:  pid,
+		Name: name,
 	}
 }
 
 func NewTraceEventEnd(
-	rtTask RuntimeTask,
-	op meta.DtuOp,
+	pid string,
+	name string,
 	ts uint64,
 ) TraceEvent {
 	return TraceEvent{
 		Ph:   "E",
 		Ts:   toMs(ts),
-		Pid:  rtTask.ToShortString(),
-		Name: op.OpName,
+		Pid:  pid,
+		Name: name,
 	}
+}
+
+func NewTraceEventStartUnk(ts uint64,
+	sub string,
+	name string,
+) TraceEvent {
+	return TraceEvent{
+		Ph:   "B",
+		Ts:   toMs(ts),
+		Pid:  name,
+		Name: sub,
+	}
+}
+
+func NewTraceEventEndUnk(ts uint64,
+	sub string,
+	name string,
+) TraceEvent {
+	return TraceEvent{
+		Ph:   "E",
+		Ts:   toMs(ts),
+		Pid:  name,
+		Name: sub,
+	}
+}
+
+type TraceEventSession struct {
+	eventVec []TraceEvent
+}
+
+func (tr *TraceEventSession) AppendEvt(evt TraceEvent) {
+	tr.eventVec = append(tr.eventVec, evt)
+}
+
+func checkTimespanOverlapping(bundle []CqmActBundle) {
+	var intvs Interval
+	// Check intervals
+	for _, act := range bundle {
+		if act.opRef.dtuOp != nil {
+			intvs = append(intvs, []uint64{
+				act.StartCycle(),
+				act.EndCycle(),
+			})
+		}
+	}
+	sort.Sort(intvs)
+	overlapped := false
+	for i := 0; i < len(intvs)-1; i++ {
+		if intvs[i][1] >= intvs[i+1][0] {
+			overlapped = true
+			break
+		}
+	}
+	if overlapped {
+		panic("overlapped")
+	}
+	log.Printf("no overlapped confirmed")
+}
+
+func (tr *TraceEventSession) DumpToEventTrace(
+	bundle []CqmActBundle,
+	tm *TimelineManager,
+	getPidAndName func(CqmActBundle) (string, string),
+) {
+	checkTimespanOverlapping(bundle)
+
+	var dtuOpCount = 0
+	var convertToHostError = 0
+
+	subSampleCount := 0
+	for _, act := range bundle {
+		if act.IsOpRefValid() {
+			dtuOpCount++
+			startHostTime, startOK := tm.MapToHosttime(act.StartCycle())
+			endHostTime, endOK := tm.MapToHosttime(act.EndCycle())
+			if startOK && endOK {
+				pid, name := getPidAndName(act)
+				tr.AppendEvt(NewTraceEventBegin(
+					pid,
+					name,
+					startHostTime,
+				))
+				tr.AppendEvt(NewTraceEventEnd(
+					pid,
+					name,
+					endHostTime,
+				))
+			} else {
+				convertToHostError++
+			}
+		} else {
+			subSampleCount++
+			startHostTime, startOK := tm.MapToHosttime(act.StartCycle())
+			endHostTime, endOK := tm.MapToHosttime(act.EndCycle())
+			if startOK && endOK && subSampleCount%30 == 0 {
+				tr.AppendEvt(NewTraceEventStartUnk(startHostTime, "op", "Unk Task"))
+				tr.AppendEvt(NewTraceEventEndUnk(endHostTime, "op", "Unk Task"))
+			}
+		}
+	}
+
+	if convertToHostError > 0 {
+		log.Printf("convert-to-hosttime-error count: %v", convertToHostError)
+	}
+}
+
+func (tr TraceEventSession) DumpToFile(out string) {
+
+	sort.Sort(TraceEvents(tr.eventVec))
+
+	// const HourMes uint64 = 60 * 1000 * 1000
+	// const MinMes uint64 = 1000 * 1000
+	// for i := 0; i < len(eventVec); i += 2 {
+	// 	idx := i / 2
+	// 	eventVec[i].Ts = uint64(idx) * HourMes
+	// 	eventVec[i+1].Ts = uint64(idx+1)*HourMes - MinMes
+	// }
+
+	chunk, err := json.MarshalIndent(tr.eventVec, "", "  ")
+	if err != nil {
+		panic(err)
+	}
+
+	fout, err := os.Create(out)
+	if err != nil {
+		panic(err)
+	}
+	defer fout.Close()
+	fout.Write(chunk)
+	log.Printf("%v dtuop(s) have been written to %v successfully\n",
+		len(tr.eventVec),
+		out,
+	)
 }

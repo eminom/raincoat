@@ -43,9 +43,11 @@ func (r RuntimeTask) ToString() string {
 }
 
 func (r RuntimeTask) ToShortString() string {
-	return fmt.Sprintf("PG %v Task %v",
+	hex := fmt.Sprintf("%016x", r.ExecutableUUID)[:8]
+	return fmt.Sprintf("PG %v Task %v Exec %v",
 		r.PgMask,
 		r.TaskID,
+		hex,
 	)
 }
 
@@ -182,6 +184,8 @@ func (r *RuntimeTaskManager) LoadMeta(startPath string) {
 			}
 		}
 	}
+	execKm.LoadWildcard()
+	execKm.DumpInfo()
 	r.execKnowledge = execKm
 }
 
@@ -243,7 +247,7 @@ func (r RuntimeTaskManager) upperBoundForTaskVec(cycle uint64) int {
 }
 
 // CookCqm:  find dtu-op meta information for the Cqm Act
-func (r *RuntimeTaskManager) CookCqm(dtuBundle []CqmActBundle) {
+func (r *RuntimeTaskManager) CookCqm(dtuBundle []CqmActBundle) []CqmActBundle {
 	// Each time we start processing a new session
 	// We create a new object to do the math
 	vec := r.orderedTaskVector
@@ -252,6 +256,7 @@ func (r *RuntimeTaskManager) CookCqm(dtuBundle []CqmActBundle) {
 	}
 
 	bingoCount := 0
+	unprocessedVec := []CqmActBundle{}
 	for i := 0; i < len(dtuBundle); i++ {
 		curAct := &dtuBundle[i]
 		start := curAct.StartCycle()
@@ -289,6 +294,10 @@ func (r *RuntimeTaskManager) CookCqm(dtuBundle []CqmActBundle) {
 		}
 		if found {
 			bingoCount++
+		} else {
+			unprocessedVec = append(unprocessedVec, CqmActBundle{
+				DpfAct: curAct.DpfAct,
+			})
 		}
 	}
 	fmt.Printf("Dbg op/Dtu-op meta success matched count: %v out of %v\n",
@@ -301,4 +310,75 @@ func (r *RuntimeTaskManager) CookCqm(dtuBundle []CqmActBundle) {
 		execScope := r.FindExecFor(v.refToTask.ExecutableUUID)
 		v.DumpInfo(execScope)
 	}
+
+	return unprocessedVec
+}
+
+// CookCqm:  find dtu-op meta information for the Cqm Act
+func (r *RuntimeTaskManager) OvercookCqm(
+	dtuBundle []CqmActBundle,
+) {
+	// Each time we start processing a new session
+	// We create a new object to do the math
+	vec := r.orderedTaskVector
+	for i := 0; i < len(vec); i++ {
+		vec[i].taskState = NewOrderTaskState()
+	}
+
+	bingoCount := 0
+	noBingoCount := 0
+	for i := 0; i < len(dtuBundle); i++ {
+		curAct := &dtuBundle[i]
+		// start := curAct.StartCycle()
+		// idxStart := r.upperBoundForTaskVec(start)
+		// backtrace for no more than 5
+		const maxBacktraceTaskCount = 2
+		found := false
+		for j := len(vec) - 1; j >= 0; j-- {
+			if j < 0 || j >= len(vec) {
+				continue
+			}
+			taskInOrder := vec[j]
+			if !taskInOrder.IsValid() {
+				continue
+			}
+			thisExecUuid := taskInOrder.refToTask.ExecutableUUID
+			if taskInOrder.AbleToMatchCqm(*curAct) {
+				if opInfo, err := r.LookupOpIdByPacketID(
+					thisExecUuid,
+					curAct.Start.PacketID); err == nil {
+					// There is always a dtuop related to dbg op
+					// and there is always a task
+					taskInOrder.SuccessMatchDtuop(curAct.Start.PacketID)
+					taskInOrder.SuccessMatchDtuop(curAct.End.PacketID)
+					curAct.opRef = OpRef{
+						dtuOp:     &opInfo,
+						refToTask: taskInOrder.refToTask,
+					}
+					found = true
+					break
+				} else {
+					// fmt.Printf("error: %v\n", err)
+				}
+			}
+		}
+		if found {
+			bingoCount++
+		} else {
+			// unprocessedVec = append(unprocessedVec, CqmActBundle{
+			// 	DpfAct: curAct.DpfAct,
+			// })
+			noBingoCount++
+		}
+	}
+	fmt.Printf("Dbg op/Dtu-op meta wildcard success matched count: %v out of %v\n",
+		bingoCount,
+		noBingoCount+bingoCount,
+	)
+
+	// fmt.Printf("statistics for ordered-task\n")
+	// for _, v := range vec {
+	// 	execScope := r.FindExecFor(v.refToTask.ExecutableUUID)
+	// 	v.DumpInfo(execScope)
+	// }
 }

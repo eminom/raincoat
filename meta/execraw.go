@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -132,7 +133,7 @@ func loadOpMap(execUuid uint64, prefix string) map[int]DtuOp {
 	return opMap
 }
 
-func LoadExecScope(execUuid uint64, prefix string) *ExecScope {
+func loadExecScope(execUuid uint64, prefix string) *ExecScope {
 	opMap := loadOpMap(execUuid, prefix)
 	pktMap := loadPktToOpMap(execUuid, prefix)
 	if opMap != nil && pktMap != nil {
@@ -148,13 +149,14 @@ func LoadExecScope(execUuid uint64, prefix string) *ExecScope {
 type ExecRaw struct {
 	startPath string
 	bundle    map[uint64]*ExecScope
+	wilds     map[uint64]*ExecScope
 }
 
 func (e *ExecRaw) LoadMeta(execUuid uint64) bool {
 	if _, ok := e.bundle[execUuid]; ok {
 		return true
 	}
-	exec := LoadExecScope(
+	exec := loadExecScope(
 		execUuid,
 		e.startPath,
 	)
@@ -166,6 +168,43 @@ func (e *ExecRaw) LoadMeta(execUuid uint64) bool {
 	return false
 }
 
+func (e *ExecRaw) LoadWildcard() {
+	entries, err := os.ReadDir(e.startPath)
+	if err != nil {
+		log.Printf("error readdir: %v", err)
+		return
+	}
+	pat := regexp.MustCompile(`0x[a-f\d]+_dtuop\.dumptxt`)
+
+	within := func(name string) bool {
+		found := false
+		for execUuid := range e.bundle {
+			prefix := fmt.Sprintf("0x%0x16", execUuid)[:10]
+			if strings.HasPrefix(name, prefix) {
+				found = true
+				break
+			}
+		}
+		return found
+	}
+
+	for _, entry := range entries {
+		if pat.MatchString(entry.Name()) && !within(entry.Name()) {
+			execUuid, err := strconv.ParseUint(entry.Name()[2:10], 16, 64)
+			if err != nil {
+				panic(err)
+			}
+			execUuid <<= 32
+			es := loadExecScope(execUuid, e.startPath)
+			if es != nil {
+				e.wilds[execUuid] = es
+				fmt.Printf("exec 0x%016x is loaded for wildcard\n",
+					execUuid)
+			}
+		}
+	}
+}
+
 func (e ExecRaw) FindExecScope(execUuid uint64) (ExecScope, bool) {
 	if rv, ok := e.bundle[execUuid]; ok {
 		return *rv, true
@@ -173,9 +212,15 @@ func (e ExecRaw) FindExecScope(execUuid uint64) (ExecScope, bool) {
 	return ExecScope{}, false
 }
 
+func (e ExecRaw) DumpInfo() {
+	fmt.Printf("%v exec loaded in all\n", len(e.bundle))
+	fmt.Printf("%v wildcard exec loaded in all\n", len(e.wilds))
+}
+
 func NewExecRaw(startPath string) *ExecRaw {
 	return &ExecRaw{
 		startPath: startPath,
 		bundle:    make(map[uint64]*ExecScope),
+		wilds:     make(map[uint64]*ExecScope),
 	}
 }
