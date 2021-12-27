@@ -1,9 +1,11 @@
 package assert
 
-import "fmt"
+import (
+	"fmt"
+)
 
-func Assert(cond bool, msg string) {
+func Assert(cond bool, format string, args ...interface{}) {
 	if !cond {
-		panic(fmt.Errorf("%v", msg))
+		panic(fmt.Errorf(format, args...))
 	}
 }

@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"git.enflame.cn/hai.bai/dmaster/algo/linklist"
+	"git.enflame.cn/hai.bai/dmaster/assert"
 	"git.enflame.cn/hai.bai/dmaster/codec"
 	"git.enflame.cn/hai.bai/dmaster/meta"
 )
@@ -29,29 +30,6 @@ type RuntimeTask struct {
 	EndCycle   uint64
 	CycleValid bool
 	MetaValid  bool
-}
-
-type OrderTask struct {
-	StartCy   uint64
-	refToTask *RuntimeTask
-}
-
-func (ot OrderTask) IsValid() bool {
-	return ot.refToTask.CycleValid && ot.refToTask.MetaValid
-}
-
-type OrderTasks []OrderTask
-
-func (o OrderTasks) Len() int {
-	return len(o)
-}
-
-func (o OrderTasks) Swap(i, j int) {
-	o[i], o[j] = o[j], o[i]
-}
-
-func (o OrderTasks) Less(i, j int) bool {
-	return o[i].StartCy < o[j].StartCy
 }
 
 func (r RuntimeTask) ToString() string {
@@ -182,10 +160,10 @@ func (r *RuntimeTaskManager) BuildOrderInfo() {
 	var orders []OrderTask
 	for _, task := range r.taskIdToTask {
 		if task.CycleValid && task.MetaValid {
-			orders = append(orders, OrderTask{
-				StartCy:   task.StartCycle,
-				refToTask: task,
-			})
+			orders = append(orders, NewOrderTask(
+				task.StartCycle,
+				task,
+			))
 		}
 	}
 	sort.Sort(OrderTasks(orders))
@@ -205,6 +183,12 @@ func (r *RuntimeTaskManager) LoadMeta(startPath string) {
 		}
 	}
 	r.execKnowledge = execKm
+}
+
+func (r *RuntimeTaskManager) FindExecFor(execUuid uint64) meta.ExecScope {
+	exec, ok := r.execKnowledge.FindExecScope(execUuid)
+	assert.Assert(ok, "Must be there")
+	return exec
 }
 
 func (r *RuntimeTaskManager) LookupOpIdByPacketID(
@@ -260,7 +244,13 @@ func (r RuntimeTaskManager) upperBoundForTaskVec(cycle uint64) int {
 
 // CookCqm:  find dtu-op meta information for the Cqm Act
 func (r *RuntimeTaskManager) CookCqm(dtuBundle []CqmActBundle) {
+	// Each time we start processing a new session
+	// We create a new object to do the math
 	vec := r.orderedTaskVector
+	for i := 0; i < len(vec); i++ {
+		vec[i].taskState = NewOrderTaskState()
+	}
+
 	bingoCount := 0
 	for i := 0; i < len(dtuBundle); i++ {
 		curAct := &dtuBundle[i]
@@ -278,12 +268,13 @@ func (r *RuntimeTaskManager) CookCqm(dtuBundle []CqmActBundle) {
 				continue
 			}
 			thisExecUuid := taskInOrder.refToTask.ExecutableUUID
-			if taskInOrder.refToTask.MatchCqm(*curAct) {
+			if taskInOrder.AbleToMatchCqm(*curAct) {
 				if opInfo, err := r.LookupOpIdByPacketID(
 					thisExecUuid,
 					curAct.Start.PacketID); err == nil {
 					// There is always a dtuop related to dbg op
 					// and there is always a task
+					taskInOrder.SuccessMatchDtuop(curAct.Start.PacketID)
 					curAct.opRef = OpRef{
 						dtuOp:     &opInfo,
 						refToTask: taskInOrder.refToTask,
@@ -303,4 +294,10 @@ func (r *RuntimeTaskManager) CookCqm(dtuBundle []CqmActBundle) {
 		bingoCount,
 		len(dtuBundle),
 	)
+
+	fmt.Printf("statistics for ordered-task\n")
+	for _, v := range vec {
+		execScope := r.FindExecFor(v.refToTask.ExecutableUUID)
+		v.DumpInfo(execScope)
+	}
 }

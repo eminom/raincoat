@@ -38,6 +38,19 @@ func (es ExecScope) FindOp(packetId int) (DtuOp, bool) {
 	return DtuOp{}, false
 }
 
+func (es ExecScope) IsValidPacketId(packetId int) bool {
+	if _, ok := es.pktIdToOp[packetId]; ok {
+		return true
+	}
+	return false
+}
+
+func (es ExecScope) IteratePacketId(cb func(pktId int)) {
+	for pktId := range es.pktIdToOp {
+		cb(pktId)
+	}
+}
+
 func loadPktToOpMap(execUuid uint64, prefix string) map[int]int {
 	inputName := fmt.Sprintf("0x%016x", execUuid)[:10] + "_pkt2op.dumptxt"
 	inputName = filepath.Join(prefix, inputName)
