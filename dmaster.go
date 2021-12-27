@@ -19,9 +19,15 @@ var (
 	fDecodeFull = flag.Bool("decodefull", false, "decode all line")
 	fSort       = flag.Bool("sort", false, "sort by order")
 	fEng        = flag.String("eng", "", "engine to filter in")
-	fDump       = flag.Bool("dump", false, "decode file and dump to stdout")
-	fRaw        = flag.Bool("raw", false, "dump raw value")
-	fProc       = flag.Bool("proc", false, "post-processing")
+
+	fDump = flag.Bool("dump", false, "decode file and dump to stdout")
+	fRaw  = flag.Bool("raw", false,
+		"dump raw value\n"+
+			"if -dump is set, dmaster is going to dump the original value from ring buffer\n",
+	)
+	fProc        = flag.Bool("proc", false, "post-processing")
+	fMetaStartup = flag.String("meta", "/home/hai.bai/data16/meta",
+		"meta startup folder, if need to do some post-processing meta must be specified")
 )
 
 func init() {
@@ -41,7 +47,7 @@ func DoProcess(sess *sess.Session) {
 	cqmOpDbgCount := 0
 	allCount := 0
 
-	pathConf := decmconf.NewDecmConf("/home/hai.bai/data16/meta")
+	pathConf := decmconf.NewDecmConf(*fMetaStartup)
 
 	rtDict := rtinfo.NewRuntimeTaskManager()
 	rtDict.LoadRuntimeTask(pathConf.GetRuntimeTaskPath())
