@@ -216,6 +216,11 @@ func (r *RuntimeTaskManager) LookupOpIdByPacketID(
 	)
 }
 
+func (r *RuntimeTaskManager) LookupInWild(packetId int) (uint64, bool) {
+	exec, ok := r.execKnowledge.LookForWild(packetId)
+	return exec, ok
+}
+
 func (r RuntimeTaskManager) lowerBoundForTaskVec(cycle uint64) int {
 	lz := len(r.orderedTaskVector)
 	lo, hi := 0, lz
@@ -381,4 +386,23 @@ func (r *RuntimeTaskManager) OvercookCqm(
 	// 	execScope := r.FindExecFor(v.refToTask.ExecutableUUID)
 	// 	v.DumpInfo(execScope)
 	// }
+}
+
+// CookCqm:  find dtu-op meta information for the Cqm Act
+func (r *RuntimeTaskManager) WildCookCqm(
+	dtuBundle []CqmActBundle,
+) []CqmActBundle {
+	var rv []CqmActBundle
+	log.Printf("start wild cook for %v item(s)", len(dtuBundle))
+	for i := 0; i < len(dtuBundle); i++ {
+		curAct := &dtuBundle[i]
+		// start := curAct.StartCycle()
+		if _, ok := r.LookupInWild(curAct.Start.PacketID); ok {
+			rv = append(rv, CqmActBundle{
+				DpfAct: curAct.DpfAct,
+			})
+		}
+	}
+	log.Printf("done wild cook, get %v item(s)", len(rv))
+	return rv
 }

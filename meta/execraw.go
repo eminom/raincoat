@@ -9,6 +9,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"git.enflame.cn/hai.bai/dmaster/assert"
 )
 
 type DtuOp struct {
@@ -210,6 +212,16 @@ func (e ExecRaw) FindExecScope(execUuid uint64) (ExecScope, bool) {
 		return *rv, true
 	}
 	return ExecScope{}, false
+}
+
+func (e ExecRaw) LookForWild(packetId int) (uint64, bool) {
+	assert.Assert(len(e.wilds) > 0, "Must be greater than zero")
+	for execUuid, es := range e.wilds {
+		if es.IsValidPacketId(packetId) {
+			return execUuid, true
+		}
+	}
+	return 0, false
 }
 
 func (e ExecRaw) DumpInfo() {

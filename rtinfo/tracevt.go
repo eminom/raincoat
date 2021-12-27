@@ -130,7 +130,8 @@ func checkTimespanOverlapping(bundle []CqmActBundle) {
 func (tr *TraceEventSession) DumpToEventTrace(
 	bundle []CqmActBundle,
 	tm *TimelineManager,
-	getPidAndName func(CqmActBundle) (string, string),
+	getPidAndName func(CqmActBundle) (bool, string, string),
+	dumpWild bool,
 ) {
 	checkTimespanOverlapping(bundle)
 
@@ -139,12 +140,12 @@ func (tr *TraceEventSession) DumpToEventTrace(
 
 	subSampleCount := 0
 	for _, act := range bundle {
-		if act.IsOpRefValid() {
+		///act.IsOpRefValid()
+		if okToShow, pid, name := getPidAndName(act); okToShow {
 			dtuOpCount++
 			startHostTime, startOK := tm.MapToHosttime(act.StartCycle())
 			endHostTime, endOK := tm.MapToHosttime(act.EndCycle())
 			if startOK && endOK {
-				pid, name := getPidAndName(act)
 				tr.AppendEvt(NewTraceEventBegin(
 					pid,
 					name,
@@ -160,15 +161,16 @@ func (tr *TraceEventSession) DumpToEventTrace(
 			}
 		} else {
 			subSampleCount++
-			startHostTime, startOK := tm.MapToHosttime(act.StartCycle())
-			endHostTime, endOK := tm.MapToHosttime(act.EndCycle())
-			if startOK && endOK && subSampleCount%30 == 0 {
-				tr.AppendEvt(NewTraceEventStartUnk(startHostTime, "op", "Unk Task"))
-				tr.AppendEvt(NewTraceEventEndUnk(endHostTime, "op", "Unk Task"))
+			if dumpWild {
+				startHostTime, startOK := tm.MapToHosttime(act.StartCycle())
+				endHostTime, endOK := tm.MapToHosttime(act.EndCycle())
+				if startOK && endOK && subSampleCount%30 == 0 {
+					tr.AppendEvt(NewTraceEventStartUnk(startHostTime, "op", "Unk Task"))
+					tr.AppendEvt(NewTraceEventEndUnk(endHostTime, "op", "Unk Task"))
+				}
 			}
 		}
 	}
-
 	if convertToHostError > 0 {
 		log.Printf("convert-to-hosttime-error count: %v", convertToHostError)
 	}

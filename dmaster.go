@@ -96,16 +96,45 @@ func DoProcess(sess *sess.Session) {
 		var tr rtinfo.TraceEventSession
 		unProcessed := rtDict.CookCqm(qm.CqmActBundle())
 		rtDict.OvercookCqm(unProcessed)
+		wildProcess := rtDict.WildCookCqm(unProcessed)
 		tr.DumpToEventTrace(qm.CqmActBundle(), tm,
-			func(act rtinfo.CqmActBundle) (string, string) {
-				return act.GetTask().ToShortString(), act.GetOp().OpName
+			func(act rtinfo.CqmActBundle) (bool, string, string) {
+				if act.IsOpRefValid() {
+					return true,
+						act.GetTask().ToShortString(),
+						act.GetOp().OpName
+				}
+				return false, "", ""
 			},
+			true,
 		)
+		notWildInCount := 0
 		tr.DumpToEventTrace(unProcessed, tm,
-			func(act rtinfo.CqmActBundle) (string, string) {
-				return "Wild " + act.GetTask().ToShortString(),
-					act.GetOp().OpName
-			})
+			func(act rtinfo.CqmActBundle) (bool, string, string) {
+				//+ act.GetTask().ToShortString(),
+				if act.IsOpRefValid() {
+					return true, "Wild In",
+						act.GetOp().OpName
+				}
+				notWildInCount++
+				return false, "", ""
+			},
+			false,
+		)
+		subSampleCc := 0
+		tr.DumpToEventTrace(wildProcess, tm,
+			func(act rtinfo.CqmActBundle) (bool, string, string) {
+				//+ act.GetTask().ToShortString(),
+				subSampleCc++
+				if subSampleCc%17 == 0 {
+					return true, "Wild Out", "some op"
+				}
+				return false, "", ""
+			},
+			false,
+		)
+		fmt.Printf("# notWildInCount: %v\n", notWildInCount)
+		fmt.Printf("# subSampleCc: %v\n", subSampleCc)
 		tr.DumpToFile("dtuop_trace.json")
 	}
 }
