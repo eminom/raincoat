@@ -275,6 +275,7 @@ func (r *RuntimeTaskManager) CookCqm(dtuBundle []CqmActBundle) {
 					// There is always a dtuop related to dbg op
 					// and there is always a task
 					taskInOrder.SuccessMatchDtuop(curAct.Start.PacketID)
+					taskInOrder.SuccessMatchDtuop(curAct.End.PacketID)
 					curAct.opRef = OpRef{
 						dtuOp:     &opInfo,
 						refToTask: taskInOrder.refToTask,
