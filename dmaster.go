@@ -9,6 +9,7 @@ import (
 	"git.enflame.cn/hai.bai/dmaster/algo"
 	"git.enflame.cn/hai.bai/dmaster/codec"
 	decmconf "git.enflame.cn/hai.bai/dmaster/conf"
+	"git.enflame.cn/hai.bai/dmaster/meta"
 	"git.enflame.cn/hai.bai/dmaster/rtinfo"
 	"git.enflame.cn/hai.bai/dmaster/sess"
 )
@@ -92,6 +93,7 @@ func DoProcess(sess *sess.Session) {
 		rtDict.LoadMeta(pathConf.GetMetaStartupPath())
 		rtDict.BuildOrderInfo()
 		rtDict.DumpInfo()
+		meta.TestExecRaw(rtDict.GetExecRaw())
 
 		var tr rtinfo.TraceEventSession
 		unProcessed := rtDict.CookCqm(qm.CqmActBundle())
@@ -104,7 +106,7 @@ func DoProcess(sess *sess.Session) {
 						act.GetTask().ToShortString(),
 						act.GetOp().OpName
 				}
-				return false, "", ""
+				return false, "Unknown Task", "Unk"
 			},
 			true,
 		)

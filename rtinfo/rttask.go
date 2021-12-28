@@ -17,8 +17,7 @@ import (
 )
 
 var (
-	errNoMeta       = errors.New("no meta info for runtime")
-	errNoSuchPacket = errors.New("no such packet")
+	ErrNoExecMeta = errors.New("no exec meta info for runtime")
 )
 
 type RuntimeTask struct {
@@ -156,6 +155,10 @@ func (r RuntimeTaskManager) DumpInfo() {
 	fmt.Println()
 }
 
+func (r RuntimeTaskManager) GetExecRaw() *meta.ExecRaw {
+	return r.execKnowledge
+}
+
 // After meta is loaded
 // Ordered-task vector, element is placed in cycle orders
 func (r *RuntimeTaskManager) BuildOrderInfo() {
@@ -200,25 +203,14 @@ func (r *RuntimeTaskManager) LookupOpIdByPacketID(
 	packetId int,
 ) (meta.DtuOp, error) {
 	if r.execKnowledge == nil {
-		return meta.DtuOp{}, errNoMeta
+		return meta.DtuOp{}, ErrNoExecMeta
 	}
 	exec, ok := r.execKnowledge.FindExecScope(execUuid)
 	if !ok {
 		log.Printf("exec %016x is not loaded", exec)
-		return meta.DtuOp{}, errNoMeta
+		return meta.DtuOp{}, ErrNoExecMeta
 	}
-	if dtuOp, ok := exec.FindOp(packetId); ok {
-		return dtuOp, nil
-	}
-	return meta.DtuOp{}, fmt.Errorf("no packet %v in %016x",
-		packetId,
-		execUuid,
-	)
-}
-
-func (r *RuntimeTaskManager) LookupInWild(packetId int) (uint64, bool) {
-	exec, ok := r.execKnowledge.LookForWild(packetId)
-	return exec, ok
+	return exec.FindOp(packetId)
 }
 
 func (r RuntimeTaskManager) lowerBoundForTaskVec(cycle uint64) int {
@@ -332,12 +324,21 @@ func (r *RuntimeTaskManager) OvercookCqm(
 
 	bingoCount := 0
 	noBingoCount := 0
+
+	// Map from the first unmatched packet id to CQM engine index
+	noMatchedPacketId := make(map[int]int)
+	cqmUnmatched := make(map[int]map[int]bool)
+
+	addUnmatchedToCqm := func(evt codec.DpfEvent) {
+		assert.Assert(evt.EngineTypeCode == codec.EngCat_CQM, "Must be CQM")
+		if _, ok := cqmUnmatched[evt.EngineIndex]; !ok {
+			cqmUnmatched[evt.EngineIndex] = make(map[int]bool)
+		}
+		cqmUnmatched[evt.EngineIndex][evt.PacketID] = true
+	}
+
 	for i := 0; i < len(dtuBundle); i++ {
 		curAct := &dtuBundle[i]
-		// start := curAct.StartCycle()
-		// idxStart := r.upperBoundForTaskVec(start)
-		// backtrace for no more than 5
-		const maxBacktraceTaskCount = 2
 		found := false
 		for j := len(vec) - 1; j >= 0; j-- {
 			if j < 0 || j >= len(vec) {
@@ -347,11 +348,13 @@ func (r *RuntimeTaskManager) OvercookCqm(
 			if !taskInOrder.IsValid() {
 				continue
 			}
-			thisExecUuid := taskInOrder.refToTask.ExecutableUUID
 			if taskInOrder.AbleToMatchCqm(*curAct) {
-				if opInfo, err := r.LookupOpIdByPacketID(
+				thisExecUuid := taskInOrder.refToTask.ExecutableUUID
+				opInfo, err := r.LookupOpIdByPacketID(
 					thisExecUuid,
-					curAct.Start.PacketID); err == nil {
+					curAct.Start.PacketID)
+				switch err {
+				case nil:
 					// There is always a dtuop related to dbg op
 					// and there is always a task
 					taskInOrder.SuccessMatchDtuop(curAct.Start.PacketID)
@@ -361,19 +364,20 @@ func (r *RuntimeTaskManager) OvercookCqm(
 						refToTask: taskInOrder.refToTask,
 					}
 					found = true
-					break
-				} else {
-					// fmt.Printf("error: %v\n", err)
+				case meta.ErrInvalidPacketId:
+				case meta.ErrValidPacketIdNoOp:
+				default:
+					assert.Assert(false, "not included")
 				}
 			}
 		}
 		if found {
 			bingoCount++
 		} else {
-			// unprocessedVec = append(unprocessedVec, CqmActBundle{
-			// 	DpfAct: curAct.DpfAct,
-			// })
 			noBingoCount++
+			noMatchedPacketId[curAct.Start.PacketID] |=
+				1 << curAct.Start.EngineIndex
+			addUnmatchedToCqm(curAct.Start)
 		}
 	}
 	fmt.Printf("Dbg op/Dtu-op meta wildcard success matched count: %v out of %v\n",
@@ -381,11 +385,38 @@ func (r *RuntimeTaskManager) OvercookCqm(
 		noBingoCount+bingoCount,
 	)
 
-	// fmt.Printf("statistics for ordered-task\n")
-	// for _, v := range vec {
-	// 	execScope := r.FindExecFor(v.refToTask.ExecutableUUID)
-	// 	v.DumpInfo(execScope)
-	// }
+	fmt.Printf("no matched count: %v\n", len(noMatchedPacketId))
+	limitedCc := 10
+	cqmEngs := 0
+	for pkt, cqmEng := range noMatchedPacketId {
+		limitedCc--
+		if limitedCc > 0 {
+			fmt.Printf("no matched packet id: %v for Cqm(%v)\n",
+				pkt, toCqmGroup(cqmEng))
+		}
+		cqmEngs |= cqmEng
+	}
+	fmt.Printf("in summary: %v\n", toCqmGroup(cqmEngs))
+	if len(cqmUnmatched[0]) > 0 {
+		limitedCc := 10
+		fmt.Printf("For CQM ZERO:\n")
+		for pkt := range cqmUnmatched[0] {
+			limitedCc--
+			if limitedCc > 0 {
+				fmt.Printf("  unmatched packet: %v\n", pkt)
+			}
+		}
+	}
+}
+
+func toCqmGroup(engBitmap int) string {
+	var rv string
+	for i := 0; i < 31; i++ {
+		if engBitmap&(1<<i) != 0 {
+			rv += fmt.Sprintf("%v,", i)
+		}
+	}
+	return rv
 }
 
 // CookCqm:  find dtu-op meta information for the Cqm Act
@@ -397,12 +428,15 @@ func (r *RuntimeTaskManager) WildCookCqm(
 	for i := 0; i < len(dtuBundle); i++ {
 		curAct := &dtuBundle[i]
 		// start := curAct.StartCycle()
-		if _, ok := r.LookupInWild(curAct.Start.PacketID); ok {
+		if _, ok := r.execKnowledge.LookForWild(curAct.Start.PacketID, false); ok {
 			rv = append(rv, CqmActBundle{
 				DpfAct: curAct.DpfAct,
 			})
 		}
 	}
 	log.Printf("done wild cook, get %v item(s)", len(rv))
+	if len(dtuBundle) == len(rv) {
+		log.Printf("all matched in wild match mode")
+	}
 	return rv
 }

@@ -165,8 +165,8 @@ func (tr *TraceEventSession) DumpToEventTrace(
 				startHostTime, startOK := tm.MapToHosttime(act.StartCycle())
 				endHostTime, endOK := tm.MapToHosttime(act.EndCycle())
 				if startOK && endOK && subSampleCount%30 == 0 {
-					tr.AppendEvt(NewTraceEventStartUnk(startHostTime, "op", "Unk Task"))
-					tr.AppendEvt(NewTraceEventEndUnk(endHostTime, "op", "Unk Task"))
+					tr.AppendEvt(NewTraceEventStartUnk(startHostTime, pid, name))
+					tr.AppendEvt(NewTraceEventEndUnk(endHostTime, pid, name))
 				}
 			}
 		}

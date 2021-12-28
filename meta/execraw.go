@@ -2,6 +2,7 @@ package meta
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -9,8 +10,11 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+)
 
-	"git.enflame.cn/hai.bai/dmaster/assert"
+var (
+	ErrValidPacketIdNoOp = errors.New("known packet but no op")
+	ErrInvalidPacketId   = errors.New("invalid packet id")
 )
 
 type DtuOp struct {
@@ -32,13 +36,14 @@ func (es ExecScope) DumpToOstream(fout *os.File) {
 	//TODO: Dump OP MAP
 }
 
-func (es ExecScope) FindOp(packetId int) (DtuOp, bool) {
+func (es ExecScope) FindOp(packetId int) (DtuOp, error) {
 	if opId, ok := es.pktIdToOp[packetId]; ok {
 		if rv, ok1 := es.opMap[opId]; ok1 {
-			return rv, true
+			return rv, nil
 		}
+		return DtuOp{}, ErrValidPacketIdNoOp
 	}
-	return DtuOp{}, false
+	return DtuOp{}, ErrInvalidPacketId
 }
 
 func (es ExecScope) IsValidPacketId(packetId int) bool {
@@ -214,9 +219,13 @@ func (e ExecRaw) FindExecScope(execUuid uint64) (ExecScope, bool) {
 	return ExecScope{}, false
 }
 
-func (e ExecRaw) LookForWild(packetId int) (uint64, bool) {
-	assert.Assert(len(e.wilds) > 0, "Must be greater than zero")
-	for execUuid, es := range e.wilds {
+func (e ExecRaw) LookForWild(packetId int, inWild bool) (uint64, bool) {
+	// assert.Assert(len(e.wilds) > 0, "Must be greater than zero")
+	var mapToSearch = e.wilds
+	if !inWild {
+		mapToSearch = e.bundle
+	}
+	for execUuid, es := range mapToSearch {
 		if es.IsValidPacketId(packetId) {
 			return execUuid, true
 		}
