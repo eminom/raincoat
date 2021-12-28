@@ -39,6 +39,8 @@ func (ot *OrderTask) SuccessMatchDtuop(packetId int) {
 	ot.taskState.matchedPacketIdMap[packetId]++
 }
 
+// A task is an instance of executable
+// So all matched packets must belong to the same executable
 func (ot OrderTask) DumpInfo(exec meta.ExecScope) {
 	assert.Assert(ot.refToTask != nil, "must not be nil, created from start")
 	if !ot.IsValid() {
@@ -86,5 +88,16 @@ func (o OrderTasks) Swap(i, j int) {
 }
 
 func (o OrderTasks) Less(i, j int) bool {
-	return o[i].StartCy < o[j].StartCy
+	if o[i].StartCy != o[j].StartCy {
+		return o[i].StartCy < o[j].StartCy
+	}
+	return o[i].refToTask.TaskID < o[j].refToTask.TaskID
+}
+
+func (orderTask OrderTasks) DumpInfo(rtm *RuntimeTaskManager) {
+	fmt.Printf("statistics for ordered-task\n")
+	for _, v := range orderTask {
+		execScope := rtm.FindExecFor(v.refToTask.ExecutableUUID)
+		v.DumpInfo(execScope)
+	}
 }

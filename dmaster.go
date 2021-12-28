@@ -97,8 +97,14 @@ func DoProcess(sess *sess.Session) {
 
 		var tr rtinfo.TraceEventSession
 		unProcessed := rtDict.CookCqm(qm.CqmActBundle())
-		rtDict.OvercookCqm(unProcessed)
-		wildProcess := rtDict.WildCookCqm(unProcessed)
+		var wildProcess []rtinfo.CqmActBundle
+		if false {
+			rtDict.OvercookCqm(unProcessed)
+			wildProcess = rtDict.WildCookCqm(unProcessed)
+		} else {
+			rtDict.CookCqmEverSince(unProcessed)
+		}
+
 		tr.DumpToEventTrace(qm.CqmActBundle(), tm,
 			func(act rtinfo.CqmActBundle) (bool, string, string) {
 				if act.IsOpRefValid() {
@@ -108,6 +114,7 @@ func DoProcess(sess *sess.Session) {
 				}
 				return false, "Unknown Task", "Unk"
 			},
+			true,
 			true,
 		)
 		notWildInCount := 0
@@ -122,6 +129,7 @@ func DoProcess(sess *sess.Session) {
 				return false, "", ""
 			},
 			false,
+			false,
 		)
 		subSampleCc := 0
 		tr.DumpToEventTrace(wildProcess, tm,
@@ -134,9 +142,11 @@ func DoProcess(sess *sess.Session) {
 				return false, "", ""
 			},
 			false,
+			false,
 		)
 		fmt.Printf("# notWildInCount: %v\n", notWildInCount)
-		fmt.Printf("# subSampleCc: %v\n", subSampleCc)
+		fmt.Printf("# uncertained (could not detmerined at all): %v\n",
+			len(wildProcess))
 		tr.DumpToFile("dtuop_trace.json")
 	}
 }

@@ -186,7 +186,7 @@ func (e *ExecRaw) LoadWildcard() {
 	within := func(name string) bool {
 		found := false
 		for execUuid := range e.bundle {
-			prefix := fmt.Sprintf("0x%0x16", execUuid)[:10]
+			prefix := fmt.Sprintf("0x%016x", execUuid)[:10]
 			if strings.HasPrefix(name, prefix) {
 				found = true
 				break
@@ -195,8 +195,19 @@ func (e *ExecRaw) LoadWildcard() {
 		return found
 	}
 
+	printWithin := func(str string) {
+		for execUuid := range e.bundle {
+			prefix := fmt.Sprintf("0x%0x16", execUuid)[:10]
+			fmt.Printf("  %v to %v\n", prefix, str)
+		}
+	}
+	_ = printWithin
+
 	for _, entry := range entries {
-		if pat.MatchString(entry.Name()) && !within(entry.Name()) {
+		if !pat.MatchString(entry.Name()) {
+			continue
+		}
+		if !within(entry.Name()) {
 			execUuid, err := strconv.ParseUint(entry.Name()[2:10], 16, 64)
 			if err != nil {
 				panic(err)
@@ -207,7 +218,11 @@ func (e *ExecRaw) LoadWildcard() {
 				e.wilds[execUuid] = es
 				fmt.Printf("exec 0x%016x is loaded for wildcard\n",
 					execUuid)
+				// For debug
+				// printWithin(fmt.Sprintf("0x%016x", execUuid))
 			}
+		} else {
+			// log.Printf("%v is skipped", entry.Name())
 		}
 	}
 }

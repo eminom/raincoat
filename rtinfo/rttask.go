@@ -51,12 +51,13 @@ func (r RuntimeTask) ToShortString() string {
 }
 
 type RuntimeTaskManager struct {
-	taskIdToTask map[int]*RuntimeTask
-	taskIdVec    []int
+	taskIdToTask map[int]*RuntimeTask // Full runtime task info, include cyccled ones and ones without cycles
+	taskIdVec    []int                // Full task id vec
 	tsHead       *linklist.Lnk
 
 	execKnowledge     *meta.ExecRaw
 	orderedTaskVector []OrderTask
+	fullTaskVector    []OrderTask
 }
 
 func NewRuntimeTaskManager() *RuntimeTaskManager {
@@ -65,7 +66,7 @@ func NewRuntimeTaskManager() *RuntimeTaskManager {
 	}
 }
 
-func (self *RuntimeTaskManager) LoadRuntimeTask(filename string) bool {
+func (rtm *RuntimeTaskManager) LoadRuntimeTask(filename string) bool {
 	fin, err := os.Open(filename)
 	if err != nil {
 		log.Printf("error load runtime info:%v\n", err)
@@ -73,6 +74,8 @@ func (self *RuntimeTaskManager) LoadRuntimeTask(filename string) bool {
 	}
 	defer fin.Close()
 
+	// dc: Full runtime task info
+	// including the ones with cycle info and the ones without cycle info
 	dc := make(map[int]*RuntimeTask)
 	var taskSequentials []int
 	scan := bufio.NewScanner(fin)
@@ -113,23 +116,23 @@ func (self *RuntimeTaskManager) LoadRuntimeTask(filename string) bool {
 	}
 	sort.Ints(taskSequentials)
 	// update to self
-	self.taskIdToTask, self.taskIdVec = dc, taskSequentials
+	rtm.taskIdToTask, rtm.taskIdVec = dc, taskSequentials
 	return true
 }
 
-func (r *RuntimeTaskManager) CollectTsEvent(evt codec.DpfEvent) {
+func (rtm *RuntimeTaskManager) CollectTsEvent(evt codec.DpfEvent) {
 	if evt.Event == codec.TsLaunchCqmStart {
-		r.tsHead.AppendNode(evt)
+		rtm.tsHead.AppendNode(evt)
 		return
 	}
 	if evt.Event == codec.TsLaunchCqmEnd {
-		if start := r.tsHead.Extract(func(one interface{}) bool {
+		if start := rtm.tsHead.Extract(func(one interface{}) bool {
 			un := one.(codec.DpfEvent)
 			return un.Payload == evt.Payload
 		}); start != nil {
 			startUn := start.(codec.DpfEvent)
 			taskID := startUn.Payload
-			if task, ok := r.taskIdToTask[taskID]; !ok {
+			if task, ok := rtm.taskIdToTask[taskID]; !ok {
 				panic(fmt.Errorf("no start for cqm launch exec"))
 			} else {
 				task.StartCycle = startUn.Cycle
@@ -146,7 +149,7 @@ func (r RuntimeTaskManager) DumpInfo() {
 		fmt.Fprintf(os.Stderr, "TS unmatched count: %v\n",
 			r.tsHead.ElementCount())
 	}
-	fmt.Printf("# runtimetask:\n")
+	fmt.Printf("# runtimetask (print the ones with cycle info only(TS event related)):\n")
 	for _, taskId := range r.taskIdVec {
 		if r.taskIdToTask[taskId].CycleValid {
 			fmt.Printf("%v\n", r.taskIdToTask[taskId].ToString())
@@ -162,26 +165,39 @@ func (r RuntimeTaskManager) GetExecRaw() *meta.ExecRaw {
 // After meta is loaded
 // Ordered-task vector, element is placed in cycle orders
 func (r *RuntimeTaskManager) BuildOrderInfo() {
+	r.orderedTaskVector = r.createTaskSeq(true, true)
+	r.fullTaskVector = r.createTaskSeq(false, true)
+	log.Printf("%v order task has been built", len(r.orderedTaskVector))
+	log.Printf("%v full order task has been built", len(r.fullTaskVector))
+}
+
+func (r RuntimeTaskManager) createTaskSeq(
+	needCycleValid bool,
+	needMetaValid bool,
+) []OrderTask {
 	var orders []OrderTask
+	var check uint64 = 0
+	if needCycleValid {
+		check = 1
+	}
 	for _, task := range r.taskIdToTask {
-		if task.CycleValid && task.MetaValid {
+		if (!needCycleValid || task.CycleValid) &&
+			(!needMetaValid || task.MetaValid) {
 			orders = append(orders, NewOrderTask(
-				task.StartCycle,
+				task.StartCycle*check,
 				task,
 			))
 		}
 	}
 	sort.Sort(OrderTasks(orders))
-	r.orderedTaskVector = orders
-
-	log.Printf("%v order task has been built", len(orders))
+	return orders
 }
 
 // LoadMeta will load executable raw from task info's executable-uuids
 func (r *RuntimeTaskManager) LoadMeta(startPath string) {
 	execKm := meta.NewExecRaw(startPath)
 	for _, taskId := range r.taskIdVec {
-		if r.taskIdToTask[taskId].CycleValid {
+		if r.taskIdToTask[taskId].CycleValid || true {
 			if execKm.LoadMeta(r.taskIdToTask[taskId].ExecutableUUID) {
 				r.taskIdToTask[taskId].MetaValid = true
 			}
@@ -301,13 +317,91 @@ func (r *RuntimeTaskManager) CookCqm(dtuBundle []CqmActBundle) []CqmActBundle {
 		bingoCount,
 		len(dtuBundle),
 	)
+	return unprocessedVec
+}
 
-	fmt.Printf("statistics for ordered-task\n")
-	for _, v := range vec {
-		execScope := r.FindExecFor(v.refToTask.ExecutableUUID)
-		v.DumpInfo(execScope)
+// Start from the first recorded task
+func (r *RuntimeTaskManager) CookCqmEverSince(
+	dtuBundle []CqmActBundle,
+) []CqmActBundle {
+	// Each time we start processing a new session
+	// We create a new object to do the math
+
+	validTaskMap := make(map[int]bool)
+	for _, orderedTask := range r.orderedTaskVector {
+		validTaskMap[orderedTask.refToTask.TaskID] = true
+	}
+	vec := r.fullTaskVector
+	for i := 0; i < len(vec); i++ {
+		vec[i].taskState = NewOrderTaskState()
 	}
 
+	// If there is an ordered task vector, start from the very beginning
+	// Let's assume that we do not miss any TS event from the start
+	log.Printf("full vector size: %v", len(vec))
+	startIdx := 0
+	var firstTaskID = -1
+	if len(r.orderedTaskVector) > 0 {
+		startIdx = len(vec)
+		firstTaskID = r.orderedTaskVector[0].refToTask.TaskID
+		for i := 0; i < len(vec); i++ {
+			if firstTaskID == vec[i].refToTask.TaskID {
+				startIdx = i
+				break
+			}
+		}
+	}
+
+	log.Printf("Ever since: [%v] taskid %v", startIdx, firstTaskID)
+	bingoCount := 0
+	unprocessedVec := []CqmActBundle{}
+	for i := 0; i < len(dtuBundle); i++ {
+		curAct := &dtuBundle[i]
+		found := false
+		onceValid := false
+	A100:
+		for j := startIdx; j < len(vec); j++ {
+			taskInOrder := vec[j]
+			if validTaskMap[taskInOrder.refToTask.TaskID] {
+				continue
+			}
+			thisExecUuid := taskInOrder.refToTask.ExecutableUUID
+			if taskInOrder.AbleToMatchCqm(*curAct) {
+				opInfo, err := r.LookupOpIdByPacketID(
+					thisExecUuid,
+					curAct.Start.PacketID)
+
+				switch err {
+				case nil:
+					// There is always a dtuop related to dbg op
+					// and there is always a task
+					taskInOrder.SuccessMatchDtuop(curAct.Start.PacketID)
+					taskInOrder.SuccessMatchDtuop(curAct.End.PacketID)
+					curAct.opRef = OpRef{
+						dtuOp:     &opInfo,
+						refToTask: taskInOrder.refToTask,
+					}
+					found = true
+					break A100
+				case meta.ErrValidPacketIdNoOp:
+					onceValid = true
+				}
+			}
+		}
+		if found {
+			bingoCount++
+		} else {
+			assert.Assert(onceValid, "must be valid for once")
+			unprocessedVec = append(unprocessedVec, CqmActBundle{
+				DpfAct: curAct.DpfAct,
+			})
+		}
+	}
+	fmt.Printf("CookCqmEverSince: Success matched count: %v out of %v\n",
+		bingoCount,
+		len(dtuBundle),
+	)
+	fmt.Printf("  :and the rest unmatched is packet-valid-but-no-op\n")
 	return unprocessedVec
 }
 
@@ -404,6 +498,8 @@ func (r *RuntimeTaskManager) OvercookCqm(
 			limitedCc--
 			if limitedCc > 0 {
 				fmt.Printf("  unmatched packet: %v\n", pkt)
+			} else if limitedCc == 0 {
+				fmt.Printf("  ...\n")
 			}
 		}
 	}
@@ -419,24 +515,32 @@ func toCqmGroup(engBitmap int) string {
 	return rv
 }
 
-// CookCqm:  find dtu-op meta information for the Cqm Act
+// WildCookCqm:  By all means
 func (r *RuntimeTaskManager) WildCookCqm(
 	dtuBundle []CqmActBundle,
 ) []CqmActBundle {
-	var rv []CqmActBundle
-	log.Printf("start wild cook for %v item(s)", len(dtuBundle))
+	var unmatchedVec []CqmActBundle
 	for i := 0; i < len(dtuBundle); i++ {
 		curAct := &dtuBundle[i]
-		// start := curAct.StartCycle()
-		if _, ok := r.execKnowledge.LookForWild(curAct.Start.PacketID, false); ok {
-			rv = append(rv, CqmActBundle{
+		if _, ok := r.execKnowledge.LookForWild(
+			curAct.Start.PacketID,
+			false); ok {
+			// not change at all
+		} else {
+			unmatchedVec = append(unmatchedVec, CqmActBundle{
 				DpfAct: curAct.DpfAct,
 			})
 		}
 	}
-	log.Printf("done wild cook, get %v item(s)", len(rv))
-	if len(dtuBundle) == len(rv) {
-		log.Printf("all matched in wild match mode")
+
+	if len(unmatchedVec) == 0 {
+		log.Printf("all %v matched in wild match mode", len(unmatchedVec))
+	} else {
+		log.Printf("done wild cook, %v out of %v got unmatched",
+			len(unmatchedVec),
+			len(dtuBundle),
+		)
+		assert.Assert(false, "this is not expected")
 	}
-	return rv
+	return unmatchedVec
 }

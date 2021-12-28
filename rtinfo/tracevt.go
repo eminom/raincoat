@@ -2,6 +2,7 @@ package rtinfo
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"os"
 	"sort"
@@ -114,15 +115,18 @@ func checkTimespanOverlapping(bundle []CqmActBundle) {
 		}
 	}
 	sort.Sort(intvs)
-	overlapped := false
+	overlappedCount := 0
 	for i := 0; i < len(intvs)-1; i++ {
 		if intvs[i][1] >= intvs[i+1][0] {
-			overlapped = true
+			log.Printf("error: %v >= %v at [%d] out of [%v]",
+				intvs[i][1], intvs[i+1][0],
+				i, len(intvs))
+			overlappedCount++
 			break
 		}
 	}
-	if overlapped {
-		panic("overlapped")
+	if overlappedCount > 0 {
+		panic(fmt.Errorf("overlapped:count %v", overlappedCount))
 	}
 	log.Printf("no overlapped confirmed")
 }
@@ -132,8 +136,11 @@ func (tr *TraceEventSession) DumpToEventTrace(
 	tm *TimelineManager,
 	getPidAndName func(CqmActBundle) (bool, string, string),
 	dumpWild bool,
+	checkOverlap bool,
 ) {
-	checkTimespanOverlapping(bundle)
+	if checkOverlap {
+		checkTimespanOverlapping(bundle)
+	}
 
 	var dtuOpCount = 0
 	var convertToHostError = 0
