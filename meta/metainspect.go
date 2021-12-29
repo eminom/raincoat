@@ -56,7 +56,8 @@ func (m *metaInspector) DoBasicState() {
 		}
 	}
 
-	fmt.Printf("%v packets are unique across this session\n",
+	fmt.Printf("  %v packets are unique across this session\n",
 		len(uniquePktDict))
-	fmt.Printf("%v packets are not unique\n", len(duplicatedPktDict))
+	fmt.Printf("  %v packets are not unique\n", len(duplicatedPktDict))
+	fmt.Println()
 }

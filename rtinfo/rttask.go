@@ -260,10 +260,10 @@ func (r RuntimeTaskManager) upperBoundForTaskVec(cycle uint64) int {
 }
 
 // CookCqm:  find dtu-op meta information for the Cqm Act
-func (r *RuntimeTaskManager) CookCqm(dtuBundle []CqmActBundle) []CqmActBundle {
+func (rtm *RuntimeTaskManager) CookCqm(dtuBundle []CqmActBundle) []CqmActBundle {
 	// Each time we start processing a new session
 	// We create a new object to do the math
-	vec := r.orderedTaskVector
+	vec := rtm.orderedTaskVector
 	for i := 0; i < len(vec); i++ {
 		vec[i].taskState = NewOrderTaskState()
 	}
@@ -273,7 +273,7 @@ func (r *RuntimeTaskManager) CookCqm(dtuBundle []CqmActBundle) []CqmActBundle {
 	for i := 0; i < len(dtuBundle); i++ {
 		curAct := &dtuBundle[i]
 		start := curAct.StartCycle()
-		idxStart := r.upperBoundForTaskVec(start)
+		idxStart := rtm.upperBoundForTaskVec(start)
 		// backtrace for no more than 5
 		const maxBacktraceTaskCount = 2
 		found := false
@@ -287,7 +287,7 @@ func (r *RuntimeTaskManager) CookCqm(dtuBundle []CqmActBundle) []CqmActBundle {
 			}
 			thisExecUuid := taskInOrder.refToTask.ExecutableUUID
 			if taskInOrder.AbleToMatchCqm(*curAct) {
-				if opInfo, err := r.LookupOpIdByPacketID(
+				if opInfo, err := rtm.LookupOpIdByPacketID(
 					thisExecUuid,
 					curAct.Start.PacketID); err == nil {
 					// There is always a dtuop related to dbg op
@@ -317,6 +317,8 @@ func (r *RuntimeTaskManager) CookCqm(dtuBundle []CqmActBundle) []CqmActBundle {
 		bingoCount,
 		len(dtuBundle),
 	)
+
+	OrderTasks(rtm.orderedTaskVector).DumpInfos(rtm)
 	return unprocessedVec
 }
 
@@ -405,7 +407,7 @@ func (r *RuntimeTaskManager) CookCqmEverSince(
 	return unprocessedVec
 }
 
-// CookCqm:  find dtu-op meta information for the Cqm Act
+// OvercookCqm:  find dtu-op meta information for the Cqm Act
 func (r *RuntimeTaskManager) OvercookCqm(
 	dtuBundle []CqmActBundle,
 ) {

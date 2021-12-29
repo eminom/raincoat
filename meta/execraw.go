@@ -46,11 +46,26 @@ func (es ExecScope) FindOp(packetId int) (DtuOp, error) {
 	return DtuOp{}, ErrInvalidPacketId
 }
 
-func (es ExecScope) IsValidPacketId(packetId int) bool {
-	if _, ok := es.pktIdToOp[packetId]; ok {
-		return true
+func (es ExecScope) CheckOpMapStatus(opMap map[int]bool) {
+	matchedCount := 0
+	for opId := range opMap {
+		if _, ok := es.opMap[opId]; ok {
+			matchedCount++
+		}
 	}
-	return false
+	fmt.Printf(
+		"  all op(from pkt-mapped) %v, matched: %v out of %v\n",
+		len(opMap),
+		matchedCount,
+		len(es.opMap),
+	)
+}
+
+func (es ExecScope) MapPacketIdToOpId(packetId int) (int, bool) {
+	if opId, ok := es.pktIdToOp[packetId]; ok {
+		return opId, true
+	}
+	return 0, false
 }
 
 func (es ExecScope) IteratePacketId(cb func(pktId int)) {
@@ -241,7 +256,7 @@ func (e ExecRaw) LookForWild(packetId int, inWild bool) (uint64, bool) {
 		mapToSearch = e.bundle
 	}
 	for execUuid, es := range mapToSearch {
-		if es.IsValidPacketId(packetId) {
+		if _, ok := es.MapPacketIdToOpId(packetId); ok {
 			return execUuid, true
 		}
 	}

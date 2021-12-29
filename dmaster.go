@@ -105,6 +105,8 @@ func DoProcess(sess *sess.Session) {
 			rtDict.CookCqmEverSince(unProcessed)
 		}
 
+		dumpFullCycles(qm.CqmActBundle())
+
 		tr.DumpToEventTrace(qm.CqmActBundle(), tm,
 			func(act rtinfo.CqmActBundle) (bool, string, string) {
 				if act.IsOpRefValid() {
@@ -114,7 +116,6 @@ func DoProcess(sess *sess.Session) {
 				}
 				return false, "Unknown Task", "Unk"
 			},
-			true,
 			true,
 		)
 		notWildInCount := 0
@@ -129,7 +130,6 @@ func DoProcess(sess *sess.Session) {
 				return false, "", ""
 			},
 			false,
-			false,
 		)
 		subSampleCc := 0
 		tr.DumpToEventTrace(wildProcess, tm,
@@ -141,7 +141,6 @@ func DoProcess(sess *sess.Session) {
 				}
 				return false, "", ""
 			},
-			false,
 			false,
 		)
 		fmt.Printf("# notWildInCount: %v\n", notWildInCount)
@@ -174,4 +173,31 @@ func main() {
 	}
 
 	// fmt.Printf("done")
+}
+
+func dumpFullCycles(bundle []rtinfo.CqmActBundle) {
+	var intvs rtinfo.Interval
+	// Check intervals
+	for _, act := range bundle {
+		intvs = append(intvs, []uint64{
+			act.StartCycle(),
+			act.EndCycle(),
+		})
+	}
+	// sort.Sort(intvs)
+	overlappedCount := 0
+	for i := 0; i < len(intvs)-1; i++ {
+		if intvs[i][1] >= intvs[i+1][0] {
+			log.Printf("error: %v >= %v at [%d] out of [%v]",
+				intvs[i][1], intvs[i+1][0],
+				i, len(intvs))
+			overlappedCount++
+			break
+		}
+	}
+	if overlappedCount != 0 {
+		log.Printf("warning: must be no overlap in full dump: but there is %v",
+			overlappedCount,
+		)
+	}
 }

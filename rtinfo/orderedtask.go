@@ -41,7 +41,7 @@ func (ot *OrderTask) SuccessMatchDtuop(packetId int) {
 
 // A task is an instance of executable
 // So all matched packets must belong to the same executable
-func (ot OrderTask) DumpInfo(exec meta.ExecScope) {
+func (ot OrderTask) DumpStatusInfo(exec meta.ExecScope) {
 	assert.Assert(ot.refToTask != nil, "must not be nil, created from start")
 	if !ot.IsValid() {
 		log.Printf("not a valid task")
@@ -55,11 +55,14 @@ func (ot OrderTask) DumpInfo(exec meta.ExecScope) {
 	)
 	matchedPacketIdCount := 0
 	// a packet id with a task scope must belong to the same executable
+	matchedUniqueOpIdSet := make(map[int]bool)
 	for pktId := range ot.taskState.matchedPacketIdMap {
-		ok := exec.IsValidPacketId(pktId)
+		opId, ok := exec.MapPacketIdToOpId(pktId)
 		assert.Assert(ok, "must be valid packet id for %v", pktId)
+		matchedUniqueOpIdSet[opId] = true
 		matchedPacketIdCount++
 	}
+	exec.CheckOpMapStatus(matchedUniqueOpIdSet)
 	missedPacketMap := make(map[int]bool)
 	exec.IteratePacketId(func(pkt int) {
 		if _, ok := ot.taskState.matchedPacketIdMap[pkt]; !ok {
@@ -94,10 +97,10 @@ func (o OrderTasks) Less(i, j int) bool {
 	return o[i].refToTask.TaskID < o[j].refToTask.TaskID
 }
 
-func (orderTask OrderTasks) DumpInfo(rtm *RuntimeTaskManager) {
-	fmt.Printf("statistics for ordered-task\n")
-	for _, v := range orderTask {
-		execScope := rtm.FindExecFor(v.refToTask.ExecutableUUID)
-		v.DumpInfo(execScope)
+func (orderTask OrderTasks) DumpInfos(rtm *RuntimeTaskManager) {
+	fmt.Printf("# statistics for ordered-task\n")
+	for _, task := range orderTask {
+		execScope := rtm.FindExecFor(task.refToTask.ExecutableUUID)
+		task.DumpStatusInfo(execScope)
 	}
 }

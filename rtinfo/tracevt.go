@@ -104,6 +104,7 @@ func (tr *TraceEventSession) AppendEvt(evt TraceEvent) {
 }
 
 func checkTimespanOverlapping(bundle []CqmActBundle) {
+	log.Printf("start checking overlap over %v item(s)", len(bundle))
 	var intvs Interval
 	// Check intervals
 	for _, act := range bundle {
@@ -125,10 +126,16 @@ func checkTimespanOverlapping(bundle []CqmActBundle) {
 			break
 		}
 	}
+	// dumpIntvs(intvs)
 	if overlappedCount > 0 {
-		panic(fmt.Errorf("overlapped:count %v", overlappedCount))
+		fmt.Printf("warning: there is %v overlapping\n",
+			overlappedCount)
+		// assert.Assert(overlappedCount == 0,
+		// 	"overlapped count must be zero: but %v",
+		// 	overlappedCount)
+	} else {
+		log.Printf("no overlapped confirmed")
 	}
-	log.Printf("no overlapped confirmed")
 }
 
 func (tr *TraceEventSession) DumpToEventTrace(
@@ -136,11 +143,8 @@ func (tr *TraceEventSession) DumpToEventTrace(
 	tm *TimelineManager,
 	getPidAndName func(CqmActBundle) (bool, string, string),
 	dumpWild bool,
-	checkOverlap bool,
 ) {
-	if checkOverlap {
-		checkTimespanOverlapping(bundle)
-	}
+	checkTimespanOverlapping(bundle)
 
 	var dtuOpCount = 0
 	var convertToHostError = 0
