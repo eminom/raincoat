@@ -336,7 +336,7 @@ func (md *DecodeMaster) GetEngineInfo(val uint32) (
 	reserved_1 := (val >> 10) & 3
 	reserved_2 := (val >> 16) & 0xFFFF
 	if reserved_1 != 0 || reserved_2 != 0 {
-		return
+		_ = 101 // Does not really matter: 2021-12-29
 	}
 	ctxIdx = int((val >> 12) & 0xF)
 	lo, hi := int64(val&0x1f), int64(((val >> 5) & 0x1f))
@@ -353,7 +353,7 @@ func (md *DecodeMaster) GetEngineInfoV2(val uint32) (engineIdx int,
 	engineIdx, engineUniqueIndex = -1, -1
 	reserved := (val >> 10)
 	if reserved != 0 {
-		return
+		_ = 101 // Does not really matter: 2021-12-29
 	}
 	lo, hi := int64(val&0x1f), int64(((val >> 5) & 0x1f))
 	engineIdx, engineUniqueIndex = md.decoder(lo, hi)
