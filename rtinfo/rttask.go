@@ -318,7 +318,7 @@ func (rtm *RuntimeTaskManager) CookCqm(dtuBundle []CqmActBundle) []CqmActBundle 
 		len(dtuBundle),
 	)
 
-	OrderTasks(rtm.orderedTaskVector).DumpInfos(rtm)
+	// OrderTasks(rtm.orderedTaskVector).DumpInfos(rtm)
 	return unprocessedVec
 }
 
@@ -357,6 +357,7 @@ func (r *RuntimeTaskManager) CookCqmEverSince(
 	log.Printf("Ever since: [%v] taskid %v", startIdx, firstTaskID)
 	bingoCount := 0
 	unprocessedVec := []CqmActBundle{}
+	everSearched := false
 	for i := 0; i < len(dtuBundle); i++ {
 		curAct := &dtuBundle[i]
 		found := false
@@ -367,6 +368,7 @@ func (r *RuntimeTaskManager) CookCqmEverSince(
 			if validTaskMap[taskInOrder.refToTask.TaskID] {
 				continue
 			}
+			everSearched = true
 			thisExecUuid := taskInOrder.refToTask.ExecutableUUID
 			if taskInOrder.AbleToMatchCqm(*curAct) {
 				opInfo, err := r.LookupOpIdByPacketID(
@@ -393,7 +395,7 @@ func (r *RuntimeTaskManager) CookCqmEverSince(
 		if found {
 			bingoCount++
 		} else {
-			assert.Assert(onceValid, "must be valid for once")
+			assert.Assert(!everSearched || onceValid, "must be valid for once")
 			unprocessedVec = append(unprocessedVec, CqmActBundle{
 				DpfAct: curAct.DpfAct,
 			})

@@ -15,7 +15,7 @@ fi
 #echo decode for ${INF}
 INF="raw_dpf.bin"
 OUT="process.txt"
-$(pwd)/build/dmaster -proc ${INF} | tee ${OUT}
+$(pwd)/build/dmaster -proc ${INF} -meta /home/hai.bai/data16/meta | tee ${OUT}
 
 if [[ x$? == x0 ]]; then
   echo result save to ${OUT}

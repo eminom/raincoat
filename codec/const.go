@@ -11,6 +11,6 @@ const (
 )
 
 func IsCqmOpEvent(evt DpfEvent) bool {
-	return evt.EngineTypeCode == EngCat_CQM &&
+	return (evt.EngineTypeCode == EngCat_CQM || evt.EngineTypeCode == EngCat_GSYNC) &&
 		(evt.Event == CqmEventOpStart || evt.Event == CqmEventOpEnd)
 }

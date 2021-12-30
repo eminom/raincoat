@@ -63,7 +63,7 @@ func DoProcess(sess *sess.Session) {
 			// Sync info
 			tm.PutEvent(evt)
 
-		case codec.EngCat_CQM:
+		case codec.EngCat_CQM, codec.EngCat_GSYNC:
 			if codec.IsCqmOpEvent(evt) {
 				if err := qm.PutEvent(evt); err != nil {
 					fmt.Fprintf(os.Stderr, "%v\n", err)

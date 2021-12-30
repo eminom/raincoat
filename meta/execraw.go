@@ -74,9 +74,45 @@ func (es ExecScope) IteratePacketId(cb func(pktId int)) {
 	}
 }
 
+func isFileExist(name string) bool {
+	info, err := os.Stat(name)
+	// log.Printf("test for (%v)", name)
+	return nil == err && !info.IsDir()
+}
+
+func testMetaFileName(execUuid uint64, prefix string, suffixes []string) (string, bool) {
+	mark := fmt.Sprintf("0x%016x", execUuid)[:10]
+	for _, suf := range suffixes {
+		if inputName := filepath.Join(prefix, mark+suf); isFileExist(inputName) {
+			// log.Printf("bingo for %v", inputName)
+			return inputName, true
+		}
+	}
+	return "", false
+}
+
+func testOpMetaFileName(execUuid uint64, prefix string, suffixes []SuffixConf) (
+	string, func() FormatFetcher, bool) {
+	mark := fmt.Sprintf("0x%016x", execUuid)[:10]
+	for _, suf := range suffixes {
+		if inputName := filepath.Join(prefix,
+			mark+suf.suffixName); isFileExist(inputName) {
+			// log.Printf("bingo for %v", inputName)
+			return inputName, suf.fetcherCreator, true
+		}
+	}
+	return "", nil, false
+}
+
 func loadPktToOpMap(execUuid uint64, prefix string) map[int]int {
-	inputName := fmt.Sprintf("0x%016x", execUuid)[:10] + "_pkt2op.dumptxt"
-	inputName = filepath.Join(prefix, inputName)
+	inputName, fileOK := testMetaFileName(
+		execUuid,
+		prefix,
+		pkt2opFileSuffixes,
+	)
+	if !fileOK {
+		return nil
+	}
 	fin, err := os.Open(inputName)
 	if err != nil {
 		log.Printf("error load pkt-to-op map file for %016x: %v",
@@ -113,8 +149,14 @@ func loadPktToOpMap(execUuid uint64, prefix string) map[int]int {
 }
 
 func loadOpMap(execUuid uint64, prefix string) map[int]DtuOp {
-	inputName := fmt.Sprintf("0x%016x", execUuid)[:10] + "_dtuop.dumptxt"
-	inputName = filepath.Join(prefix, inputName)
+	inputName, creator, fileOK := testOpMetaFileName(
+		execUuid,
+		prefix,
+		opFileSuffixes,
+	)
+	if !fileOK {
+		return nil
+	}
 	fin, err := os.Open(inputName)
 	if err != nil {
 		log.Printf("error load dtu-op file for %016x: %v\n",
@@ -123,25 +165,15 @@ func loadOpMap(execUuid uint64, prefix string) map[int]DtuOp {
 		return nil
 	}
 	defer fin.Close()
+	var fetcher FormatFetcher = creator()
 	opMap := make(map[int]DtuOp)
 	scan := bufio.NewScanner(fin)
 	for {
 		if !scan.Scan() {
 			break
 		}
-		text := scan.Text()
-		lz := len(text)
-		i := 0
-		for i < lz && text[i] >= '0' && text[i] <= '9' {
-			i++
-		}
-		opId, _ := strconv.Atoi(text[:i])
-		i += 1
-		nameStart := i
-		for i < lz && text[i] != ' ' {
-			i++
-		}
-		opName := text[nameStart:i]
+		opIdStr, opName := fetcher.FetchOpIdOpName(scan.Text())
+		opId, _ := strconv.Atoi(opIdStr)
 		if _, ok := opMap[opId]; ok {
 			panic(fmt.Errorf("duplicate op id for exec 0x%016x with op-id=%v",
 				execUuid, opId,
