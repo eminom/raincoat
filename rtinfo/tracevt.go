@@ -54,6 +54,7 @@ func NewTraceEventBegin(
 		Ph:   "B",
 		Ts:   toMs(ts),
 		Pid:  pid,
+		Tid:  name,
 		Name: name,
 	}
 }
@@ -67,6 +68,7 @@ func NewTraceEventEnd(
 		Ph:   "E",
 		Ts:   toMs(ts),
 		Pid:  pid,
+		Tid:  name,
 		Name: name,
 	}
 }
@@ -79,6 +81,7 @@ func NewTraceEventStartUnk(ts uint64,
 		Ph:   "B",
 		Ts:   toMs(ts),
 		Pid:  name,
+		Tid:  name,
 		Name: sub,
 	}
 }
@@ -91,6 +94,7 @@ func NewTraceEventEndUnk(ts uint64,
 		Ph:   "E",
 		Ts:   toMs(ts),
 		Pid:  name,
+		Tid:  name,
 		Name: sub,
 	}
 }

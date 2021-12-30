@@ -277,7 +277,7 @@ func (rtm *RuntimeTaskManager) CookCqm(dtuBundle []CqmActBundle) []CqmActBundle 
 		// backtrace for no more than 5
 		const maxBacktraceTaskCount = 2
 		found := false
-		for _, j := range []int{idxStart - 1} {
+		for _, j := range []int{idxStart - 1, idxStart - 2} {
 			if j < 0 || j >= len(vec) {
 				continue
 			}
