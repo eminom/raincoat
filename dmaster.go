@@ -27,7 +27,7 @@ var (
 			"if -dump is set, dmaster is going to dump the original value from ring buffer\n",
 	)
 	fProc        = flag.Bool("proc", false, "post-processing")
-	fMetaStartup = flag.String("meta", "/home/hai.bai/data16/meta",
+	fMetaStartup = flag.String("meta", "",
 		"meta startup folder, if need to do some post-processing meta must be specified")
 )
 
