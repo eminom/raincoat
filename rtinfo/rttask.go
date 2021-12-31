@@ -128,7 +128,7 @@ func (rtm *RuntimeTaskManager) CollectTsEvent(evt codec.DpfEvent) {
 	if evt.Event == codec.TsLaunchCqmEnd {
 		if start := rtm.tsHead.Extract(func(one interface{}) bool {
 			un := one.(codec.DpfEvent)
-			return un.Payload == evt.Payload
+			return un.Payload == evt.Payload && un.ClusterID == evt.ClusterID
 		}); start != nil {
 			startUn := start.(codec.DpfEvent)
 			taskID := startUn.Payload

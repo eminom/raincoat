@@ -40,7 +40,7 @@ func (q *CqmEventQueue) PutEvent(este codec.DpfEvent) error {
 	}
 	if start := q.distr[index].Extract(func(one interface{}) bool {
 		un := one.(codec.DpfEvent)
-		return un.PacketID+1 == este.PacketID
+		return un.PacketID+1 == este.PacketID && un.ClusterID == este.ClusterID
 	}); start != nil {
 		startUn := start.(codec.DpfEvent)
 		q.acts = append(q.acts, CqmActBundle{
