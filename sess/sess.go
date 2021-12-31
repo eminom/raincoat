@@ -51,7 +51,7 @@ func (sess *Session) ProcessMasterText(text string, decoder *codec.DecodeMaster)
 		fmt.Fprintf(os.Stderr, "error parse hex: %v\n", err)
 		return false
 	}
-	engineId, engineUniqIdx, ctx, ok := decoder.GetEngineInfo(uint32(val))
+	engineId, engineUniqIdx, ctx, clusterId, ok := decoder.GetEngineInfo(uint32(val))
 	if !ok {
 		fmt.Fprintf(os.Stderr, "decode error for 0x%08x\n", val)
 		return false
@@ -60,7 +60,8 @@ func (sess *Session) ProcessMasterText(text string, decoder *codec.DecodeMaster)
 		panic(fmt.Errorf("assertion error: ctx = %v, val = 0x%x", ctx, val))
 	}
 	engineTypeStr := decoder.EngUniqueIndexToTypeName(engineUniqIdx)
-	fmt.Printf("%08x  %v %v %v\n", val, engineTypeStr, engineId, ctx)
+	fmt.Printf("%08x  %v %v %v %v\n", val,
+		engineTypeStr, clusterId, engineId, ctx)
 	return true
 }
 

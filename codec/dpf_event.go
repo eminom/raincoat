@@ -23,6 +23,7 @@ type DpfEvent struct {
 	EngineTy      string
 	EngineUniqIdx int
 	EngineIndex   int
+	ClusterID     int
 
 	OffsetIndex    int // Offset int the DPF buffer from the beginning
 	EngineTypeCode EngineTypeCode
@@ -40,11 +41,11 @@ func (d DpfEvent) ToString() string {
 			return fmt.Sprintf("%-10v %-10v ts=%08x",
 				d.EngineTy, d.DpfSyncIndex(), d.Cycle)
 		}
-		return fmt.Sprintf("%-10v %-2v %-2v event=%-4v pid=%v ts=%08x",
-			d.EngineTy, d.EngineIndex, d.Context, d.Event, d.PacketID, d.Cycle)
+		return fmt.Sprintf("%-10v %-2v %-2v %-2v event=%-4v pid=%v ts=%08x",
+			d.EngineTy, d.ClusterID, d.EngineIndex, d.Context, d.Event, d.PacketID, d.Cycle)
 	}
-	return fmt.Sprintf("%-6v %-2v event=%v payload=%v ts=%08x",
-		d.EngineTy, d.EngineIndex, d.Event, d.Payload, d.Cycle)
+	return fmt.Sprintf("%-6v %-2v %-2v event=%v payload=%v ts=%08x",
+		d.EngineTy, d.ClusterID, d.EngineIndex, d.Event, d.Payload, d.Cycle)
 }
 
 func (d DpfEvent) RawRepr() string {
@@ -68,7 +69,7 @@ func (decoder *DecodeMaster) createFormatV1(vals []uint32) (DpfEvent, error) {
 	// packet_id_ : 23;
 	event := (vals[0] >> 1) & 0xFF
 	packet_id := (vals[0] >> 9)
-	engIdx, engUniqIdx, ctx, ok := decoder.GetEngineInfo(vals[1])
+	engIdx, engUniqIdx, ctx, clusterID, ok := decoder.GetEngineInfo(vals[1])
 	if !ok {
 		return DpfEvent{}, errDpfItemDecodeErr
 	}
@@ -82,6 +83,7 @@ func (decoder *DecodeMaster) createFormatV1(vals []uint32) (DpfEvent, error) {
 		EngineTy:      decoder.EngUniqueIndexToTypeName(engUniqIdx),
 		EngineIndex:   engIdx,
 		Cycle:         ts,
+		ClusterID:     clusterID,
 	}, nil
 }
 
@@ -93,7 +95,7 @@ func (decoder *DecodeMaster) createFormatV2(vals []uint32) (DpfEvent, error) {
 	ts := uint64(vals[2]) + uint64(vals[3])<<32
 	event := (vals[0] >> 1) & 0x7F
 	payload := (vals[0] >> 8)
-	engineIdx, engUniqIdx, ok := decoder.GetEngineInfoV2(vals[1])
+	engineIdx, engUniqIdx, clusterID, ok := decoder.GetEngineInfoV2(vals[1])
 	if !ok {
 		return DpfEvent{}, errDpfItemDecodeErr
 	}
@@ -106,6 +108,7 @@ func (decoder *DecodeMaster) createFormatV2(vals []uint32) (DpfEvent, error) {
 		EngineTy:      decoder.EngUniqueIndexToTypeName(engUniqIdx),
 		EngineIndex:   engineIdx,
 		Cycle:         ts,
+		ClusterID:     clusterID,
 	}, nil
 }
 

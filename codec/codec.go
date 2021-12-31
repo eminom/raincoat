@@ -274,31 +274,31 @@ func init() {
 	pavoEngIdxMap = newEngineTypeIndexMap(pavoDpfTy)
 }
 
-func getEngInfo(lo, hi int, dpfInfo []DpfEngineT) (int, int) {
+func getEngInfo(lo, hi int, dpfInfo []DpfEngineT) (int, int, int) {
 	for _, item := range dpfInfo {
 		if item.MasterLo == lo && item.MasterHi == hi {
-			return item.EngineId, item.UniqueEngIdx()
+			return item.EngineId, item.UniqueEngIdx(), item.ClusterID
 		}
 	}
-	return -1, -1
+	return -1, -1, -1
 }
 
-func GetEngInfoDorado(lo, hi int64) (int, int) {
+func GetEngInfoDorado(lo, hi int64) (int, int, int) {
 	return getEngInfo(int(lo), int(hi), doradoDpfTy)
 }
 
-func GetEngInfoPavo(lo, hi int64) (int, int) {
+func GetEngInfoPavo(lo, hi int64) (int, int, int) {
 	return getEngInfo(int(lo), int(hi), pavoDpfTy)
 }
 
 type DecodeMaster struct {
 	Arch            string
-	decoder         func(int64, int64) (int, int)
+	decoder         func(int64, int64) (int, int, int)
 	engIdxToNameMap EngineTypeIndexMap
 }
 
 func NewDecodeMaster(arch string) *DecodeMaster {
-	var decoder func(int64, int64) (int, int)
+	var decoder func(int64, int64) (int, int, int)
 	var engIdxNameMap EngineTypeIndexMap
 	switch arch {
 	case "pavo":
@@ -330,9 +330,10 @@ func (md *DecodeMaster) GetEngineInfo(val uint32) (
 	engineIdx int,
 	engineUniqueIndex int,
 	ctxIdx int,
+	clusterId int,
 	ok bool,
 ) {
-	engineIdx, engineUniqueIndex, ctxIdx = -1, -1, -1
+	engineIdx, engineUniqueIndex, ctxIdx, clusterId = -1, -1, -1, -1
 	reserved_1 := (val >> 10) & 3
 	reserved_2 := (val >> 16) & 0xFFFF
 	if reserved_1 != 0 || reserved_2 != 0 {
@@ -340,7 +341,7 @@ func (md *DecodeMaster) GetEngineInfo(val uint32) (
 	}
 	ctxIdx = int((val >> 12) & 0xF)
 	lo, hi := int64(val&0x1f), int64(((val >> 5) & 0x1f))
-	engineIdx, engineUniqueIndex = md.decoder(lo, hi)
+	engineIdx, engineUniqueIndex, clusterId = md.decoder(lo, hi)
 	ok = engineUniqueIndex >= 0
 	return
 }
@@ -349,14 +350,14 @@ func (md *DecodeMaster) GetEngineInfo(val uint32) (
 // master_id_ : 10;
 // reserved_ : 22;
 func (md *DecodeMaster) GetEngineInfoV2(val uint32) (engineIdx int,
-	engineUniqueIndex int, ok bool) {
-	engineIdx, engineUniqueIndex = -1, -1
+	engineUniqueIndex int, clusterID int, ok bool) {
+	engineIdx, engineUniqueIndex, clusterID = -1, -1, -1
 	reserved := (val >> 10)
 	if reserved != 0 {
 		_ = 101 // Does not really matter: 2021-12-29
 	}
 	lo, hi := int64(val&0x1f), int64(((val >> 5) & 0x1f))
-	engineIdx, engineUniqueIndex = md.decoder(lo, hi)
+	engineIdx, engineUniqueIndex, clusterID = md.decoder(lo, hi)
 	ok = engineUniqueIndex >= 0
 	return
 }
