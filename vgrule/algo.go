@@ -2,11 +2,15 @@ package vgrule
 
 import "git.enflame.cn/hai.bai/dmaster/codec"
 
+type EngineOrder interface {
+	GetEngineOrder(dpf codec.DpfEvent) int
+}
+
 type ActMatchAlgo interface {
+	EngineOrder
 	GetChannelNum() int
 	MapToChan(engineIdx, ctx int) int
 	DecodeChan(chNum int) (int, int)
-	GetEngineOrder(dpf codec.DpfEvent) int
 }
 
 type doradoRule struct{}

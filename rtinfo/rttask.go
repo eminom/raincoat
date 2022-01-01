@@ -261,7 +261,7 @@ func (r RuntimeTaskManager) upperBoundForTaskVec(cycle uint64) int {
 }
 
 // CookCqm:  find dtu-op meta information for the Cqm Act
-func (rtm *RuntimeTaskManager) CookCqm(opActVec []OpActivity, rule vgrule.ActMatchAlgo) []OpActivity {
+func (rtm *RuntimeTaskManager) CookCqm(opActVec []OpActivity, rule vgrule.EngineOrder) []OpActivity {
 	// Each time we start processing a new session
 	// We create a new object to do the math
 	vec := rtm.orderedTaskVector
@@ -326,7 +326,7 @@ func (rtm *RuntimeTaskManager) CookCqm(opActVec []OpActivity, rule vgrule.ActMat
 // Start from the first recorded task
 func (r *RuntimeTaskManager) CookCqmEverSince(
 	opActVec []OpActivity,
-	rule vgrule.ActMatchAlgo,
+	rule vgrule.EngineOrder,
 ) []OpActivity {
 	// Each time we start processing a new session
 	// We create a new object to do the math
@@ -414,7 +414,7 @@ func (r *RuntimeTaskManager) CookCqmEverSince(
 // OvercookCqm:  find dtu-op meta information for the Cqm Act
 func (r *RuntimeTaskManager) OvercookCqm(
 	opActVec []OpActivity,
-	rule vgrule.ActMatchAlgo,
+	rule vgrule.EngineOrder,
 ) {
 	// Each time we start processing a new session
 	// We create a new object to do the math

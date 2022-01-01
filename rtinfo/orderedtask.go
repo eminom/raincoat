@@ -32,7 +32,7 @@ func NewOrderTask(startCycle uint64, task *RuntimeTask) OrderTask {
 	}
 }
 
-func (ot OrderTask) AbleToMatchCqm(cqm OpActivity, a vgrule.ActMatchAlgo) bool {
+func (ot OrderTask) AbleToMatchCqm(cqm OpActivity, a vgrule.EngineOrder) bool {
 	return ot.refToTask.MatchCqm(a.GetEngineOrder(cqm.Start))
 }
 
