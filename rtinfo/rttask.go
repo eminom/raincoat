@@ -13,8 +13,8 @@ import (
 	"git.enflame.cn/hai.bai/dmaster/assert"
 	"git.enflame.cn/hai.bai/dmaster/codec"
 	"git.enflame.cn/hai.bai/dmaster/meta"
+	"git.enflame.cn/hai.bai/dmaster/misc/linklist"
 	"git.enflame.cn/hai.bai/dmaster/vgrule"
-	"git.enflame.cn/hai.bai/dmaster/vgrule/linklist"
 )
 
 var (

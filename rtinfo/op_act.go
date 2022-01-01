@@ -4,8 +4,8 @@ import (
 	"fmt"
 
 	"git.enflame.cn/hai.bai/dmaster/codec"
+	"git.enflame.cn/hai.bai/dmaster/misc/linklist"
 	"git.enflame.cn/hai.bai/dmaster/vgrule"
-	"git.enflame.cn/hai.bai/dmaster/vgrule/linklist"
 )
 
 type OpActivityVector []OpActivity
