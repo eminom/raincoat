@@ -9,24 +9,24 @@ type ActMatchAlgo interface {
 	GetEngineOrder(dpf codec.DpfEvent) int
 }
 
-type Algo1 struct{}
+type doradoRule struct{}
 
-func NewAlgo1() *Algo1 {
-	return new(Algo1)
+func NewDoradoRule() *doradoRule {
+	return new(doradoRule)
 }
 
-func (a Algo1) GetChannelNum() int {
+func (a doradoRule) GetChannelNum() int {
 	return 1 << 8
 }
 
-func (a Algo1) MapToChan(engineIdx, ctx int) int {
+func (a doradoRule) MapToChan(engineIdx, ctx int) int {
 	return engineIdx<<4 + ctx
 }
 
-func (a Algo1) DecodeChan(chNum int) (int, int) {
+func (a doradoRule) DecodeChan(chNum int) (int, int) {
 	return chNum >> 4, chNum & 0xF
 }
 
-func (a Algo1) GetEngineOrder(dpf codec.DpfEvent) int {
+func (a doradoRule) GetEngineOrder(dpf codec.DpfEvent) int {
 	return dpf.EngineIndex + 3*dpf.ClusterID
 }

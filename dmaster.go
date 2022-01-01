@@ -53,7 +53,7 @@ func DoProcess(sess *sess.Session) {
 
 	rtDict := rtinfo.NewRuntimeTaskManager()
 	rtDict.LoadRuntimeTask(pathConf.GetRuntimeTaskPath())
-	curAlgo := vgrule.NewAlgo1()
+	curAlgo := vgrule.NewDoradoRule()
 	qm := rtinfo.NewOpEventQueue(curAlgo)
 	tm := rtinfo.NewTimelineManager()
 	tm.LoadTimepoints(pathConf.GetTimepointsPath())
