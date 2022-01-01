@@ -6,6 +6,7 @@ import (
 
 	"git.enflame.cn/hai.bai/dmaster/assert"
 	"git.enflame.cn/hai.bai/dmaster/meta"
+	"git.enflame.cn/hai.bai/dmaster/vgrule"
 )
 
 type OrderTaskState struct {
@@ -31,8 +32,8 @@ func NewOrderTask(startCycle uint64, task *RuntimeTask) OrderTask {
 	}
 }
 
-func (ot OrderTask) AbleToMatchCqm(cqm CqmActBundle) bool {
-	return ot.refToTask.MatchCqm(cqm)
+func (ot OrderTask) AbleToMatchCqm(cqm OpActivity, a vgrule.ActMatchAlgo) bool {
+	return ot.refToTask.MatchCqm(a.GetEngineOrder(cqm.Start))
 }
 
 func (ot *OrderTask) SuccessMatchDtuop(packetId int) {

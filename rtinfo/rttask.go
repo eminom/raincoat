@@ -10,10 +10,11 @@ import (
 	"strconv"
 	"strings"
 
-	"git.enflame.cn/hai.bai/dmaster/algo/linklist"
 	"git.enflame.cn/hai.bai/dmaster/assert"
 	"git.enflame.cn/hai.bai/dmaster/codec"
 	"git.enflame.cn/hai.bai/dmaster/meta"
+	"git.enflame.cn/hai.bai/dmaster/vgrule"
+	"git.enflame.cn/hai.bai/dmaster/vgrule/linklist"
 )
 
 var (
@@ -260,7 +261,7 @@ func (r RuntimeTaskManager) upperBoundForTaskVec(cycle uint64) int {
 }
 
 // CookCqm:  find dtu-op meta information for the Cqm Act
-func (rtm *RuntimeTaskManager) CookCqm(dtuBundle []CqmActBundle) []CqmActBundle {
+func (rtm *RuntimeTaskManager) CookCqm(opActVec []OpActivity, rule vgrule.ActMatchAlgo) []OpActivity {
 	// Each time we start processing a new session
 	// We create a new object to do the math
 	vec := rtm.orderedTaskVector
@@ -269,9 +270,9 @@ func (rtm *RuntimeTaskManager) CookCqm(dtuBundle []CqmActBundle) []CqmActBundle 
 	}
 
 	bingoCount := 0
-	unprocessedVec := []CqmActBundle{}
-	for i := 0; i < len(dtuBundle); i++ {
-		curAct := &dtuBundle[i]
+	unprocessedVec := []OpActivity{}
+	for i := 0; i < len(opActVec); i++ {
+		curAct := &opActVec[i]
 		start := curAct.StartCycle()
 		idxStart := rtm.upperBoundForTaskVec(start)
 		// backtrace for no more than 5
@@ -286,7 +287,7 @@ func (rtm *RuntimeTaskManager) CookCqm(dtuBundle []CqmActBundle) []CqmActBundle 
 				continue
 			}
 			thisExecUuid := taskInOrder.refToTask.ExecutableUUID
-			if taskInOrder.AbleToMatchCqm(*curAct) {
+			if taskInOrder.AbleToMatchCqm(*curAct, rule) {
 				if opInfo, err := rtm.LookupOpIdByPacketID(
 					thisExecUuid,
 					curAct.Start.PacketID); err == nil {
@@ -308,14 +309,14 @@ func (rtm *RuntimeTaskManager) CookCqm(dtuBundle []CqmActBundle) []CqmActBundle 
 		if found {
 			bingoCount++
 		} else {
-			unprocessedVec = append(unprocessedVec, CqmActBundle{
+			unprocessedVec = append(unprocessedVec, OpActivity{
 				DpfAct: curAct.DpfAct,
 			})
 		}
 	}
 	fmt.Printf("Dbg op/Dtu-op meta success matched count: %v out of %v\n",
 		bingoCount,
-		len(dtuBundle),
+		len(opActVec),
 	)
 
 	// OrderTasks(rtm.orderedTaskVector).DumpInfos(rtm)
@@ -324,8 +325,9 @@ func (rtm *RuntimeTaskManager) CookCqm(dtuBundle []CqmActBundle) []CqmActBundle 
 
 // Start from the first recorded task
 func (r *RuntimeTaskManager) CookCqmEverSince(
-	dtuBundle []CqmActBundle,
-) []CqmActBundle {
+	opActVec []OpActivity,
+	rule vgrule.ActMatchAlgo,
+) []OpActivity {
 	// Each time we start processing a new session
 	// We create a new object to do the math
 
@@ -356,10 +358,10 @@ func (r *RuntimeTaskManager) CookCqmEverSince(
 
 	log.Printf("Ever since: [%v] taskid %v", startIdx, firstTaskID)
 	bingoCount := 0
-	unprocessedVec := []CqmActBundle{}
+	unprocessedVec := []OpActivity{}
 	everSearched := false
-	for i := 0; i < len(dtuBundle); i++ {
-		curAct := &dtuBundle[i]
+	for i := 0; i < len(opActVec); i++ {
+		curAct := &opActVec[i]
 		found := false
 		onceValid := false
 	A100:
@@ -370,7 +372,7 @@ func (r *RuntimeTaskManager) CookCqmEverSince(
 			}
 			everSearched = true
 			thisExecUuid := taskInOrder.refToTask.ExecutableUUID
-			if taskInOrder.AbleToMatchCqm(*curAct) {
+			if taskInOrder.AbleToMatchCqm(*curAct, rule) {
 				opInfo, err := r.LookupOpIdByPacketID(
 					thisExecUuid,
 					curAct.Start.PacketID)
@@ -396,14 +398,14 @@ func (r *RuntimeTaskManager) CookCqmEverSince(
 			bingoCount++
 		} else {
 			assert.Assert(!everSearched || onceValid, "must be valid for once")
-			unprocessedVec = append(unprocessedVec, CqmActBundle{
+			unprocessedVec = append(unprocessedVec, OpActivity{
 				DpfAct: curAct.DpfAct,
 			})
 		}
 	}
 	fmt.Printf("CookCqmEverSince: Success matched count: %v out of %v\n",
 		bingoCount,
-		len(dtuBundle),
+		len(opActVec),
 	)
 	fmt.Printf("  :and the rest unmatched is packet-valid-but-no-op\n")
 	return unprocessedVec
@@ -411,7 +413,8 @@ func (r *RuntimeTaskManager) CookCqmEverSince(
 
 // OvercookCqm:  find dtu-op meta information for the Cqm Act
 func (r *RuntimeTaskManager) OvercookCqm(
-	dtuBundle []CqmActBundle,
+	opActVec []OpActivity,
+	rule vgrule.ActMatchAlgo,
 ) {
 	// Each time we start processing a new session
 	// We create a new object to do the math
@@ -435,8 +438,8 @@ func (r *RuntimeTaskManager) OvercookCqm(
 		cqmUnmatched[evt.EngineIndex][evt.PacketID] = true
 	}
 
-	for i := 0; i < len(dtuBundle); i++ {
-		curAct := &dtuBundle[i]
+	for i := 0; i < len(opActVec); i++ {
+		curAct := &opActVec[i]
 		found := false
 		for j := len(vec) - 1; j >= 0; j-- {
 			if j < 0 || j >= len(vec) {
@@ -446,7 +449,7 @@ func (r *RuntimeTaskManager) OvercookCqm(
 			if !taskInOrder.IsValid() {
 				continue
 			}
-			if taskInOrder.AbleToMatchCqm(*curAct) {
+			if taskInOrder.AbleToMatchCqm(*curAct, rule) {
 				thisExecUuid := taskInOrder.refToTask.ExecutableUUID
 				opInfo, err := r.LookupOpIdByPacketID(
 					thisExecUuid,
@@ -521,17 +524,17 @@ func toCqmGroup(engBitmap int) string {
 
 // WildCookCqm:  By all means
 func (r *RuntimeTaskManager) WildCookCqm(
-	dtuBundle []CqmActBundle,
-) []CqmActBundle {
-	var unmatchedVec []CqmActBundle
-	for i := 0; i < len(dtuBundle); i++ {
-		curAct := &dtuBundle[i]
+	opActVec []OpActivity,
+) []OpActivity {
+	var unmatchedVec []OpActivity
+	for i := 0; i < len(opActVec); i++ {
+		curAct := &opActVec[i]
 		if _, ok := r.execKnowledge.LookForWild(
 			curAct.Start.PacketID,
 			false); ok {
 			// not change at all
 		} else {
-			unmatchedVec = append(unmatchedVec, CqmActBundle{
+			unmatchedVec = append(unmatchedVec, OpActivity{
 				DpfAct: curAct.DpfAct,
 			})
 		}
@@ -542,7 +545,7 @@ func (r *RuntimeTaskManager) WildCookCqm(
 	} else {
 		log.Printf("done wild cook, %v out of %v got unmatched",
 			len(unmatchedVec),
-			len(dtuBundle),
+			len(opActVec),
 		)
 		assert.Assert(false, "this is not expected")
 	}

@@ -15,31 +15,31 @@ type OpRef struct {
 	refToTask *RuntimeTask
 }
 
-type CqmActBundle struct {
+type OpActivity struct {
 	DpfAct
 	opRef OpRef
 }
 
-func (q CqmActBundle) StartCycle() uint64 {
+func (q OpActivity) StartCycle() uint64 {
 	return q.Start.Cycle
 }
 
-func (q CqmActBundle) EndCycle() uint64 {
+func (q OpActivity) EndCycle() uint64 {
 	return q.End.Cycle
 }
 
-func (q CqmActBundle) Duration() int64 {
+func (q OpActivity) Duration() int64 {
 	return int64(q.EndCycle()) - int64(q.StartCycle())
 }
 
-func (q CqmActBundle) IsOpRefValid() bool {
+func (q OpActivity) IsOpRefValid() bool {
 	return q.opRef.dtuOp != nil && q.opRef.refToTask != nil
 }
 
-func (q CqmActBundle) GetOp() meta.DtuOp {
+func (q OpActivity) GetOp() meta.DtuOp {
 	return *q.opRef.dtuOp
 }
 
-func (q CqmActBundle) GetTask() RuntimeTask {
+func (q OpActivity) GetTask() RuntimeTask {
 	return *q.opRef.refToTask
 }

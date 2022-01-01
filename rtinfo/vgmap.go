@@ -9,7 +9,6 @@ func matchIntLowest(v int, idx int) bool {
 	return false
 }
 
-func (r RuntimeTask) MatchCqm(cqm CqmActBundle) bool {
-	cqmIdx := cqm.Start.EngineIndex + 3*cqm.Start.ClusterID
+func (r RuntimeTask) MatchCqm(cqmIdx int) bool {
 	return matchIntLowest(r.PgMask, cqmIdx)
 }

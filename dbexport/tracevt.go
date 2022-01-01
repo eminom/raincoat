@@ -1,11 +1,12 @@
-package rtinfo
+package dbexport
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"os"
 	"sort"
+
+	"git.enflame.cn/hai.bai/dmaster/rtinfo"
 )
 
 /*
@@ -103,52 +104,17 @@ type TraceEventSession struct {
 	eventVec []TraceEvent
 }
 
-func (tr *TraceEventSession) AppendEvt(evt TraceEvent) {
+func (tr *TraceEventSession) appendEvt(evt TraceEvent) {
 	tr.eventVec = append(tr.eventVec, evt)
 }
 
-func checkTimespanOverlapping(bundle []CqmActBundle) {
-	log.Printf("start checking overlap over %v item(s)", len(bundle))
-	var intvs Interval
-	// Check intervals
-	for _, act := range bundle {
-		if act.opRef.dtuOp != nil {
-			intvs = append(intvs, []uint64{
-				act.StartCycle(),
-				act.EndCycle(),
-			})
-		}
-	}
-	sort.Sort(intvs)
-	overlappedCount := 0
-	for i := 0; i < len(intvs)-1; i++ {
-		if intvs[i][1] >= intvs[i+1][0] {
-			log.Printf("error: %v >= %v at [%d] out of [%v]",
-				intvs[i][1], intvs[i+1][0],
-				i, len(intvs))
-			overlappedCount++
-			break
-		}
-	}
-	// dumpIntvs(intvs)
-	if overlappedCount > 0 {
-		fmt.Printf("warning: there is %v overlapping\n",
-			overlappedCount)
-		// assert.Assert(overlappedCount == 0,
-		// 	"overlapped count must be zero: but %v",
-		// 	overlappedCount)
-	} else {
-		log.Printf("no overlapped confirmed")
-	}
-}
-
 func (tr *TraceEventSession) DumpToEventTrace(
-	bundle []CqmActBundle,
-	tm *TimelineManager,
-	getPidAndName func(CqmActBundle) (bool, string, string),
+	bundle []rtinfo.OpActivity,
+	tm *rtinfo.TimelineManager,
+	getPidAndName func(rtinfo.OpActivity) (bool, string, string),
 	dumpWild bool,
 ) {
-	checkTimespanOverlapping(bundle)
+	rtinfo.CheckTimespanOverlapping(bundle)
 
 	var dtuOpCount = 0
 	var convertToHostError = 0
@@ -161,12 +127,12 @@ func (tr *TraceEventSession) DumpToEventTrace(
 			startHostTime, startOK := tm.MapToHosttime(act.StartCycle())
 			endHostTime, endOK := tm.MapToHosttime(act.EndCycle())
 			if startOK && endOK {
-				tr.AppendEvt(NewTraceEventBegin(
+				tr.appendEvt(NewTraceEventBegin(
 					pid,
 					name,
 					startHostTime,
 				))
-				tr.AppendEvt(NewTraceEventEnd(
+				tr.appendEvt(NewTraceEventEnd(
 					pid,
 					name,
 					endHostTime,
@@ -180,8 +146,8 @@ func (tr *TraceEventSession) DumpToEventTrace(
 				startHostTime, startOK := tm.MapToHosttime(act.StartCycle())
 				endHostTime, endOK := tm.MapToHosttime(act.EndCycle())
 				if startOK && endOK && subSampleCount%30 == 0 {
-					tr.AppendEvt(NewTraceEventStartUnk(startHostTime, pid, name))
-					tr.AppendEvt(NewTraceEventEndUnk(endHostTime, pid, name))
+					tr.appendEvt(NewTraceEventStartUnk(startHostTime, pid, name))
+					tr.appendEvt(NewTraceEventEndUnk(endHostTime, pid, name))
 				}
 			}
 		}
