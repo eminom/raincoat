@@ -149,6 +149,24 @@ func DoProcess(sess *sess.Session) {
 		fmt.Printf("# uncertained (could not detmerined at all): %v\n",
 			len(wildProcess))
 		tr.DumpToFile("dtuop_trace.json")
+
+		outputVpd := "fake.vpd"
+		if dbe, err := dbexport.NewDbSession(outputVpd); nil == err {
+			defer dbe.Close()
+			dbe.DumpToEventTrace(
+				qm.OpActivity(), tm,
+				func(act rtinfo.OpActivity) (bool, string, string) {
+					if act.IsOpRefValid() {
+						return true,
+							act.GetTask().ToShortString(),
+							act.GetOp().OpName
+					}
+					return false, "Unknown Task", "Unk"
+				},
+				false,
+			)
+			fmt.Printf("dumped to %v\n", outputVpd)
+		}
 	}
 }
 

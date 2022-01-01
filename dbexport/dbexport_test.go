@@ -11,9 +11,7 @@ import (
 )
 
 func TestOne(t *testing.T) {
-
 	targetName := "./foo.db"
-
 	os.Remove(targetName)
 	db, err := sql.Open("sqlite3", targetName)
 	if err != nil {
@@ -29,7 +27,6 @@ func TestOne(t *testing.T) {
 		log.Printf("%q: %s\n", err, sqlStmt)
 		return
 	}
-
 	tx, err := db.Begin()
 	if err != nil {
 		log.Fatal(err)
@@ -46,5 +43,4 @@ func TestOne(t *testing.T) {
 		}
 	}
 	tx.Commit()
-
 }
