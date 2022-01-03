@@ -1,11 +1,15 @@
 package topsdev
 
-import "testing"
+import (
+	"testing"
+)
 
-func TestOne(t *testing.T) {
-	t.Logf("size of header: %v", HeaderSize())
-	ph, body, err := DecodeFile(
-		"/home/hai.bai/data18/new6a/20211230141724.16847.topspti.data")
+const (
+	sampleInput = "/home/hai.bai/data18/new6a/20211230141724.16847.topspti.data"
+)
+
+func TestBasic(t *testing.T) {
+	ph, body, err := DecodeFile(sampleInput)
 	if err != nil {
 		t.Logf("error: %v", err)
 		t.FailNow()
@@ -23,4 +27,13 @@ func TestOne(t *testing.T) {
 	dumpTask(pb)
 	dumpTimepoints(pb)
 	dumpDpfringbuffer(pb)
+	dumpExecRaw(pb)
+	for _, seri := range pb.Dtu.Meta.ExecutableProfileSerialize {
+		ParseProfileSection(seri)
+	}
+	t.Logf("done parse profile section")
+}
+
+func TestSize(t *testing.T) {
+	doAssertOnProfileSection()
 }

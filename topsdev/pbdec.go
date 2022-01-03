@@ -41,7 +41,7 @@ func dumpDpfringbuffer(pb *topspb.ProfileData) {
 	var out [8]byte
 	for cid, tsVec := range pb.Dtu.Data.TimestampVec {
 		fmt.Printf("cid(%v) count: %v\n", cid, len(tsVec.Timestamp))
-		if len(tsVec.Timestamp) > 0 {
+		if len(tsVec.Timestamp) > 0 && false {
 			fout, err := os.Create(fmt.Sprintf("%v_pbdump.data", cid))
 			if err != nil {
 				log.Printf("Could not create an output to store data")
@@ -53,5 +53,15 @@ func dumpDpfringbuffer(pb *topspb.ProfileData) {
 				fout.Write(out[:])
 			}
 		}
+	}
+}
+
+func dumpExecRaw(pb *topspb.ProfileData) {
+	for _, seri := range pb.Dtu.Meta.ExecutableProfileSerialize {
+		fmt.Printf("executable 0x%016x \"%v\"\n",
+			seri.GetExecUuid(), seri.GetName(),
+		)
+		data := seri.GetData()
+		fmt.Printf("profile section size: %v\n", len(data))
 	}
 }

@@ -28,7 +28,7 @@ var (
 	errLessThanExpected = errors.New("less-than-expected")
 )
 
-func HeaderSize() int {
+func GetProfileDataHeaderSize() int {
 	return int(C.headerSize())
 }
 
@@ -81,9 +81,9 @@ func DecodeFile(inputFile string) (hd ProfHeader, body []byte, err error) {
 		log.Printf("could not get file info: %v", err)
 		return
 	}
-	bodySize := st.Size() - int64(HeaderSize())
+	bodySize := st.Size() - int64(GetProfileDataHeaderSize())
 
-	headBytes := make([]byte, HeaderSize())
+	headBytes := make([]byte, GetProfileDataHeaderSize())
 	dwRead, err := fin.Read(headBytes)
 	if err != nil {
 		log.Printf("error read file: %v\n", err)
