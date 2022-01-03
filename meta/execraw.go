@@ -50,13 +50,14 @@ func (e *ExecRaw) LoadWildcard() {
 	}
 	_ = printWithin
 
-	e.loader.LoadWildcards(within, func(execUuid uint64, es *metadata.ExecScope) {
-		e.wilds[execUuid] = es
-		fmt.Printf("exec 0x%016x is loaded for wildcard\n",
-			execUuid)
-		// For debug
-		// printWithin(fmt.Sprintf("0x%016x", execUuid))
-	})
+	e.loader.LoadWildcards(within,
+		func(execUuid uint64, es *metadata.ExecScope) {
+			e.wilds[execUuid] = es
+			fmt.Printf("exec 0x%016x is loaded for wildcard\n",
+				execUuid)
+			// For debug
+			// printWithin(fmt.Sprintf("0x%016x", execUuid))
+		})
 }
 
 func (e ExecRaw) FindExecScope(execUuid uint64) (metadata.ExecScope, bool) {

@@ -21,4 +21,6 @@ func TestOne(t *testing.T) {
 	_ = pb
 
 	dumpTask(pb)
+	dumpTimepoints(pb)
+	dumpDpfringbuffer(pb)
 }
