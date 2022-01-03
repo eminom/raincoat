@@ -1,0 +1,14 @@
+#!/bin/bash
+
+LINES=$(find . -name "*.proto" | cut -c 3-)
+
+OPTS=""
+SRCS=""
+for i in ${LINES}; do
+  OPTS="${OPTS} --go_opt=M${i}=pbdef/topspb"
+  SRCS="${SRCS} ${i}"
+done
+set +x
+protoc -I. \
+  ${OPTS} \
+  --go_out=. ${SRCS}

@@ -70,7 +70,7 @@ func NewRuntimeTaskManager() *RuntimeTaskManager {
 func (rtm *RuntimeTaskManager) LoadRuntimeTask(filename string) bool {
 	fin, err := os.Open(filename)
 	if err != nil {
-		log.Printf("error load runtime info:%v\n", err)
+		log.Printf("error load runtime info from \"%v\":%v\n", filename, err)
 		return false
 	}
 	defer fin.Close()

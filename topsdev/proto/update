@@ -1,0 +1,5 @@
+#!/bin/bash
+
+rm -rfv lib/profile/proto
+mkdir -p lib/profile/proto
+cp -v ~/rWork/tops/sdk/lib/profile/proto/*.proto lib/profile/proto

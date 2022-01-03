@@ -125,6 +125,7 @@ func (tm *TimelineManager) AlignToHostTimeline() {
 
 func (tm *TimelineManager) trimHostWrapped() {
 	lz := len(tm.hosttp)
+	originalHostTpLen := lz
 	i := 0
 	for i < lz {
 		j := i
@@ -143,7 +144,10 @@ func (tm *TimelineManager) trimHostWrapped() {
 		}
 		break
 	}
-	log.Printf("after trimmig, %v host timepoints remain", len(tm.hosttp))
+	log.Printf("after trimmig, %v host timepoints remain from %v",
+		len(tm.hosttp),
+		originalHostTpLen,
+	)
 }
 
 func (tm *TimelineManager) Verify() bool {
@@ -182,6 +186,7 @@ func (tm *TimelineManager) DumpInfo() {
 // So we have to to do something
 func (tm *TimelineManager) trimWrappedSyncIndex() {
 	lz := len(tm.cycles)
+	originalLen := lz
 	i := 0
 	for i < lz {
 		j := i
@@ -198,7 +203,10 @@ func (tm *TimelineManager) trimWrappedSyncIndex() {
 		}
 		break
 	}
-	log.Printf("after trimming, %v dev cycles remains", len(tm.cycles))
+	log.Printf("after trimming, %v dev cycles remains from %v",
+		len(tm.cycles),
+		originalLen,
+	)
 }
 
 func xsplit(a string) []string {
