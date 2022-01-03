@@ -10,7 +10,7 @@ make
 #echo decode for ${INF}
 INF="raw_dpf.bin"
 OUT="result.txt"
-$(pwd)/build/dmaster -dump -raw ${INF} > ${OUT}
+time $(pwd)/build/dmaster -dump -raw ${INF} > ${OUT}
 
 if [[ x$? == x0 ]]; then
   echo result save to ${OUT}

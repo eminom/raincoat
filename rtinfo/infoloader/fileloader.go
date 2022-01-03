@@ -16,29 +16,29 @@ import (
 	"git.enflame.cn/hai.bai/dmaster/rtinfo/rtdata"
 )
 
-type DecmConf struct {
+type metaFileLoader struct {
 	startupPath string
 }
 
-func NewDecmConf(startup string) DecmConf {
-	return DecmConf{
+func NewMetaFileLoader(startup string) metaFileLoader {
+	return metaFileLoader{
 		startupPath: startup,
 	}
 }
 
-func (d DecmConf) GetRuntimeTaskPath() string {
+func (d metaFileLoader) GetRuntimeTaskPath() string {
 	return filepath.Join(d.startupPath, "runtime_task.txt")
 }
 
-func (d DecmConf) GetMetaStartupPath() string {
+func (d metaFileLoader) GetMetaStartupPath() string {
 	return d.startupPath
 }
 
-func (d DecmConf) GetTimepointsPath() string {
+func (d metaFileLoader) GetTimepointsPath() string {
 	return filepath.Join(d.startupPath, "timepoints.txt")
 }
 
-func (d DecmConf) LoadTask() (
+func (d metaFileLoader) LoadTask() (
 	dc map[int]*rtdata.RuntimeTask,
 	taskSequentials []int,
 	ok bool,
@@ -115,7 +115,7 @@ func xsplit(a string) []string {
 	return rv
 }
 
-func (d DecmConf) LoadTimepoints() (hosttp []rtdata.HostTimeEntry, ok bool) {
+func (d metaFileLoader) LoadTimepoints() (hosttp []rtdata.HostTimeEntry, ok bool) {
 	filename := d.GetTimepointsPath()
 	fin, err := os.Open(filename)
 	if err != nil {
@@ -165,7 +165,7 @@ func (d DecmConf) LoadTimepoints() (hosttp []rtdata.HostTimeEntry, ok bool) {
 	return
 }
 
-func (d DecmConf) LoadWildcards(checkExist func(str string) bool,
+func (d metaFileLoader) LoadWildcards(checkExist func(str string) bool,
 	notfiyNew func(uint64, *metadata.ExecScope)) {
 	entries, err := os.ReadDir(d.startupPath)
 	if err != nil {
@@ -308,7 +308,7 @@ func loadOpMap(execUuid uint64, prefix string) map[int]metadata.DtuOp {
 	return opMap
 }
 
-func (d DecmConf) LoadExecScope(execUuid uint64) *metadata.ExecScope {
+func (d metaFileLoader) LoadExecScope(execUuid uint64) *metadata.ExecScope {
 	opMap := loadOpMap(execUuid, d.startupPath)
 	pktMap := loadPktToOpMap(execUuid, d.startupPath)
 	if opMap != nil && pktMap != nil {

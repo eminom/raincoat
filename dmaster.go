@@ -50,7 +50,7 @@ func DoProcess(sess *sess.Session) {
 	cqmOpDbgCount := 0
 	allCount := 0
 
-	loader := infoloader.NewDecmConf(*fMetaStartup)
+	loader := infoloader.NewMetaFileLoader(*fMetaStartup)
 
 	rtDict := rtinfo.NewRuntimeTaskManager()
 	rtDict.LoadRuntimeTask(loader)
