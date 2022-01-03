@@ -38,18 +38,20 @@ func dumpTimepoints(pb *topspb.ProfileData) {
 }
 
 func dumpDpfringbuffer(pb *topspb.ProfileData) {
-	fout, err := os.Create("pbdump.data")
-	if err != nil {
-		log.Printf("Could not create an output to store data")
-		return
-	}
-	defer fout.Close()
 	var out [8]byte
 	for cid, tsVec := range pb.Dtu.Data.TimestampVec {
 		fmt.Printf("cid(%v) count: %v\n", cid, len(tsVec.Timestamp))
-		for _, ts := range tsVec.Timestamp {
-			binary.LittleEndian.PutUint64(out[:], ts)
-			fout.Write(out[:])
+		if len(tsVec.Timestamp) > 0 {
+			fout, err := os.Create(fmt.Sprintf("%v_pbdump.data", cid))
+			if err != nil {
+				log.Printf("Could not create an output to store data")
+				return
+			}
+			defer fout.Close()
+			for _, ts := range tsVec.Timestamp {
+				binary.LittleEndian.PutUint64(out[:], ts)
+				fout.Write(out[:])
+			}
 		}
 	}
 }
