@@ -22,7 +22,6 @@ func TestBasic(t *testing.T) {
 		t.Logf("error parse from istream: %v", err)
 		t.FailNow()
 	}
-	_ = pb
 
 	dumpTask(pb)
 	dumpTimepoints(pb)

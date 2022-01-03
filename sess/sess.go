@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"git.enflame.cn/hai.bai/dmaster/codec"
+	"git.enflame.cn/hai.bai/dmaster/efintf"
 )
 
 var (
@@ -22,6 +23,7 @@ type SessionOpt struct {
 	Debug        bool
 	DecodeFull   bool
 	Sort         bool
+	InfoLoader   efintf.InfoReceiver
 }
 
 type Session struct {
@@ -157,18 +159,15 @@ func (sess *Session) DecodeFromTextStream(
 	errWatcher.SumUp()
 }
 
-func (sess *Session) DecodeFromFile(filename string,
+func (sess *Session) DecodeFromFile(
 	decoder *codec.DecodeMaster,
 ) {
 	// realpath, e2 := os.Readlink(filename)
 	// if nil == e2 {
 	// 	filename = realpath
 	// }
-	chunk, err := os.ReadFile(filename)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error reading %v\n", filename)
-		os.Exit(1)
-	}
+	cidToDecode := 0
+	chunk := sess.sessOpt.InfoLoader.LoadRingBufferContent(cidToDecode)
 	itemSize := len(chunk) / 16 * 16
 	var errWatcher = ErrorWatcher{printQuota: 10}
 	for i := 0; i < itemSize; i += 16 {
@@ -208,4 +207,8 @@ func (sess Session) EmitForEach(doFunc func(event codec.DpfEvent)) {
 	for _, v := range sess.items {
 		doFunc(v)
 	}
+}
+
+func (sess Session) GetLoader() efintf.InfoReceiver {
+	return sess.sessOpt.InfoLoader
 }

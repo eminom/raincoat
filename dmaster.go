@@ -8,11 +8,13 @@ import (
 
 	"git.enflame.cn/hai.bai/dmaster/codec"
 	"git.enflame.cn/hai.bai/dmaster/dbexport"
+	"git.enflame.cn/hai.bai/dmaster/efintf"
 	"git.enflame.cn/hai.bai/dmaster/meta"
 	"git.enflame.cn/hai.bai/dmaster/rtinfo"
 	"git.enflame.cn/hai.bai/dmaster/rtinfo/infoloader"
 	"git.enflame.cn/hai.bai/dmaster/rtinfo/rtdata"
 	"git.enflame.cn/hai.bai/dmaster/sess"
+	"git.enflame.cn/hai.bai/dmaster/topsdev"
 	"git.enflame.cn/hai.bai/dmaster/vgrule"
 )
 
@@ -31,6 +33,7 @@ var (
 	fProc        = flag.Bool("proc", false, "post-processing")
 	fMetaStartup = flag.String("meta", "",
 		"meta startup folder, if need to do some post-processing meta must be specified")
+	fPbMode = flag.Bool("pb", false, "protobuf mode, the latest state-of-art")
 )
 
 func init() {
@@ -50,9 +53,8 @@ func DoProcess(sess *sess.Session) {
 	cqmOpDbgCount := 0
 	allCount := 0
 
-	loader := infoloader.NewMetaFileLoader(*fMetaStartup)
-
 	rtDict := rtinfo.NewRuntimeTaskManager()
+	loader := sess.GetLoader()
 	rtDict.LoadRuntimeTask(loader)
 	curAlgo := vgrule.NewDoradoRule()
 	qm := rtdata.NewOpEventQueue(curAlgo)
@@ -172,16 +174,32 @@ func DoProcess(sess *sess.Session) {
 }
 
 func main() {
+
+	var loader efintf.InfoReceiver
+
+	if len(flag.Args()) >= 1 {
+		if *fPbMode {
+			var err error
+			loader, err = topsdev.NewPbLoader(flag.Args()[0])
+			if err != nil {
+				log.Fatal("error load in pbmode: %v", err)
+			}
+		} else {
+			metaStartup := *fMetaStartup
+			loader = infoloader.NewMetaFileLoader(metaStartup, flag.Args()[0])
+		}
+	}
+
 	sess := sess.NewSession(sess.SessionOpt{
 		Debug:        *fDebug,
 		Sort:         *fSort,
 		DecodeFull:   *fDecodeFull,
 		EngineFilter: *fEng,
+		InfoLoader:   loader,
 	})
 	decoder := codec.NewDecodeMaster(*fArch)
 	if len(flag.Args()) > 0 {
-		filename := flag.Args()[0]
-		sess.DecodeFromFile(filename, decoder)
+		sess.DecodeFromFile(decoder)
 	} else {
 		sess.DecodeFromTextStream(os.Stdin, decoder)
 	}

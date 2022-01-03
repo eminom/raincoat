@@ -18,11 +18,13 @@ import (
 
 type metaFileLoader struct {
 	startupPath string
+	rawfilename string
 }
 
-func NewMetaFileLoader(startup string) metaFileLoader {
+func NewMetaFileLoader(startup string, rawfilename string) metaFileLoader {
 	return metaFileLoader{
 		startupPath: startup,
+		rawfilename: rawfilename,
 	}
 }
 
@@ -319,4 +321,13 @@ func (d metaFileLoader) LoadExecScope(execUuid uint64) *metadata.ExecScope {
 		)
 	}
 	return nil
+}
+
+func (d metaFileLoader) LoadRingBufferContent(cid int) []byte {
+	chunk, err := os.ReadFile(d.rawfilename)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error reading %v\n", d.rawfilename)
+		os.Exit(1)
+	}
+	return chunk
 }

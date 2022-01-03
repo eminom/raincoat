@@ -6,6 +6,7 @@ import (
 )
 
 type InfoReceiver interface {
+	LoadRingBufferContent(cid int) []byte
 	LoadTask() (map[int]*rtdata.RuntimeTask, []int, bool)
 	LoadTimepoints() ([]rtdata.HostTimeEntry, bool)
 	LoadExecScope(execUuid uint64) *metadata.ExecScope
