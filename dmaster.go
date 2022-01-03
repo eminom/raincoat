@@ -7,10 +7,11 @@ import (
 	"os"
 
 	"git.enflame.cn/hai.bai/dmaster/codec"
-	decmconf "git.enflame.cn/hai.bai/dmaster/conf"
 	"git.enflame.cn/hai.bai/dmaster/dbexport"
 	"git.enflame.cn/hai.bai/dmaster/meta"
 	"git.enflame.cn/hai.bai/dmaster/rtinfo"
+	"git.enflame.cn/hai.bai/dmaster/rtinfo/infoloader"
+	"git.enflame.cn/hai.bai/dmaster/rtinfo/rtdata"
 	"git.enflame.cn/hai.bai/dmaster/sess"
 	"git.enflame.cn/hai.bai/dmaster/vgrule"
 )
@@ -49,14 +50,14 @@ func DoProcess(sess *sess.Session) {
 	cqmOpDbgCount := 0
 	allCount := 0
 
-	pathConf := decmconf.NewDecmConf(*fMetaStartup)
+	loader := infoloader.NewDecmConf(*fMetaStartup)
 
 	rtDict := rtinfo.NewRuntimeTaskManager()
-	rtDict.LoadRuntimeTask(pathConf.GetRuntimeTaskPath())
+	rtDict.LoadRuntimeTask(loader)
 	curAlgo := vgrule.NewDoradoRule()
-	qm := rtinfo.NewOpEventQueue(curAlgo)
+	qm := rtdata.NewOpEventQueue(curAlgo)
 	tm := rtinfo.NewTimelineManager()
-	tm.LoadTimepoints(pathConf.GetTimepointsPath())
+	tm.LoadTimepoints(loader)
 	doFunc := func(evt codec.DpfEvent) {
 		allCount++
 		switch evt.EngineTypeCode {
@@ -92,14 +93,14 @@ func DoProcess(sess *sess.Session) {
 	tm.DumpInfo()
 
 	if rtDict != nil {
-		rtDict.LoadMeta(pathConf.GetMetaStartupPath())
+		rtDict.LoadMeta(loader)
 		rtDict.BuildOrderInfo()
 		rtDict.DumpInfo()
 		meta.TestExecRaw(rtDict.GetExecRaw())
 
 		var tr dbexport.TraceEventSession
 		unProcessed := rtDict.CookCqm(qm.OpActivity(), curAlgo)
-		var wildProcess []rtinfo.OpActivity
+		var wildProcess []rtdata.OpActivity
 		if false {
 			rtDict.OvercookCqm(unProcessed, curAlgo)
 			wildProcess = rtDict.WildCookCqm(unProcessed)
@@ -110,7 +111,7 @@ func DoProcess(sess *sess.Session) {
 		dumpFullCycles(qm.OpActivity())
 
 		tr.DumpToEventTrace(qm.OpActivity(), tm,
-			func(act rtinfo.OpActivity) (bool, string, string) {
+			func(act rtdata.OpActivity) (bool, string, string) {
 				if act.IsOpRefValid() {
 					return true,
 						act.GetTask().ToShortString(),
@@ -122,7 +123,7 @@ func DoProcess(sess *sess.Session) {
 		)
 		notWildInCount := 0
 		tr.DumpToEventTrace(unProcessed, tm,
-			func(act rtinfo.OpActivity) (bool, string, string) {
+			func(act rtdata.OpActivity) (bool, string, string) {
 				//+ act.GetTask().ToShortString(),
 				if act.IsOpRefValid() {
 					return true, "Wild In",
@@ -135,7 +136,7 @@ func DoProcess(sess *sess.Session) {
 		)
 		subSampleCc := 0
 		tr.DumpToEventTrace(wildProcess, tm,
-			func(act rtinfo.OpActivity) (bool, string, string) {
+			func(act rtdata.OpActivity) (bool, string, string) {
 				//+ act.GetTask().ToShortString(),
 				subSampleCc++
 				if subSampleCc%17 == 0 {
@@ -155,7 +156,7 @@ func DoProcess(sess *sess.Session) {
 			defer dbe.Close()
 			dbe.DumpToEventTrace(
 				qm.OpActivity(), tm,
-				func(act rtinfo.OpActivity) (bool, string, string) {
+				func(act rtdata.OpActivity) (bool, string, string) {
 					if act.IsOpRefValid() {
 						return true,
 							act.GetTask().ToShortString(),
@@ -195,8 +196,8 @@ func main() {
 	// fmt.Printf("done")
 }
 
-func dumpFullCycles(bundle []rtinfo.OpActivity) {
-	var intvs rtinfo.Interval
+func dumpFullCycles(bundle []rtdata.OpActivity) {
+	var intvs rtdata.Interval
 	// Check intervals
 	for _, act := range bundle {
 		intvs = append(intvs, []uint64{

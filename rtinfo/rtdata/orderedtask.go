@@ -1,11 +1,11 @@
-package rtinfo
+package rtdata
 
 import (
 	"fmt"
 	"log"
 
 	"git.enflame.cn/hai.bai/dmaster/assert"
-	"git.enflame.cn/hai.bai/dmaster/meta"
+	"git.enflame.cn/hai.bai/dmaster/meta/metadata"
 	"git.enflame.cn/hai.bai/dmaster/vgrule"
 )
 
@@ -32,6 +32,22 @@ func NewOrderTask(startCycle uint64, task *RuntimeTask) OrderTask {
 	}
 }
 
+func (ot *OrderTask) CreateNewState() {
+	ot.taskState = NewOrderTaskState()
+}
+
+func (ot OrderTask) GetRefToTask() *RuntimeTask {
+	return ot.refToTask
+}
+
+func (ot OrderTask) GetTaskID() int {
+	return ot.refToTask.TaskID
+}
+
+func (ot OrderTask) GetExecUuid() uint64 {
+	return ot.refToTask.ExecutableUUID
+}
+
 func (ot OrderTask) AbleToMatchCqm(cqm OpActivity, a vgrule.EngineOrder) bool {
 	return ot.refToTask.MatchCqm(a.GetEngineOrder(cqm.Start))
 }
@@ -42,7 +58,7 @@ func (ot *OrderTask) SuccessMatchDtuop(packetId int) {
 
 // A task is an instance of executable
 // So all matched packets must belong to the same executable
-func (ot OrderTask) DumpStatusInfo(exec meta.ExecScope) {
+func (ot OrderTask) DumpStatusInfo(exec metadata.ExecScope) {
 	assert.Assert(ot.refToTask != nil, "must not be nil, created from start")
 	if !ot.IsValid() {
 		log.Printf("not a valid task")
@@ -96,12 +112,4 @@ func (o OrderTasks) Less(i, j int) bool {
 		return o[i].StartCy < o[j].StartCy
 	}
 	return o[i].refToTask.TaskID < o[j].refToTask.TaskID
-}
-
-func (orderTask OrderTasks) DumpInfos(rtm *RuntimeTaskManager) {
-	fmt.Printf("# statistics for ordered-task\n")
-	for _, task := range orderTask {
-		execScope := rtm.FindExecFor(task.refToTask.ExecutableUUID)
-		task.DumpStatusInfo(execScope)
-	}
 }

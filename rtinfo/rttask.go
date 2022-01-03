@@ -1,19 +1,19 @@
 package rtinfo
 
 import (
-	"bufio"
 	"errors"
 	"fmt"
 	"log"
 	"os"
 	"sort"
-	"strconv"
-	"strings"
 
 	"git.enflame.cn/hai.bai/dmaster/assert"
 	"git.enflame.cn/hai.bai/dmaster/codec"
+	"git.enflame.cn/hai.bai/dmaster/efintf"
 	"git.enflame.cn/hai.bai/dmaster/meta"
+	"git.enflame.cn/hai.bai/dmaster/meta/metadata"
 	"git.enflame.cn/hai.bai/dmaster/misc/linklist"
+	"git.enflame.cn/hai.bai/dmaster/rtinfo/rtdata"
 	"git.enflame.cn/hai.bai/dmaster/vgrule"
 )
 
@@ -21,44 +21,14 @@ var (
 	ErrNoExecMeta = errors.New("no exec meta info for runtime")
 )
 
-type RuntimeTask struct {
-	TaskID         int
-	ExecutableUUID uint64
-	PgMask         int
-
-	StartCycle uint64
-	EndCycle   uint64
-	CycleValid bool
-	MetaValid  bool
-}
-
-func (r RuntimeTask) ToString() string {
-	return fmt.Sprintf("Task(%v) %016x %v,[%v,%v]",
-		r.TaskID,
-		r.ExecutableUUID,
-		r.PgMask,
-		r.StartCycle,
-		r.EndCycle,
-	)
-}
-
-func (r RuntimeTask) ToShortString() string {
-	hex := fmt.Sprintf("%016x", r.ExecutableUUID)[:8]
-	return fmt.Sprintf("PG %v Task %v Exec %v",
-		r.PgMask,
-		r.TaskID,
-		hex,
-	)
-}
-
 type RuntimeTaskManager struct {
-	taskIdToTask map[int]*RuntimeTask // Full runtime task info, include cyccled ones and ones without cycles
-	taskIdVec    []int                // Full task id vec
+	taskIdToTask map[int]*rtdata.RuntimeTask // Full runtime task info, include cyccled ones and ones without cycles
+	taskIdVec    []int                       // Full task id vec
 	tsHead       *linklist.Lnk
 
 	execKnowledge     *meta.ExecRaw
-	orderedTaskVector []OrderTask
-	fullTaskVector    []OrderTask
+	orderedTaskVector []rtdata.OrderTask
+	fullTaskVector    []rtdata.OrderTask
 }
 
 func NewRuntimeTaskManager() *RuntimeTaskManager {
@@ -67,56 +37,13 @@ func NewRuntimeTaskManager() *RuntimeTaskManager {
 	}
 }
 
-func (rtm *RuntimeTaskManager) LoadRuntimeTask(filename string) bool {
-	fin, err := os.Open(filename)
-	if err != nil {
-		log.Printf("error load runtime info from \"%v\":%v\n", filename, err)
+func (rtm *RuntimeTaskManager) LoadRuntimeTask(
+	infoReceiver efintf.InfoReceiver,
+) bool {
+	dc, taskSequentials, ok := infoReceiver.LoadTask()
+	if !ok {
 		return false
 	}
-	defer fin.Close()
-
-	// dc: Full runtime task info
-	// including the ones with cycle info and the ones without cycle info
-	dc := make(map[int]*RuntimeTask)
-	var taskSequentials []int
-	scan := bufio.NewScanner(fin)
-	for {
-		if !scan.Scan() {
-			break
-		}
-		line := scan.Text()
-		vs := strings.Split(line, " ")
-		taskId, err := strconv.Atoi(vs[0])
-		if err != nil {
-			log.Printf("error read '%v'", line)
-			continue
-		}
-
-		if _, ok := dc[taskId]; ok {
-			panic("error runtimetask: duplicate task id")
-		}
-
-		hxVal := vs[1]
-		if strings.HasPrefix(hxVal, "0x") || strings.HasPrefix(hxVal, "0X") {
-			hxVal = hxVal[2:]
-		}
-		exec, err := strconv.ParseUint(hxVal, 16, 64)
-		if err != nil {
-			log.Printf("error exec: %v", vs[1])
-		}
-		pgMask, err := strconv.Atoi(vs[2])
-		if err != nil {
-			log.Printf("error read pg mask: %v", err)
-		}
-		dc[taskId] = &RuntimeTask{
-			TaskID:         taskId,
-			ExecutableUUID: exec,
-			PgMask:         pgMask,
-		}
-		taskSequentials = append(taskSequentials, taskId)
-	}
-	sort.Ints(taskSequentials)
-	// update to self
 	rtm.taskIdToTask, rtm.taskIdVec = dc, taskSequentials
 	return true
 }
@@ -175,8 +102,8 @@ func (r *RuntimeTaskManager) BuildOrderInfo() {
 func (r RuntimeTaskManager) createTaskSeq(
 	needCycleValid bool,
 	needMetaValid bool,
-) []OrderTask {
-	var orders []OrderTask
+) []rtdata.OrderTask {
+	var orders []rtdata.OrderTask
 	var check uint64 = 0
 	if needCycleValid {
 		check = 1
@@ -184,19 +111,21 @@ func (r RuntimeTaskManager) createTaskSeq(
 	for _, task := range r.taskIdToTask {
 		if (!needCycleValid || task.CycleValid) &&
 			(!needMetaValid || task.MetaValid) {
-			orders = append(orders, NewOrderTask(
+			orders = append(orders, rtdata.NewOrderTask(
 				task.StartCycle*check,
 				task,
 			))
 		}
 	}
-	sort.Sort(OrderTasks(orders))
+	sort.Sort(rtdata.OrderTasks(orders))
 	return orders
 }
 
 // LoadMeta will load executable raw from task info's executable-uuids
-func (r *RuntimeTaskManager) LoadMeta(startPath string) {
-	execKm := meta.NewExecRaw(startPath)
+func (r *RuntimeTaskManager) LoadMeta(
+	loader efintf.InfoReceiver,
+) {
+	execKm := meta.NewExecRaw(loader)
 	for _, taskId := range r.taskIdVec {
 		if r.taskIdToTask[taskId].CycleValid || true {
 			if execKm.LoadMeta(r.taskIdToTask[taskId].ExecutableUUID) {
@@ -209,7 +138,7 @@ func (r *RuntimeTaskManager) LoadMeta(startPath string) {
 	r.execKnowledge = execKm
 }
 
-func (r *RuntimeTaskManager) FindExecFor(execUuid uint64) meta.ExecScope {
+func (r *RuntimeTaskManager) FindExecFor(execUuid uint64) metadata.ExecScope {
 	exec, ok := r.execKnowledge.FindExecScope(execUuid)
 	assert.Assert(ok, "Must be there")
 	return exec
@@ -218,14 +147,14 @@ func (r *RuntimeTaskManager) FindExecFor(execUuid uint64) meta.ExecScope {
 func (r *RuntimeTaskManager) LookupOpIdByPacketID(
 	execUuid uint64,
 	packetId int,
-) (meta.DtuOp, error) {
+) (metadata.DtuOp, error) {
 	if r.execKnowledge == nil {
-		return meta.DtuOp{}, ErrNoExecMeta
+		return metadata.DtuOp{}, ErrNoExecMeta
 	}
 	exec, ok := r.execKnowledge.FindExecScope(execUuid)
 	if !ok {
 		log.Printf("exec %016x is not loaded", exec)
-		return meta.DtuOp{}, ErrNoExecMeta
+		return metadata.DtuOp{}, ErrNoExecMeta
 	}
 	return exec.FindOp(packetId)
 }
@@ -261,16 +190,16 @@ func (r RuntimeTaskManager) upperBoundForTaskVec(cycle uint64) int {
 }
 
 // CookCqm:  find dtu-op meta information for the Cqm Act
-func (rtm *RuntimeTaskManager) CookCqm(opActVec []OpActivity, rule vgrule.EngineOrder) []OpActivity {
+func (rtm *RuntimeTaskManager) CookCqm(opActVec []rtdata.OpActivity, rule vgrule.EngineOrder) []rtdata.OpActivity {
 	// Each time we start processing a new session
 	// We create a new object to do the math
 	vec := rtm.orderedTaskVector
 	for i := 0; i < len(vec); i++ {
-		vec[i].taskState = NewOrderTaskState()
+		vec[i].CreateNewState()
 	}
 
 	bingoCount := 0
-	unprocessedVec := []OpActivity{}
+	unprocessedVec := []rtdata.OpActivity{}
 	for i := 0; i < len(opActVec); i++ {
 		curAct := &opActVec[i]
 		start := curAct.StartCycle()
@@ -286,7 +215,7 @@ func (rtm *RuntimeTaskManager) CookCqm(opActVec []OpActivity, rule vgrule.Engine
 			if !taskInOrder.IsValid() {
 				continue
 			}
-			thisExecUuid := taskInOrder.refToTask.ExecutableUUID
+			thisExecUuid := taskInOrder.GetExecUuid()
 			if taskInOrder.AbleToMatchCqm(*curAct, rule) {
 				if opInfo, err := rtm.LookupOpIdByPacketID(
 					thisExecUuid,
@@ -295,10 +224,7 @@ func (rtm *RuntimeTaskManager) CookCqm(opActVec []OpActivity, rule vgrule.Engine
 					// and there is always a task
 					taskInOrder.SuccessMatchDtuop(curAct.Start.PacketID)
 					taskInOrder.SuccessMatchDtuop(curAct.End.PacketID)
-					curAct.opRef = OpRef{
-						dtuOp:     &opInfo,
-						refToTask: taskInOrder.refToTask,
-					}
+					curAct.SetOpRef(rtdata.NewOpRef(&opInfo, taskInOrder.GetRefToTask()))
 					found = true
 					break
 				} else {
@@ -309,7 +235,7 @@ func (rtm *RuntimeTaskManager) CookCqm(opActVec []OpActivity, rule vgrule.Engine
 		if found {
 			bingoCount++
 		} else {
-			unprocessedVec = append(unprocessedVec, OpActivity{
+			unprocessedVec = append(unprocessedVec, rtdata.OpActivity{
 				DpfAct: curAct.DpfAct,
 			})
 		}
@@ -325,19 +251,19 @@ func (rtm *RuntimeTaskManager) CookCqm(opActVec []OpActivity, rule vgrule.Engine
 
 // Start from the first recorded task
 func (r *RuntimeTaskManager) CookCqmEverSince(
-	opActVec []OpActivity,
+	opActVec []rtdata.OpActivity,
 	rule vgrule.EngineOrder,
-) []OpActivity {
+) []rtdata.OpActivity {
 	// Each time we start processing a new session
 	// We create a new object to do the math
 
 	validTaskMap := make(map[int]bool)
 	for _, orderedTask := range r.orderedTaskVector {
-		validTaskMap[orderedTask.refToTask.TaskID] = true
+		validTaskMap[orderedTask.GetTaskID()] = true
 	}
 	vec := r.fullTaskVector
 	for i := 0; i < len(vec); i++ {
-		vec[i].taskState = NewOrderTaskState()
+		vec[i].CreateNewState()
 	}
 
 	// If there is an ordered task vector, start from the very beginning
@@ -347,9 +273,9 @@ func (r *RuntimeTaskManager) CookCqmEverSince(
 	var firstTaskID = -1
 	if len(r.orderedTaskVector) > 0 {
 		startIdx = len(vec)
-		firstTaskID = r.orderedTaskVector[0].refToTask.TaskID
+		firstTaskID = r.orderedTaskVector[0].GetTaskID()
 		for i := 0; i < len(vec); i++ {
-			if firstTaskID == vec[i].refToTask.TaskID {
+			if firstTaskID == vec[i].GetTaskID() {
 				startIdx = i
 				break
 			}
@@ -358,7 +284,7 @@ func (r *RuntimeTaskManager) CookCqmEverSince(
 
 	log.Printf("Ever since: [%v] taskid %v", startIdx, firstTaskID)
 	bingoCount := 0
-	unprocessedVec := []OpActivity{}
+	unprocessedVec := []rtdata.OpActivity{}
 	everSearched := false
 	for i := 0; i < len(opActVec); i++ {
 		curAct := &opActVec[i]
@@ -367,11 +293,11 @@ func (r *RuntimeTaskManager) CookCqmEverSince(
 	A100:
 		for j := startIdx; j < len(vec); j++ {
 			taskInOrder := vec[j]
-			if validTaskMap[taskInOrder.refToTask.TaskID] {
+			if validTaskMap[taskInOrder.GetTaskID()] {
 				continue
 			}
 			everSearched = true
-			thisExecUuid := taskInOrder.refToTask.ExecutableUUID
+			thisExecUuid := taskInOrder.GetExecUuid()
 			if taskInOrder.AbleToMatchCqm(*curAct, rule) {
 				opInfo, err := r.LookupOpIdByPacketID(
 					thisExecUuid,
@@ -383,13 +309,13 @@ func (r *RuntimeTaskManager) CookCqmEverSince(
 					// and there is always a task
 					taskInOrder.SuccessMatchDtuop(curAct.Start.PacketID)
 					taskInOrder.SuccessMatchDtuop(curAct.End.PacketID)
-					curAct.opRef = OpRef{
-						dtuOp:     &opInfo,
-						refToTask: taskInOrder.refToTask,
-					}
+					curAct.SetOpRef(rtdata.NewOpRef(
+						&opInfo,
+						taskInOrder.GetRefToTask(),
+					))
 					found = true
 					break A100
-				case meta.ErrValidPacketIdNoOp:
+				case metadata.ErrValidPacketIdNoOp:
 					onceValid = true
 				}
 			}
@@ -398,7 +324,7 @@ func (r *RuntimeTaskManager) CookCqmEverSince(
 			bingoCount++
 		} else {
 			assert.Assert(!everSearched || onceValid, "must be valid for once")
-			unprocessedVec = append(unprocessedVec, OpActivity{
+			unprocessedVec = append(unprocessedVec, rtdata.OpActivity{
 				DpfAct: curAct.DpfAct,
 			})
 		}
@@ -413,14 +339,14 @@ func (r *RuntimeTaskManager) CookCqmEverSince(
 
 // OvercookCqm:  find dtu-op meta information for the Cqm Act
 func (r *RuntimeTaskManager) OvercookCqm(
-	opActVec []OpActivity,
+	opActVec []rtdata.OpActivity,
 	rule vgrule.EngineOrder,
 ) {
 	// Each time we start processing a new session
 	// We create a new object to do the math
 	vec := r.orderedTaskVector
 	for i := 0; i < len(vec); i++ {
-		vec[i].taskState = NewOrderTaskState()
+		vec[i].CreateNewState()
 	}
 
 	bingoCount := 0
@@ -450,7 +376,7 @@ func (r *RuntimeTaskManager) OvercookCqm(
 				continue
 			}
 			if taskInOrder.AbleToMatchCqm(*curAct, rule) {
-				thisExecUuid := taskInOrder.refToTask.ExecutableUUID
+				thisExecUuid := taskInOrder.GetExecUuid()
 				opInfo, err := r.LookupOpIdByPacketID(
 					thisExecUuid,
 					curAct.Start.PacketID)
@@ -460,13 +386,13 @@ func (r *RuntimeTaskManager) OvercookCqm(
 					// and there is always a task
 					taskInOrder.SuccessMatchDtuop(curAct.Start.PacketID)
 					taskInOrder.SuccessMatchDtuop(curAct.End.PacketID)
-					curAct.opRef = OpRef{
-						dtuOp:     &opInfo,
-						refToTask: taskInOrder.refToTask,
-					}
+					curAct.SetOpRef(rtdata.NewOpRef(
+						&opInfo,
+						taskInOrder.GetRefToTask(),
+					))
 					found = true
-				case meta.ErrInvalidPacketId:
-				case meta.ErrValidPacketIdNoOp:
+				case metadata.ErrInvalidPacketId:
+				case metadata.ErrValidPacketIdNoOp:
 				default:
 					assert.Assert(false, "not included")
 				}
@@ -524,9 +450,9 @@ func toCqmGroup(engBitmap int) string {
 
 // WildCookCqm:  By all means
 func (r *RuntimeTaskManager) WildCookCqm(
-	opActVec []OpActivity,
-) []OpActivity {
-	var unmatchedVec []OpActivity
+	opActVec []rtdata.OpActivity,
+) []rtdata.OpActivity {
+	var unmatchedVec []rtdata.OpActivity
 	for i := 0; i < len(opActVec); i++ {
 		curAct := &opActVec[i]
 		if _, ok := r.execKnowledge.LookForWild(
@@ -534,7 +460,7 @@ func (r *RuntimeTaskManager) WildCookCqm(
 			false); ok {
 			// not change at all
 		} else {
-			unmatchedVec = append(unmatchedVec, OpActivity{
+			unmatchedVec = append(unmatchedVec, rtdata.OpActivity{
 				DpfAct: curAct.DpfAct,
 			})
 		}
@@ -550,4 +476,12 @@ func (r *RuntimeTaskManager) WildCookCqm(
 		assert.Assert(false, "this is not expected")
 	}
 	return unmatchedVec
+}
+
+func (rtm *RuntimeTaskManager) DumpInfos(orderTask rtdata.OrderTasks) {
+	fmt.Printf("# statistics for ordered-task\n")
+	for _, task := range orderTask {
+		execScope := rtm.FindExecFor(task.GetExecUuid())
+		task.DumpStatusInfo(execScope)
+	}
 }

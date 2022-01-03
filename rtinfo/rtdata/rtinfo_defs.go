@@ -1,8 +1,8 @@
-package rtinfo
+package rtdata
 
 import (
 	"git.enflame.cn/hai.bai/dmaster/codec"
-	"git.enflame.cn/hai.bai/dmaster/meta"
+	"git.enflame.cn/hai.bai/dmaster/meta/metadata"
 )
 
 type DpfAct struct {
@@ -11,8 +11,15 @@ type DpfAct struct {
 }
 
 type OpRef struct {
-	dtuOp     *meta.DtuOp
+	dtuOp     *metadata.DtuOp
 	refToTask *RuntimeTask
+}
+
+func NewOpRef(dtuOp *metadata.DtuOp, refToTask *RuntimeTask) OpRef {
+	return OpRef{
+		dtuOp,
+		refToTask,
+	}
 }
 
 type OpActivity struct {
@@ -36,10 +43,14 @@ func (q OpActivity) IsOpRefValid() bool {
 	return q.opRef.dtuOp != nil && q.opRef.refToTask != nil
 }
 
-func (q OpActivity) GetOp() meta.DtuOp {
+func (q OpActivity) GetOp() metadata.DtuOp {
 	return *q.opRef.dtuOp
 }
 
 func (q OpActivity) GetTask() RuntimeTask {
 	return *q.opRef.refToTask
+}
+
+func (q *OpActivity) SetOpRef(opRef OpRef) {
+	q.opRef = opRef
 }

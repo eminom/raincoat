@@ -7,10 +7,11 @@ import (
 	"os"
 
 	"git.enflame.cn/hai.bai/dmaster/rtinfo"
+	"git.enflame.cn/hai.bai/dmaster/rtinfo/rtdata"
 	_ "github.com/mattn/go-sqlite3"
 )
 
-type ExtractOpInfo func(rtinfo.OpActivity) (bool, string, string)
+type ExtractOpInfo func(rtdata.OpActivity) (bool, string, string)
 
 type AddOpTrace func(
 	idx, nodeID, devID, clusterID, ctxID int, name string,
@@ -104,7 +105,7 @@ func (dbs *DbSession) Close() {
 }
 
 func (dbs *DbSession) DumpToEventTrace(
-	bundle []rtinfo.OpActivity,
+	bundle []rtdata.OpActivity,
 	tm *rtinfo.TimelineManager,
 	extractor ExtractOpInfo,
 	dumpWild bool,

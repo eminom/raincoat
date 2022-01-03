@@ -1,4 +1,4 @@
-package meta
+package infoloader
 
 type FormatFetcher interface {
 	FetchOpIdOpName(string) (string, string)

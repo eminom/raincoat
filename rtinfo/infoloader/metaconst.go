@@ -1,4 +1,4 @@
-package meta
+package infoloader
 
 var (
 	pkt2opFileSuffixes = []string{"_pkt2op.dumptxt", "_pkt2op.pbdumptxt"}

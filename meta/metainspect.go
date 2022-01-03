@@ -19,23 +19,15 @@ func TestExecRaw(er *ExecRaw) {
 	inspect.DoBasicState()
 }
 
-/*
-type ExecRaw struct {
-	startPath string
-	bundle    map[uint64]*ExecScope
-	wilds     map[uint64]*ExecScope
-}
-*/
-
 func (m *metaInspector) DoBasicState() {
 	allPacketIds := make(map[int]map[uint64]bool)
 	for _, es := range m.er.bundle {
-		for pkt := range es.pktIdToOp {
-			if _, ok := allPacketIds[pkt]; !ok {
-				allPacketIds[pkt] = make(map[uint64]bool)
+		es.IteratePktToOp(func(pktId, opId int) {
+			if _, ok := allPacketIds[pktId]; !ok {
+				allPacketIds[pktId] = make(map[uint64]bool)
 			}
-			allPacketIds[pkt][es.execUuid] = true
-		}
+			allPacketIds[pktId][es.GetExecUuid()] = true
+		})
 	}
 	fetchAny := func(dc map[uint64]bool) uint64 {
 		for one := range dc {

@@ -7,6 +7,7 @@ import (
 	"sort"
 
 	"git.enflame.cn/hai.bai/dmaster/rtinfo"
+	"git.enflame.cn/hai.bai/dmaster/rtinfo/rtdata"
 )
 
 /*
@@ -109,12 +110,12 @@ func (tr *TraceEventSession) appendEvt(evt TraceEvent) {
 }
 
 func (tr *TraceEventSession) DumpToEventTrace(
-	bundle []rtinfo.OpActivity,
+	bundle []rtdata.OpActivity,
 	tm *rtinfo.TimelineManager,
-	getPidAndName func(rtinfo.OpActivity) (bool, string, string),
+	getPidAndName func(rtdata.OpActivity) (bool, string, string),
 	dumpWild bool,
 ) {
-	rtinfo.CheckTimespanOverlapping(bundle)
+	rtdata.CheckTimespanOverlapping(bundle)
 
 	var dtuOpCount = 0
 	var convertToHostError = 0

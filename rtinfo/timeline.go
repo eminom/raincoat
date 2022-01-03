@@ -1,42 +1,20 @@
 package rtinfo
 
 import (
-	"bufio"
 	"fmt"
 	"log"
 	"os"
-	"strconv"
-	"unicode"
 
 	"git.enflame.cn/hai.bai/dmaster/assert"
 	"git.enflame.cn/hai.bai/dmaster/codec"
+	"git.enflame.cn/hai.bai/dmaster/efintf"
+	"git.enflame.cn/hai.bai/dmaster/rtinfo/rtdata"
 )
 
-type DevCycleTime struct {
-	dpfSyncIndex int // dpfSyncIndex is at most 31 bit-wide
-	devCycle     uint64
-}
-
-type HostTimeEntry struct {
-	cid          int
-	hosttime     uint64
-	dpfSyncIndex int
-}
-
-type DevCycleAligned struct {
-	DevCycleTime
-	cid      int
-	hosttime uint64
-}
-
-func (d DevCycleAligned) ToString() string {
-	return fmt.Sprintf("%v %v %v", d.dpfSyncIndex, d.hosttime, d.devCycle)
-}
-
 type TimelineManager struct {
-	cycles     []DevCycleTime
-	hosttp     []HostTimeEntry
-	alignedVec []DevCycleAligned
+	cycles     []rtdata.DevCycleTime
+	hosttp     []rtdata.HostTimeEntry
+	alignedVec []rtdata.DevCycleAligned
 }
 
 func NewTimelineManager() *TimelineManager {
@@ -54,24 +32,24 @@ func (tm *TimelineManager) MapToHosttime(targetCycle uint64) (uint64, bool) {
 	lo, hi := 0, lz
 	for lo < hi {
 		md := (lo + hi) >> 1
-		if alignedVec[md].devCycle >= targetCycle {
+		if alignedVec[md].DevCycle >= targetCycle {
 			hi = md
 		} else {
 			lo = 1 + md
 		}
 	}
 	bound := lo
-	if bound < lz && alignedVec[bound].devCycle > targetCycle {
+	if bound < lz && alignedVec[bound].DevCycle > targetCycle {
 		bound--
 	}
 	if bound < lz-1 && bound >= 0 {
-		hostStart, hostClose := alignedVec[bound].hosttime,
-			alignedVec[bound+1].hosttime
+		hostStart, hostClose := alignedVec[bound].Hosttime,
+			alignedVec[bound+1].Hosttime
 		assert.Assert(hostStart < hostClose, "must be valid host time span")
 		hostSpan := hostClose - hostStart
 
-		cyStart, cyClose := alignedVec[bound].devCycle,
-			alignedVec[bound+1].devCycle
+		cyStart, cyClose := alignedVec[bound].DevCycle,
+			alignedVec[bound+1].DevCycle
 		assert.Assert(cyStart < cyClose, "cycle must valid")
 		cySpan := cyClose - cyStart
 		hostAligned := hostStart +
@@ -82,9 +60,9 @@ func (tm *TimelineManager) MapToHosttime(targetCycle uint64) (uint64, bool) {
 }
 
 func (tm *TimelineManager) PutEvent(evt codec.DpfEvent) {
-	devCy := DevCycleTime{
-		dpfSyncIndex: evt.DpfSyncIndex(),
-		devCycle:     evt.Cycle,
+	devCy := rtdata.DevCycleTime{
+		DpfSyncIndex: evt.DpfSyncIndex(),
+		DevCycle:     evt.Cycle,
 	}
 	tm.cycles = append(tm.cycles, devCy)
 }
@@ -94,26 +72,26 @@ func (tm *TimelineManager) AlignToHostTimeline() {
 	tm.trimWrappedSyncIndex()
 	// if the host-timeline is in mono ascending
 
-	timeMap := make(map[int]HostTimeEntry)
+	timeMap := make(map[int]rtdata.HostTimeEntry)
 	for _, v := range tm.hosttp {
-		timeMap[v.dpfSyncIndex] = v
+		timeMap[v.DpfSyncIndex] = v
 	}
 
-	var alignedVec []DevCycleAligned
+	var alignedVec []rtdata.DevCycleAligned
 
 	// tm.cycles are already in the right order
 	for _, v := range tm.cycles {
-		if host, ok := timeMap[v.dpfSyncIndex]; ok {
+		if host, ok := timeMap[v.DpfSyncIndex]; ok {
 			_ = host
 			alignedVec = append(
 				alignedVec,
-				DevCycleAligned{
-					DevCycleTime: DevCycleTime{
-						dpfSyncIndex: v.dpfSyncIndex,
-						devCycle:     v.devCycle,
+				rtdata.DevCycleAligned{
+					DevCycleTime: rtdata.DevCycleTime{
+						DpfSyncIndex: v.DpfSyncIndex,
+						DevCycle:     v.DevCycle,
 					},
-					cid:      host.cid,
-					hosttime: host.hosttime,
+					Cid:      host.Cid,
+					Hosttime: host.Hosttime,
 				},
 			)
 		}
@@ -129,14 +107,14 @@ func (tm *TimelineManager) trimHostWrapped() {
 	i := 0
 	for i < lz {
 		j := i
-		for j < lz-1 && tm.hosttp[j].dpfSyncIndex < tm.hosttp[j+1].dpfSyncIndex {
+		for j < lz-1 && tm.hosttp[j].DpfSyncIndex < tm.hosttp[j+1].DpfSyncIndex {
 			j++
 		}
 		if j+1 < lz {
 			trimmed := (j + 1) - i
 			log.Printf("warning: trimming host %v items, for sync index %v",
 				trimmed,
-				tm.hosttp[j].dpfSyncIndex,
+				tm.hosttp[j].DpfSyncIndex,
 			)
 			tm.hosttp = tm.hosttp[j+1:]
 			lz, i = len(tm.hosttp), 0
@@ -156,13 +134,13 @@ func (tm *TimelineManager) Verify() bool {
 	hostErrCount := 0
 	cycleErrCount := 0
 	for i := 0; i < lz-1; i++ {
-		if tm.alignedVec[i].dpfSyncIndex >= tm.alignedVec[i+1].dpfSyncIndex {
+		if tm.alignedVec[i].DpfSyncIndex >= tm.alignedVec[i+1].DpfSyncIndex {
 			indexErrCount++
 		}
-		if tm.alignedVec[i].hosttime >= tm.alignedVec[i+1].hosttime {
+		if tm.alignedVec[i].Hosttime >= tm.alignedVec[i+1].Hosttime {
 			hostErrCount++
 		}
-		if tm.alignedVec[i].devCycle >= tm.alignedVec[i+1].devCycle {
+		if tm.alignedVec[i].DevCycle >= tm.alignedVec[i+1].DevCycle {
 			cycleErrCount++
 		}
 	}
@@ -190,7 +168,7 @@ func (tm *TimelineManager) trimWrappedSyncIndex() {
 	i := 0
 	for i < lz {
 		j := i
-		for j < lz-1 && tm.cycles[j].dpfSyncIndex < tm.cycles[j+1].dpfSyncIndex {
+		for j < lz-1 && tm.cycles[j].DpfSyncIndex < tm.cycles[j+1].DpfSyncIndex {
 			j++
 		}
 		if j+1 < lz {
@@ -209,70 +187,14 @@ func (tm *TimelineManager) trimWrappedSyncIndex() {
 	)
 }
 
-func xsplit(a string) []string {
-	rv := []string{}
-	lz := len(a)
-	i := 0
-	for i < lz {
-		for i < lz && unicode.IsSpace(rune(a[i])) {
-			i++
-		}
-		j := i
-		for j < lz && !unicode.IsSpace(rune(a[j])) {
-			j++
-		}
-		if j-i > 0 {
-			rv = append(rv, a[i:j])
-		}
-		i = j
-	}
-	return rv
-}
-
 // LoadTimepoints for
-func (tm *TimelineManager) LoadTimepoints(path string) bool {
-	fin, err := os.Open(path)
-	if err != nil {
-		log.Printf("error load timepoints: %v\n", err)
+func (tm *TimelineManager) LoadTimepoints(
+	infoReceiver efintf.InfoReceiver,
+) bool {
+	tmVec, ok := infoReceiver.LoadTimepoints()
+	if !ok {
 		return false
 	}
-	defer fin.Close()
-	scan := bufio.NewScanner(fin)
-	for {
-		if !scan.Scan() {
-			break
-		}
-		text := scan.Text()
-		vs := xsplit(text)
-		if len(vs) != 3 {
-			panic(fmt.Errorf("error timepoints file content: %v"+
-				", split len is %v",
-				text,
-				len(vs),
-			))
-		}
-		var decodeErr error
-		cidUint, decodeErr := strconv.ParseInt(vs[0], 10, 32)
-		if decodeErr != nil {
-			panic(decodeErr)
-		}
-		cid := int(cidUint)
-		hosttime, decodeErr := strconv.ParseUint(vs[1], 10, 64)
-		if decodeErr != nil {
-			panic(decodeErr)
-		}
-		indexUint, decodeErr := strconv.ParseInt(vs[2], 10, 32)
-		if decodeErr != nil {
-			panic(decodeErr)
-		}
-		dpfSyncIndex := int(indexUint)
-
-		tm.hosttp = append(tm.hosttp, HostTimeEntry{
-			cid:          cid,
-			hosttime:     hosttime,
-			dpfSyncIndex: dpfSyncIndex,
-		})
-	}
-	log.Printf("in all: %v timepoint(s) have been loaded", len(tm.hosttp))
+	tm.hosttp = tmVec
 	return true
 }

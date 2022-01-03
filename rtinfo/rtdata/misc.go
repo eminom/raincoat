@@ -1,4 +1,4 @@
-package rtinfo
+package rtdata
 
 type Interval [][]uint64
 
