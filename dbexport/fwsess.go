@@ -20,7 +20,7 @@ func NewFwSession(db *sql.DB) *FwSession {
 			start_cycle, end_cycle, duration_cycle,
 			packet_id, engine_type,
 			vp_id, row_name,
-			engine_id int,
+			engine_id,
 			tid
 		) values(?, ?, ?, ?, ?, ?,
 		         ?, ?, ?,

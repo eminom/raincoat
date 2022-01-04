@@ -18,7 +18,9 @@ func NewTableSession(db *sql.DB, cmdString string) TableSession {
 	}
 	stmt, err := tx.Prepare(cmdString)
 	if err != nil {
-		log.Fatal(err)
+		// log.Fatal(err)
+		log.Printf("error for %v", cmdString)
+		panic(err)
 	}
 	return TableSession{
 		stmt:      stmt,

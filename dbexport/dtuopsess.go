@@ -5,6 +5,10 @@ import (
 	"fmt"
 )
 
+const (
+	DtuOpRowName = "DTU Op Re"
+)
+
 type DtuOpSession struct {
 	TableSession
 	dtuOpCount int
@@ -44,8 +48,8 @@ func (dos *DtuOpSession) AddDtuOp(
 		opId, opName,
 		// and the default
 		vpId, moduleID,
-		"DTU Op", fmt.Sprintf("%v:%v:%v:%v:DTU Op",
-			nodeID, devID, ctxID, clusterID,
+		DtuOpRowName, fmt.Sprintf("%v:%v:%v:%v:%v",
+			nodeID, devID, ctxID, clusterID, DtuOpRowName,
 		))
 	dos.dtuOpCount++
 
