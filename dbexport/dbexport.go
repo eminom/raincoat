@@ -18,11 +18,11 @@ type AddOpTrace func(
 	startCy, endCy, durCy uint64,
 	opId int, opName string)
 
-type AddFwTrace func(
-	idx, nodeID, devID, clusterID, ctxID int, name string,
+type AddFwTrace func(idx, nodeID, devID, clusterID, ctxID int, name string,
 	startTS, endTS, durTS uint64,
 	startCy, endCy, durCy uint64,
 	packetId int, engineType string,
+	engineID int,
 )
 
 type DbSession struct {

@@ -20,7 +20,11 @@ const (
 
 const (
 	createFwTable = `
-	CREATE TABLE fw(idx INT,name TEXT,node_id INT,description TEXT,context_id INT,start_timestamp INT,end_timestamp INT,duration_timestamp INT,start_cycle INT,end_cycle INT,duration_cycle INT,packet_id INT,device_id INT,cluster_id INT,engine_id INT,engine_type TEXT,args TEXT,vp_id INT,row_name TEXT,tid TEXT);`
+	CREATE TABLE fw(idx INT,name TEXT,node_id INT,description TEXT,context_id INT,
+		start_timestamp INT,end_timestamp INT,duration_timestamp INT,
+		start_cycle INT,end_cycle INT,duration_cycle INT,
+		packet_id INT,device_id INT,cluster_id INT,engine_id INT,
+		engine_type TEXT,args TEXT,vp_id INT,row_name TEXT,tid TEXT);`
 )
 
 const (
