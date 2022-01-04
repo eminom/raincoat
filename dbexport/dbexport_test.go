@@ -19,7 +19,8 @@ func TestOne(t *testing.T) {
 	}
 	defer db.Close()
 
-	sqlStmt := createDtuOpTable + `
+	sqlStmt := createHeaderTable + "\n" +
+		createDtuOpTable + `
 	delete from dtu_op;
 	`
 	_, err = db.Exec(sqlStmt)

@@ -12,3 +12,12 @@ const (
 		module_id INT,module_name TEXT,meta TEXT,device_id INT,
 		cluster_id INT,vp_id INT,row_name TEXT,tid TEXT);`
 )
+
+const (
+	createHeaderTable = `
+	CREATE TABLE header(table_name TEXT,version TEXT,category TEXT,count INT,time_unit TEXT);`
+)
+
+const (
+	TableCategory_DTUOpActivity = "DTUOpActivity"
+)
