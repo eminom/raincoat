@@ -97,11 +97,13 @@ func DoProcess(sess *sess.Session) {
 				}
 				cqmOpDbgCount++
 			}
+
 			fwVec.PutEvent(evt)
 		case codec.EngCat_TS:
 			if rtDict != nil {
 				rtDict.CollectTsEvent(evt)
 			}
+			fwVec.PutEvent(evt)
 		}
 	}
 	sess.EmitForEach(doFunc)
@@ -200,7 +202,7 @@ func DoProcess(sess *sess.Session) {
 					case codec.EngCat_TS:
 						str, _ := rtdata.ToTSEventString(act.Start.Event)
 						return true, "", str, dbexport.DbChannel_FW
-					case codec.EngCat_CQM:
+					case codec.EngCat_CQM, codec.EngCat_GSYNC:
 						str, _ := rtdata.ToCQMEventString(act.Start.Event)
 						return true, "", str, dbexport.DbChannel_FW
 					}

@@ -121,7 +121,8 @@ func (dbs *DbSession) DumpToEventTrace(
 					dbs.dtuOpCount++
 				case DbChannel_FW:
 					packetID, contextID := 0, -1
-					if act.Start.EngineTypeCode == codec.EngCat_CQM {
+					switch act.Start.EngineTypeCode {
+					case codec.EngCat_CQM, codec.EngCat_GSYNC:
 						packetID = act.Start.PacketID
 						contextID = act.Start.Context
 					}
