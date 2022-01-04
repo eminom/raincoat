@@ -2,10 +2,8 @@ package dbexport
 
 import (
 	"database/sql"
-	"fmt"
 	"log"
 	"os"
-	"sync/atomic"
 
 	"git.enflame.cn/hai.bai/dmaster/rtinfo"
 	"git.enflame.cn/hai.bai/dmaster/rtinfo/rtdata"
@@ -20,117 +18,24 @@ type AddOpTrace func(
 	startCy, endCy, durCy uint64,
 	opId int, opName string)
 
+type AddFwTrace func(
+	idx, nodeID, devID, clusterID, ctxID int, name string,
+	startTS, endTS, durTS uint64,
+	startCy, endCy, durCy uint64,
+	packetId int, engineType string,
+)
+
 type DbSession struct {
 	targetName string
 	finish     func()
 	addOpTrace AddOpTrace
+	addFwTrace AddFwTrace
 	idx        int
 }
 
 func ifFileExist(file string) bool {
 	stat, err := os.Stat(file)
 	return nil == err && !stat.IsDir()
-}
-
-type TableSession struct {
-	stmt      *sql.Stmt
-	tx        *sql.Tx
-	cmdString string
-}
-
-func NewTableSession(db *sql.DB, cmdString string) TableSession {
-	tx, err := db.Begin()
-	if err != nil {
-		log.Fatal(err)
-	}
-	stmt, err := tx.Prepare(cmdString)
-	if err != nil {
-		log.Fatal(err)
-	}
-	return TableSession{
-		stmt:      stmt,
-		tx:        tx,
-		cmdString: cmdString,
-	}
-}
-
-func (tabSess *TableSession) Close() {
-	tabSess.tx.Commit()
-	tabSess.stmt.Close()
-}
-
-func (tabSess *TableSession) Exec(args ...interface{}) {
-	tabSess.stmt.Exec(args...)
-}
-
-type HeaderSession struct {
-	TableSession
-}
-
-func NewHeaderSess(db *sql.DB) *HeaderSession {
-	return &HeaderSession{
-		TableSession: NewTableSession(db,
-			`insert into header(table_name, version, category,
-			count, time_unit) values(?, ?, ?, ?, ?)`),
-	}
-}
-
-func (hs *HeaderSession) AddHeader(tableName string, version string, category string,
-	count int, timeUnit string) {
-	hs.stmt.Exec(tableName,
-		version, category, fmt.Sprintf("%v", count),
-		timeUnit)
-}
-
-type DtuOpSession struct {
-	TableSession
-	vid        int32
-	dtuOpCount int
-}
-
-func NewDtuOpSession(db *sql.DB) *DtuOpSession {
-	return &DtuOpSession{
-		TableSession: NewTableSession(db, `insert into dtu_op(
-			idx, node_id, device_id, cluster_id, context_id, name,
-			start_timestamp, end_timestamp, duration_timestamp,
-			start_cycle, end_cycle, duration_cycle,
-			op_id, op_name,
-			vp_id, module_id,
-			row_name, tid)
-			values(?, ?, ?, ?, ?, ?,
-				   ?, ?, ?,
-				   ?, ?, ?,
-				   ?, ?,
-				   ?, ?,
-				   ?, ?)`),
-	}
-}
-
-func (dos *DtuOpSession) GetNextVid() int {
-	return int(atomic.AddInt32(&dos.vid, 1))
-}
-
-func (dos *DtuOpSession) AddDtuOp(
-	idx, nodeID, devID, clusterID, ctxID int, name string,
-	startTS, endTS, durTS uint64,
-	startCy, endCy, durCy uint64,
-	opId int, opName string) {
-
-	moduleID := 1
-	vpId := dos.GetNextVid()
-
-	dos.stmt.Exec(
-		idx, nodeID, devID, clusterID, ctxID, name,
-		startTS, endTS, durTS,
-		startCy, endCy, durCy,
-		opId, opName,
-		// and the default
-		vpId, moduleID,
-		"DTU Op", fmt.Sprintf("%v:%v:%v:%v:DTU Op",
-			nodeID, devID, ctxID, clusterID,
-		))
-	dos.dtuOpCount++
-
 }
 
 func NewDbSession(target string) (*DbSession, error) {
@@ -144,7 +49,8 @@ func NewDbSession(target string) (*DbSession, error) {
 	}
 
 	sqlStmt := createHeaderTable + "\n" +
-		createDtuOpTable + `
+		createDtuOpTable + "\n" +
+		createFwTable + `
 	delete from dtu_op;
 	`
 	_, err = db.Exec(sqlStmt)
@@ -157,21 +63,30 @@ func NewDbSession(target string) (*DbSession, error) {
 
 	hs := NewHeaderSess(db)
 	dos := NewDtuOpSession(db)
+	fw := NewFwSession(db)
 
 	finishDbWork := func() {
 		// Finalize Dtu-ops
 		dos.Close()
 
-		// Finalize headers
+		// Finalize fw traces
+		fw.Close()
+
+		// Finalize headers, not until the end do we know the count
 		hs.AddHeader("dtu_op", "1.0",
 			TableCategory_DTUOpActivity, dos.dtuOpCount, "ns")
+		hs.AddHeader("fw", "1.0",
+			TableCategory_DTUFwActivity, fw.fwOpCount, "ns")
 		hs.Close()
+
+		// And finally , close DB handle
 		db.Close()
 	}
 
 	return &DbSession{
 		finish:     finishDbWork,
 		addOpTrace: dos.AddDtuOp,
+		addFwTrace: fw.AddFwTrace,
 	}, nil
 }
 
