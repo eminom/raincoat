@@ -3,6 +3,8 @@ package dbexport
 import (
 	"database/sql"
 	"fmt"
+
+	"git.enflame.cn/hai.bai/dmaster/assert"
 )
 
 const (
@@ -11,7 +13,6 @@ const (
 
 type DtuOpSession struct {
 	TableSession
-	dtuOpCount int
 }
 
 func NewDtuOpSession(db *sql.DB) *DtuOpSession {
@@ -41,7 +42,7 @@ func (dos *DtuOpSession) AddDtuOp(
 	moduleID := 1
 	vpId := GetNextVpId()
 
-	dos.stmt.Exec(
+	_, err := dos.stmt.Exec(
 		idx, nodeID, devID, clusterID, ctxID, name,
 		startTS, endTS, durTS,
 		startCy, endCy, durCy,
@@ -51,6 +52,5 @@ func (dos *DtuOpSession) AddDtuOp(
 		DtuOpRowName, fmt.Sprintf("%v:%v:%v:%v:%v",
 			nodeID, devID, ctxID, clusterID, DtuOpRowName,
 		))
-	dos.dtuOpCount++
-
+	assert.Assert(err == nil, "Must be nil to carry on")
 }

@@ -57,7 +57,29 @@ func DoProcess(sess *sess.Session) {
 	loader := sess.GetLoader()
 	rtDict.LoadRuntimeTask(loader)
 	curAlgo := vgrule.NewDoradoRule()
-	qm := rtdata.NewOpEventQueue(curAlgo)
+	qm := rtdata.NewOpEventQueue(curAlgo,
+		func(evt codec.DpfEvent) bool {
+			return evt.Event == codec.CqmEventOpStart
+		},
+		func(former, latter codec.DpfEvent) bool {
+			return former.PacketID+1 == latter.PacketID &&
+				former.ClusterID == latter.ClusterID
+		})
+	fwVec := rtdata.NewOpEventQueue(curAlgo,
+		func(evt codec.DpfEvent) bool {
+			switch evt.Event {
+			case codec.CqmEventCmdPacketStart,
+				codec.CqmEventOpStart,
+				codec.TsLaunchCqmStart:
+				return true
+			}
+			return false
+		},
+		func(former, latter codec.DpfEvent) bool {
+			return former.EngineTypeCode == latter.EngineTypeCode &&
+				former.Event-1 == latter.Event && // paired
+				former.ClusterID == latter.ClusterID
+		})
 	tm := rtinfo.NewTimelineManager()
 	tm.LoadTimepoints(loader)
 	doFunc := func(evt codec.DpfEvent) {
@@ -75,6 +97,7 @@ func DoProcess(sess *sess.Session) {
 				}
 				cqmOpDbgCount++
 			}
+			fwVec.PutEvent(evt)
 		case codec.EngCat_TS:
 			if rtDict != nil {
 				rtDict.CollectTsEvent(evt)
@@ -158,16 +181,34 @@ func DoProcess(sess *sess.Session) {
 			defer dbe.Close()
 			dbe.DumpToEventTrace(
 				qm.OpActivity(), tm,
-				func(act rtdata.OpActivity) (bool, string, string) {
+				func(act rtdata.OpActivity) (bool, string, string, dbexport.DatabaseChannelType) {
 					if act.IsOpRefValid() {
 						return true,
 							act.GetTask().ToShortString(),
-							act.GetOp().OpName
+							act.GetOp().OpName,
+							dbexport.DbChannel_DtuOp
 					}
-					return false, "Unknown Task", "Unk"
+					return false, "Unknown Task", "Unk", dbexport.DbChannel_DtuOp
 				},
 				false,
 			)
+
+			dbe.DumpToEventTrace(
+				fwVec.OpActivity(), tm,
+				func(act rtdata.OpActivity) (bool, string, string, dbexport.DatabaseChannelType) {
+					switch act.Start.EngineTypeCode {
+					case codec.EngCat_TS:
+						str, _ := rtdata.ToTSEventString(act.Start.Event)
+						return true, "", str, dbexport.DbChannel_FW
+					case codec.EngCat_CQM:
+						str, _ := rtdata.ToCQMEventString(act.Start.Event)
+						return true, "", str, dbexport.DbChannel_FW
+					}
+					return false, "", "", dbexport.DbChannel_FW
+				},
+				false,
+			)
+
 			fmt.Printf("dumped to %v\n", outputVpd)
 		}
 	}

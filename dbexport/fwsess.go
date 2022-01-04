@@ -9,7 +9,6 @@ import (
 
 type FwSession struct {
 	TableSession
-	fwOpCount int
 }
 
 func NewFwSession(db *sql.DB) *FwSession {
@@ -49,5 +48,5 @@ func (fw *FwSession) AddFwTrace(idx, nodeID, devID, clusterID, ctxID int, name s
 		fmt.Sprintf("%v:%v:%v:%v:%v:%v:%v",
 			nodeID, devID, ctxID, clusterID, engineType, engineID, name),
 	)
-	assert.Assert(err == nil, "Must be nil error")
+	assert.Assert(err == nil, "Must be nil error: %v", err)
 }

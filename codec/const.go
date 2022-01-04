@@ -3,6 +3,9 @@ package codec
 const (
 	CqmEventOpStart = 9
 	CqmEventOpEnd   = 8
+
+	CqmEventCmdPacketStart = 7
+	CqmEventCmdPacketEnd   = 6
 )
 
 const (

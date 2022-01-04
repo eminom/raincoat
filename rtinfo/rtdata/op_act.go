@@ -10,16 +10,26 @@ import (
 
 type OpActivityVector []OpActivity
 
+type StartIdentifier func(codec.DpfEvent) bool
+type DpfEventMatchTester func(codec.DpfEvent, codec.DpfEvent) bool
+
 type OpEventQueue struct {
-	distr []linklist.Lnk
-	acts  OpActivityVector
-	eAlgo vgrule.ActMatchAlgo
+	distr                []linklist.Lnk
+	acts                 OpActivityVector
+	eAlgo                vgrule.ActMatchAlgo
+	startEventIdentifier StartIdentifier
+	tester               DpfEventMatchTester
 }
 
-func NewOpEventQueue(algo vgrule.ActMatchAlgo) *OpEventQueue {
+func NewOpEventQueue(algo vgrule.ActMatchAlgo,
+	startChecker StartIdentifier,
+	tester DpfEventMatchTester,
+) *OpEventQueue {
 	rv := OpEventQueue{
-		distr: linklist.NewLnkArray(algo.GetChannelNum()),
-		eAlgo: algo,
+		distr:                linklist.NewLnkArray(algo.GetChannelNum()),
+		eAlgo:                algo,
+		startEventIdentifier: startChecker,
+		tester:               tester,
 	}
 	return &rv
 }
@@ -34,13 +44,13 @@ func (q *OpEventQueue) PutEvent(este codec.DpfEvent) error {
 		este.EngineIndex,
 		este.Context,
 	)
-	if este.Event == codec.CqmEventOpStart {
+	if q.startEventIdentifier(este) {
 		q.distr[index].AppendNode(este)
 		return nil
 	}
 	if start := q.distr[index].Extract(func(one interface{}) bool {
 		un := one.(codec.DpfEvent)
-		return un.PacketID+1 == este.PacketID && un.ClusterID == este.ClusterID
+		return q.tester(un, este)
 	}); start != nil {
 		startUn := start.(codec.DpfEvent)
 		q.acts = append(q.acts, OpActivity{

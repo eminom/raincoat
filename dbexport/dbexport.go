@@ -5,12 +5,21 @@ import (
 	"log"
 	"os"
 
+	"git.enflame.cn/hai.bai/dmaster/codec"
 	"git.enflame.cn/hai.bai/dmaster/rtinfo"
 	"git.enflame.cn/hai.bai/dmaster/rtinfo/rtdata"
 	_ "github.com/mattn/go-sqlite3"
 )
 
-type ExtractOpInfo func(rtdata.OpActivity) (bool, string, string)
+type DatabaseChannelType string
+
+const (
+	DbChannel_DtuOp DatabaseChannelType = "channel.DtuOp"
+	DbChannel_FW    DatabaseChannelType = "channel.FW"
+)
+
+type ExtractOpInfo func(rtdata.OpActivity) (bool, string,
+	string, DatabaseChannelType)
 
 type AddOpTrace func(
 	idx, nodeID, devID, clusterID, ctxID int, name string,
@@ -27,10 +36,11 @@ type AddFwTrace func(idx, nodeID, devID, clusterID, ctxID int, name string,
 
 type DbSession struct {
 	targetName string
-	finish     func()
-	addOpTrace AddOpTrace
-	addFwTrace AddFwTrace
+	dbObject   *sql.DB
 	idx        int
+
+	dtuOpCount int
+	fwOpCount  int
 }
 
 func ifFileExist(file string) bool {
@@ -59,39 +69,22 @@ func NewDbSession(target string) (*DbSession, error) {
 		return nil, err
 	}
 
-	// Prepare a header for you
-
-	hs := NewHeaderSess(db)
-	dos := NewDtuOpSession(db)
-	fw := NewFwSession(db)
-
-	finishDbWork := func() {
-		// Finalize Dtu-ops
-		dos.Close()
-
-		// Finalize fw traces
-		fw.Close()
-
-		// Finalize headers, not until the end do we know the count
-		hs.AddHeader("dtu_op", "1.0",
-			TableCategory_DTUOpActivity, dos.dtuOpCount, "ns")
-		hs.AddHeader("fw", "1.0",
-			TableCategory_DTUFwActivity, fw.fwOpCount, "ns")
-		hs.Close()
-
-		// And finally , close DB handle
-		db.Close()
-	}
-
 	return &DbSession{
-		finish:     finishDbWork,
-		addOpTrace: dos.AddDtuOp,
-		addFwTrace: fw.AddFwTrace,
+		dbObject: db,
 	}, nil
 }
 
 func (dbs *DbSession) Close() {
-	dbs.finish()
+	log.Printf("finish db session")
+	hs := NewHeaderSess(dbs.dbObject)
+	// Finalize headers, not until the end do we know the count
+	hs.AddHeader("dtu_op", "1.0",
+		TableCategory_DTUOpActivity, dbs.dtuOpCount, "ns")
+	hs.AddHeader("fw", "1.0",
+		TableCategory_DTUFwActivity, dbs.fwOpCount, "ns")
+	hs.Close()
+	// And finally , close DB handle
+	dbs.dbObject.Close()
 }
 
 func (dbs *DbSession) DumpToEventTrace(
@@ -100,6 +93,12 @@ func (dbs *DbSession) DumpToEventTrace(
 	extractor ExtractOpInfo,
 	dumpWild bool,
 ) {
+	fw := NewFwSession(dbs.dbObject)
+	// Finalize fw traces
+	defer fw.Close()
+	dos := NewDtuOpSession(dbs.dbObject)
+	defer dos.Close()
+
 	dtuOpCount := 0
 	convertToHostError := 0
 	const nodeID = 0
@@ -107,22 +106,40 @@ func (dbs *DbSession) DumpToEventTrace(
 	const clusterID = -1
 	for _, act := range bundle {
 		///act.IsOpRefValid()
-		if okToShow, _, name := extractor(act); okToShow {
+		if okToShow, _, name, whereToGo := extractor(act); okToShow {
 			dtuOpCount++
 			startHostTime, startOK := tm.MapToHosttime(act.StartCycle())
 			endHostTime, endOK := tm.MapToHosttime(act.EndCycle())
 			if startOK && endOK {
-				dbs.addOpTrace(dbs.idx, nodeID, deviceID, clusterID, act.Start.Context, name,
-					startHostTime, endHostTime, endHostTime-startHostTime,
-					act.StartCycle(), act.EndCycle(), act.EndCycle()-act.StartCycle(),
-					act.GetOp().OpId, act.GetOp().OpName,
-				)
+				switch whereToGo {
+				case DbChannel_DtuOp:
+					dos.AddDtuOp(dbs.idx, nodeID, deviceID, clusterID, act.Start.Context, name,
+						startHostTime, endHostTime, endHostTime-startHostTime,
+						act.StartCycle(), act.EndCycle(), act.EndCycle()-act.StartCycle(),
+						act.GetOp().OpId, act.GetOp().OpName,
+					)
+					dbs.dtuOpCount++
+				case DbChannel_FW:
+					packetID, contextID := 0, -1
+					if act.Start.EngineTypeCode == codec.EngCat_CQM {
+						packetID = act.Start.PacketID
+						contextID = act.Start.Context
+					}
+					fw.AddFwTrace(dbs.idx, nodeID, deviceID, act.Start.ClusterID, contextID, name,
+						startHostTime, endHostTime, endHostTime-startHostTime,
+						act.StartCycle(), act.EndCycle(), act.EndCycle()-act.StartCycle(),
+						packetID, act.Start.EngineTy,
+						act.Start.EngineIndex,
+					)
+					dbs.fwOpCount++
+				}
 				dbs.idx++
 			} else {
 				convertToHostError++
 			}
 		}
 	}
+
 	log.Printf("%v dtu-op record(s) have been traced into %v",
 		dtuOpCount,
 		dbs.targetName,
