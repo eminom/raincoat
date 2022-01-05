@@ -39,6 +39,10 @@ var (
 func init() {
 	flag.Parse()
 	log.SetFlags(log.Lshortfile)
+	if *fPbMode {
+		//Derives
+		*fProc = true
+	}
 
 	switch *fArch {
 	case "pavo":
