@@ -229,7 +229,7 @@ func main() {
 			var err error
 			loader, err = topsdev.NewPbLoader(flag.Args()[0])
 			if err != nil {
-				log.Fatal("error load in pbmode: %v", err)
+				log.Fatalf("error load in pbmode: %v", err)
 			}
 		} else {
 			metaStartup := *fMetaStartup
