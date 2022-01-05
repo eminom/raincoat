@@ -31,3 +31,11 @@ const (
 	TableCategory_DTUOpActivity = "DTUOpActivity"
 	TableCategory_DTUFwActivity = "DTUFwActivity"
 )
+
+func getDbInitSchema() string {
+	return createHeaderTable + "\n" +
+		createDtuOpTable + "\n" +
+		createFwTable + `
+	delete from dtu_op;
+	`
+}

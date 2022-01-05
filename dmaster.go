@@ -186,34 +186,33 @@ func DoProcess(sess *sess.Session) {
 		outputVpd := "fake.vpd"
 		if dbe, err := dbexport.NewDbSession(outputVpd); nil == err {
 			defer dbe.Close()
-			dbe.DumpToEventTrace(
+			dbe.DumpDtuOps(
+				rtdata.Coords{NodeID: 0, DeviceID: 0},
 				qm.OpActivity(), tm,
-				func(act rtdata.OpActivity) (bool, string, string, dbexport.DatabaseChannelType) {
+				func(act rtdata.OpActivity) (bool, string, string) {
 					if act.IsOpRefValid() {
 						return true,
 							act.GetTask().ToShortString(),
-							act.GetOp().OpName,
-							dbexport.DbChannel_DtuOp
+							act.GetOp().OpName
 					}
-					return false, "Unknown Task", "Unk", dbexport.DbChannel_DtuOp
+					return false, "Unknown Task", "Unk"
 				},
-				false,
 			)
 
-			dbe.DumpToEventTrace(
+			dbe.DumpFwActs(
+				rtdata.Coords{NodeID: 0, DeviceID: 0},
 				fwVec.OpActivity(), tm,
-				func(act rtdata.OpActivity) (bool, string, string, dbexport.DatabaseChannelType) {
+				func(act rtdata.OpActivity) (bool, string, string) {
 					switch act.Start.EngineTypeCode {
 					case codec.EngCat_TS:
 						str, _ := rtdata.ToTSEventString(act.Start.Event)
-						return true, "", str, dbexport.DbChannel_FW
+						return true, "", str
 					case codec.EngCat_CQM, codec.EngCat_GSYNC:
 						str, _ := rtdata.ToCQMEventString(act.Start.Event)
-						return true, "", str, dbexport.DbChannel_FW
+						return true, "", str
 					}
-					return false, "", "", dbexport.DbChannel_FW
+					return false, "", ""
 				},
-				false,
 			)
 
 			fmt.Printf("dumped to %v\n", outputVpd)

@@ -2,6 +2,7 @@ package dbexport
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
 	"os"
 
@@ -19,7 +20,7 @@ const (
 )
 
 type ExtractOpInfo func(rtdata.OpActivity) (bool, string,
-	string, DatabaseChannelType)
+	string)
 
 type AddOpTrace func(
 	idx, nodeID, devID, clusterID, ctxID int, name string,
@@ -58,11 +59,7 @@ func NewDbSession(target string) (*DbSession, error) {
 		return nil, err
 	}
 
-	sqlStmt := createHeaderTable + "\n" +
-		createDtuOpTable + "\n" +
-		createFwTable + `
-	delete from dtu_op;
-	`
+	sqlStmt := getDbInitSchema()
 	_, err = db.Exec(sqlStmt)
 	if err != nil {
 		log.Printf("%q: %s\n", err, sqlStmt)
@@ -87,62 +84,85 @@ func (dbs *DbSession) Close() {
 	dbs.dbObject.Close()
 }
 
-func (dbs *DbSession) DumpToEventTrace(
+func (dbs *DbSession) DumpDtuOps(
+	coords rtdata.Coords,
 	bundle []rtdata.OpActivity,
 	tm *rtinfo.TimelineManager,
 	extractor ExtractOpInfo,
-	dumpWild bool,
 ) {
-	fw := NewFwSession(dbs.dbObject)
-	// Finalize fw traces
-	defer fw.Close()
 	dos := NewDtuOpSession(dbs.dbObject)
 	defer dos.Close()
-
-	dtuOpCount := 0
-	convertToHostError := 0
-	const nodeID = 0
-	const deviceID = 0
+	dtuOpCount, convertToHostError := 0, 0
+	nodeID, deviceID := coords.NodeID, coords.DeviceID
 	const clusterID = -1
 	for _, act := range bundle {
-		///act.IsOpRefValid()
-		if okToShow, _, name, whereToGo := extractor(act); okToShow {
+		if okToShow, _, name := extractor(act); okToShow {
 			dtuOpCount++
 			startHostTime, startOK := tm.MapToHosttime(act.StartCycle())
 			endHostTime, endOK := tm.MapToHosttime(act.EndCycle())
 			if startOK && endOK {
-				switch whereToGo {
-				case DbChannel_DtuOp:
-					dos.AddDtuOp(dbs.idx, nodeID, deviceID, clusterID, act.Start.Context, name,
-						startHostTime, endHostTime, endHostTime-startHostTime,
-						act.StartCycle(), act.EndCycle(), act.EndCycle()-act.StartCycle(),
-						act.GetOp().OpId, act.GetOp().OpName,
-					)
-					dbs.dtuOpCount++
-				case DbChannel_FW:
-					packetID, contextID := 0, -1
-					switch act.Start.EngineTypeCode {
-					case codec.EngCat_CQM, codec.EngCat_GSYNC:
-						packetID = act.Start.PacketID
-						contextID = act.Start.Context
-					}
-					fw.AddFwTrace(dbs.idx, nodeID, deviceID, act.Start.ClusterID, contextID, name,
-						startHostTime, endHostTime, endHostTime-startHostTime,
-						act.StartCycle(), act.EndCycle(), act.EndCycle()-act.StartCycle(),
-						packetID, act.Start.EngineTy,
-						act.Start.EngineIndex,
-					)
-					dbs.fwOpCount++
-				}
+				dos.AddDtuOp(dbs.idx, nodeID, deviceID, clusterID, act.Start.Context, name,
+					startHostTime, endHostTime, endHostTime-startHostTime,
+					act.StartCycle(), act.EndCycle(), act.EndCycle()-act.StartCycle(),
+					act.GetOp().OpId, act.GetOp().OpName,
+				)
+				dbs.dtuOpCount++
 				dbs.idx++
 			} else {
 				convertToHostError++
 			}
 		}
 	}
-
+	if convertToHostError > 0 {
+		fmt.Printf("error: convert-time error: %v\n", convertToHostError)
+	}
 	log.Printf("%v dtu-op record(s) have been traced into %v",
 		dtuOpCount,
+		dbs.targetName,
+	)
+}
+
+func (dbs *DbSession) DumpFwActs(
+	coords rtdata.Coords,
+	bundle []rtdata.OpActivity,
+	tm *rtinfo.TimelineManager,
+	extractor ExtractOpInfo,
+) {
+	fw := NewFwSession(dbs.dbObject)
+	defer fw.Close()
+
+	fwActCount, convertToHostError := 0, 0
+	nodeID, deviceID := coords.NodeID, coords.DeviceID
+	for _, act := range bundle {
+		if okToShow, _, name := extractor(act); okToShow {
+			fwActCount++
+			startHostTime, startOK := tm.MapToHosttime(act.StartCycle())
+			endHostTime, endOK := tm.MapToHosttime(act.EndCycle())
+			if startOK && endOK {
+				packetID, contextID := 0, -1
+				switch act.Start.EngineTypeCode {
+				case codec.EngCat_CQM, codec.EngCat_GSYNC:
+					packetID = act.Start.PacketID
+					contextID = act.Start.Context
+				}
+				fw.AddFwTrace(dbs.idx, nodeID, deviceID, act.Start.ClusterID, contextID, name,
+					startHostTime, endHostTime, endHostTime-startHostTime,
+					act.StartCycle(), act.EndCycle(), act.EndCycle()-act.StartCycle(),
+					packetID, act.Start.EngineTy,
+					act.Start.EngineIndex,
+				)
+				dbs.fwOpCount++
+				dbs.idx++
+			} else {
+				convertToHostError++
+			}
+		}
+	}
+	if convertToHostError > 0 {
+		fmt.Printf("error: convert-time error: %v\n", convertToHostError)
+	}
+	log.Printf("%v fw record(s) have been traced into %v",
+		fwActCount,
 		dbs.targetName,
 	)
 }

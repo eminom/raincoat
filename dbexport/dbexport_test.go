@@ -19,15 +19,14 @@ func TestOne(t *testing.T) {
 	}
 	defer db.Close()
 
-	sqlStmt := createHeaderTable + "\n" +
-		createDtuOpTable + `
-	delete from dtu_op;
-	`
-	_, err = db.Exec(sqlStmt)
+	sqlStmt := getDbInitSchema()
+	_, err = db.Exec(getDbInitSchema())
 	if err != nil {
 		log.Printf("%q: %s\n", err, sqlStmt)
 		return
 	}
+
+	// Open one transaction
 	tx, err := db.Begin()
 	if err != nil {
 		log.Fatal(err)
@@ -37,11 +36,32 @@ func TestOne(t *testing.T) {
 		log.Fatal(err)
 	}
 	defer stmt.Close()
+
+	// Open another
+	tx1, err := db.Begin()
+	if err != nil {
+		log.Fatal(err)
+	}
+	stmt1, err := tx1.Prepare("insert into header(table_name) values(?)")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer stmt1.Close()
+
+	// Cannot do this
+	// stmt1.Exec("hello-world")
+	t.Log("push some data into dtu-op")
+
+	// Put some data into the tables
 	for i := 0; i < 1; i++ {
 		_, err = stmt.Exec(i, fmt.Sprintf("dtu-op(%v)", i))
 		if err != nil {
 			log.Fatal(err)
 		}
 	}
+
+	//Finalize
 	tx.Commit()
+	t.Log("tx commited")
+	tx1.Commit()
 }
