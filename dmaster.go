@@ -76,9 +76,14 @@ func DoProcess(sess *sess.Session) {
 			return false
 		},
 		func(former, latter codec.DpfEvent) bool {
-			return former.EngineTypeCode == latter.EngineTypeCode &&
-				former.Event-1 == latter.Event && // paired
-				former.ClusterID == latter.ClusterID
+			if former.EngineTypeCode != latter.EngineTypeCode ||
+				former.Event-1 != latter.Event || former.ClusterID != latter.ClusterID {
+				return false
+			}
+			if codec.IsDebugOpPacket(former) {
+				return former.PacketID+1 == latter.PacketID
+			}
+			return true
 		})
 	tm := rtinfo.NewTimelineManager()
 	tm.LoadTimepoints(loader)
