@@ -39,7 +39,7 @@ func (q *OpEventQueue) OpActivity() []OpActivity {
 	return q.acts
 }
 
-func (q *OpEventQueue) PutEvent(este codec.DpfEvent) error {
+func (q *OpEventQueue) DispatchEvent(este codec.DpfEvent) error {
 	index := q.eAlgo.MapToChan(
 		este.EngineIndex,
 		este.Context,

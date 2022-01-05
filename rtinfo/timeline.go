@@ -59,7 +59,7 @@ func (tm *TimelineManager) MapToHosttime(targetCycle uint64) (uint64, bool) {
 	return 0, false
 }
 
-func (tm *TimelineManager) PutEvent(evt codec.DpfEvent) {
+func (tm *TimelineManager) DispatchEvent(evt codec.DpfEvent) {
 	devCy := rtdata.DevCycleTime{
 		DpfSyncIndex: evt.DpfSyncIndex(),
 		DevCycle:     evt.Cycle,

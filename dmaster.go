@@ -93,22 +93,22 @@ func DoProcess(sess *sess.Session) {
 		case codec.EngCat_PCIE:
 			// For pavo/dorado there is only one kind of PCIE:
 			// Sync info
-			tm.PutEvent(evt)
+			tm.DispatchEvent(evt)
 
 		case codec.EngCat_CQM, codec.EngCat_GSYNC:
 			if codec.IsCqmOpEvent(evt) {
-				if err := qm.PutEvent(evt); err != nil {
+				if err := qm.DispatchEvent(evt); err != nil {
 					fmt.Fprintf(os.Stderr, "%v\n", err)
 				}
 				cqmOpDbgCount++
 			}
 
-			fwVec.PutEvent(evt)
+			fwVec.DispatchEvent(evt)
 		case codec.EngCat_TS:
 			if rtDict != nil {
 				rtDict.CollectTsEvent(evt)
 			}
-			fwVec.PutEvent(evt)
+			fwVec.DispatchEvent(evt)
 		}
 	}
 	sess.EmitForEach(doFunc)
