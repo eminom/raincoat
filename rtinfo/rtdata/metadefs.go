@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"log"
 	"strconv"
 	"strings"
 
@@ -26,6 +25,32 @@ func parseInt32(t string) int {
 	return int(v)
 }
 
+func decorateName(name string) string {
+	vs := strings.Split(name, "_")
+	if len(vs) > 0 && vs[len(vs)-1] == "START" {
+		vs = vs[:len(vs)-1]
+	}
+	out := bytes.NewBuffer(nil)
+	for i := 0; i < len(vs); i++ {
+		p := vs[i]
+		if len(p) <= 0 {
+			continue
+		}
+		if out.Len() > 0 {
+			out.WriteByte(' ')
+		}
+		out.WriteByte(p[0])
+		for j := 1; j < len(p); j++ {
+			q := p[j]
+			if q >= 'A' && q <= 'Z' {
+				q += ('a' - 'A')
+			}
+			out.WriteByte(q)
+		}
+	}
+	return out.String()
+}
+
 func extractEventNameMap(str string) map[int]string {
 	dc := make(map[int]string)
 
@@ -38,12 +63,14 @@ func extractEventNameMap(str string) map[int]string {
 		text := scanner.Text()
 		vs := strings.Fields(text)
 		if len(vs) == 3 && vs[1] == "=" {
-			val := parseInt32(vs[2])
+			orgValueStr := vs[2]
+			val := parseInt32(orgValueStr)
 			if _, ok := dc[val]; ok {
 				panic(fmt.Errorf("duplicate key for %v: %v", text, val))
 			}
-			log.Printf("%v => %v added: %v", vs[2], vs[0], val)
-			dc[val] = vs[0]
+			nameStr := decorateName(vs[0])
+			// log.Printf("%v => %v added: %v", orgValueStr, nameStr, val)
+			dc[val] = nameStr
 		}
 	}
 	return dc
