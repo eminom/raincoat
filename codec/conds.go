@@ -7,3 +7,15 @@ func IsDebugOpPacket(evt DpfEvent) bool {
 	}
 	return false
 }
+
+func FirmwareEventFilter(evt DpfEvent) bool {
+	switch evt.Event {
+	case CqmEventCmdPacketStart,
+		CqmEventOpStart,
+		CqmDbgPacketStepStart,
+		CqmExecutableStart,
+		TsLaunchCqmStart:
+		return true
+	}
+	return false
+}

@@ -6,6 +6,12 @@ const (
 
 	CqmEventCmdPacketStart = 7
 	CqmEventCmdPacketEnd   = 6
+
+	CqmExecutableStart = 3
+	CqmExecutableEnd   = 2
+
+	CqmDbgPacketStepStart = 0xb
+	CqmDbgPacketStepEnd   = 0xa
 )
 
 const (

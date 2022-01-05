@@ -70,15 +70,7 @@ func DoProcess(sess *sess.Session) {
 				former.ClusterID == latter.ClusterID
 		})
 	fwVec := rtdata.NewOpEventQueue(curAlgo,
-		func(evt codec.DpfEvent) bool {
-			switch evt.Event {
-			case codec.CqmEventCmdPacketStart,
-				codec.CqmEventOpStart,
-				codec.TsLaunchCqmStart:
-				return true
-			}
-			return false
-		},
+		codec.FirmwareEventFilter,
 		func(former, latter codec.DpfEvent) bool {
 			if former.EngineTypeCode != latter.EngineTypeCode ||
 				former.Event-1 != latter.Event || former.ClusterID != latter.ClusterID {
