@@ -53,63 +53,28 @@ func init() {
 	}
 }
 
-func DoProcess(sess *sess.Session) {
-	cqmOpDbgCount := 0
-	allCount := 0
-
+func DoProcess(sess *sess.SessBroadcaster) {
 	rtDict := rtinfo.NewRuntimeTaskManager()
 	loader := sess.GetLoader()
 	rtDict.LoadRuntimeTask(loader)
 	curAlgo := vgrule.NewDoradoRule()
+
 	qm := rtdata.NewOpEventQueue(curAlgo,
-		func(evt codec.DpfEvent) bool {
-			return evt.Event == codec.CqmEventOpStart
-		},
-		func(former, latter codec.DpfEvent) bool {
-			return former.PacketID+1 == latter.PacketID &&
-				former.ClusterID == latter.ClusterID
-		})
+		codec.DbgPktDetector{},
+	)
 	fwVec := rtdata.NewOpEventQueue(curAlgo,
-		codec.FirmwareEventFilter,
-		func(former, latter codec.DpfEvent) bool {
-			if former.EngineTypeCode != latter.EngineTypeCode ||
-				former.Event-1 != latter.Event || former.ClusterID != latter.ClusterID {
-				return false
-			}
-			if codec.IsDebugOpPacket(former) {
-				return former.PacketID+1 == latter.PacketID
-			}
-			return true
-		})
+		codec.FwPktDetector{},
+	)
+
 	tm := rtinfo.NewTimelineManager()
 	tm.LoadTimepoints(loader)
-	doFunc := func(evt codec.DpfEvent) {
-		allCount++
-		switch evt.EngineTypeCode {
-		case codec.EngCat_PCIE:
-			// For pavo/dorado there is only one kind of PCIE:
-			// Sync info
-			tm.DispatchEvent(evt)
 
-		case codec.EngCat_CQM, codec.EngCat_GSYNC:
-			if codec.IsCqmOpEvent(evt) {
-				if err := qm.DispatchEvent(evt); err != nil {
-					fmt.Fprintf(os.Stderr, "%v\n", err)
-				}
-				cqmOpDbgCount++
-			}
+	sess.RegisterSinkers(rtDict, tm, fwVec, qm)
+	// Start iteration for all
+	sess.EmitForEach()
 
-			fwVec.DispatchEvent(evt)
-		case codec.EngCat_TS:
-			if rtDict != nil {
-				rtDict.CollectTsEvent(evt)
-			}
-			fwVec.DispatchEvent(evt)
-		}
-	}
-	sess.EmitForEach(doFunc)
-	fmt.Printf("op debug event count %v\n", cqmOpDbgCount)
-	fmt.Printf("event %v(0x%x) in all\n", allCount, allCount)
+	log.Printf("fwVec count: %v", len(fwVec.OpActivity()))
+
 	qm.DumpInfo()
 	tm.AlignToHostTimeline()
 	if tm.Verify() {
@@ -233,7 +198,7 @@ func main() {
 		}
 	}
 
-	sess := sess.NewSession(sess.SessionOpt{
+	sess := sess.NewSessBroadcaster(sess.SessionOpt{
 		Debug:        *fDebug,
 		Sort:         *fSort,
 		DecodeFull:   *fDecodeFull,

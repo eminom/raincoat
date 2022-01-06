@@ -19,6 +19,13 @@ const (
 	TsLaunchCqmEnd   = 22
 )
 
+const (
+	DmaBusyStart   = 0
+	DmaBusyEnd     = 1
+	DmaVcExecStart = 2
+	DmaVcExecEnd   = 3
+)
+
 func IsCqmOpEvent(evt DpfEvent) bool {
 	return (evt.EngineTypeCode == EngCat_CQM || evt.EngineTypeCode == EngCat_GSYNC) &&
 		(evt.Event == CqmEventOpStart || evt.Event == CqmEventOpEnd)

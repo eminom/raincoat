@@ -26,13 +26,18 @@ type SessionOpt struct {
 	InfoLoader   efintf.InfoReceiver
 }
 
+type EventSinker interface {
+	GetEngineTypeCodes() []codec.EngineTypeCode
+	DispatchEvent(codec.DpfEvent) error
+}
+
 type Session struct {
 	items   []codec.DpfEvent
 	sessOpt SessionOpt
 }
 
-func NewSession(sessOpt SessionOpt) *Session {
-	return &Session{sessOpt: sessOpt}
+func NewSession(sessOpt SessionOpt) Session {
+	return Session{sessOpt: sessOpt}
 }
 
 func (sess *Session) AppendItem(newItem codec.DpfEvent) {
@@ -203,12 +208,44 @@ func (sess Session) PrintItems(printRaw bool) {
 	}
 }
 
-func (sess Session) EmitForEach(doFunc func(event codec.DpfEvent)) {
-	for _, v := range sess.items {
-		doFunc(v)
+func (sess Session) GetLoader() efintf.InfoReceiver {
+	return sess.sessOpt.InfoLoader
+}
+
+type SessBroadcaster struct {
+	Session
+	subscribers map[codec.EngineTypeCode][]EventSinker
+}
+
+func NewSessBroadcaster(sessOpt SessionOpt) *SessBroadcaster {
+	return &SessBroadcaster{
+		Session:     NewSession(sessOpt),
+		subscribers: make(map[codec.EngineTypeCode][]EventSinker),
 	}
 }
 
-func (sess Session) GetLoader() efintf.InfoReceiver {
-	return sess.sessOpt.InfoLoader
+func (sess *SessBroadcaster) RegisterSinker(
+	subscriber EventSinker) {
+	for _, typeCode := range subscriber.GetEngineTypeCodes() {
+		sess.subscribers[typeCode] = append(sess.subscribers[typeCode],
+			subscriber)
+	}
+}
+
+func (sess *SessBroadcaster) RegisterSinkers(
+	subscribers ...EventSinker) {
+	for _, sub := range subscribers {
+		sess.RegisterSinker(sub)
+	}
+}
+
+func (sess SessBroadcaster) EmitForEach() {
+	for _, evt := range sess.items {
+		for _, subscriber := range sess.subscribers[evt.EngineTypeCode] {
+			err := subscriber.DispatchEvent(evt)
+			if err != nil {
+				fmt.Printf("error dispatch event: %v\n", err)
+			}
+		}
+	}
 }

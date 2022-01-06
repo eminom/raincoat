@@ -15,7 +15,8 @@ fi
 #echo decode for ${INF}
 INF="raw_dpf.bin"
 OUT="result.txt"
-$(pwd)/build/dmaster -proc -meta /home/hai.bai/data16/meta ${INF} | tee ${OUT}
+rm -rfv fake.vpd
+time $(pwd)/build/dmaster -proc -meta /home/hai.bai/data16/meta ${INF} | tee ${OUT}
 
 if [[ x$? == x0 ]]; then
   echo result save to ${OUT}

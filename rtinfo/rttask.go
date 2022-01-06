@@ -37,6 +37,10 @@ func NewRuntimeTaskManager() *RuntimeTaskManager {
 	}
 }
 
+func (rtm RuntimeTaskManager) GetEngineTypeCodes() []codec.EngineTypeCode {
+	return []codec.EngineTypeCode{codec.EngCat_TS}
+}
+
 func (rtm *RuntimeTaskManager) LoadRuntimeTask(
 	infoReceiver efintf.InfoReceiver,
 ) bool {
@@ -48,10 +52,10 @@ func (rtm *RuntimeTaskManager) LoadRuntimeTask(
 	return true
 }
 
-func (rtm *RuntimeTaskManager) CollectTsEvent(evt codec.DpfEvent) {
+func (rtm *RuntimeTaskManager) DispatchEvent(evt codec.DpfEvent) error {
 	if evt.Event == codec.TsLaunchCqmStart {
 		rtm.tsHead.AppendNode(evt)
-		return
+		return nil
 	}
 	if evt.Event == codec.TsLaunchCqmEnd {
 		if start := rtm.tsHead.Extract(func(one interface{}) bool {
@@ -67,9 +71,12 @@ func (rtm *RuntimeTaskManager) CollectTsEvent(evt codec.DpfEvent) {
 				task.EndCycle = evt.Cycle
 				task.CycleValid = true
 			}
+			return nil
 		}
-		return
 	}
+
+	// Do something for the rest of TS events ??
+	return nil
 }
 
 func (r RuntimeTaskManager) DumpInfo() {

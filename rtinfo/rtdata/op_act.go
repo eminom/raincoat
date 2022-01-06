@@ -14,24 +14,31 @@ type StartIdentifier func(codec.DpfEvent) bool
 type DpfEventMatchTester func(codec.DpfEvent, codec.DpfEvent) bool
 
 type OpEventQueue struct {
-	distr                []linklist.Lnk
-	acts                 OpActivityVector
-	eAlgo                vgrule.ActMatchAlgo
-	startEventIdentifier StartIdentifier
-	tester               DpfEventMatchTester
+	distr     []linklist.Lnk
+	acts      OpActivityVector
+	eAlgo     vgrule.ActMatchAlgo
+	evtFilter EventFilter
+}
+
+type EventFilter interface {
+	IsStarterMark(codec.DpfEvent) (bool, bool)
+	TestIfMatch(codec.DpfEvent, codec.DpfEvent) bool
+	GetEngineTypes() []codec.EngineTypeCode
 }
 
 func NewOpEventQueue(algo vgrule.ActMatchAlgo,
-	startChecker StartIdentifier,
-	tester DpfEventMatchTester,
+	evtFilter EventFilter,
 ) *OpEventQueue {
 	rv := OpEventQueue{
-		distr:                linklist.NewLnkArray(algo.GetChannelNum()),
-		eAlgo:                algo,
-		startEventIdentifier: startChecker,
-		tester:               tester,
+		distr:     linklist.NewLnkArray(algo.GetChannelNum()),
+		eAlgo:     algo,
+		evtFilter: evtFilter,
 	}
 	return &rv
+}
+
+func (q OpEventQueue) GetEngineTypeCodes() []codec.EngineTypeCode {
+	return q.evtFilter.GetEngineTypes()
 }
 
 // In-place cook
@@ -44,13 +51,18 @@ func (q *OpEventQueue) DispatchEvent(este codec.DpfEvent) error {
 		este.EngineIndex,
 		este.Context,
 	)
-	if q.startEventIdentifier(este) {
+	isStart, isEnd := q.evtFilter.IsStarterMark(este)
+	if isStart {
 		q.distr[index].AppendNode(este)
+		return nil
+	}
+	if !isEnd {
+		// Filter-out
 		return nil
 	}
 	if start := q.distr[index].Extract(func(one interface{}) bool {
 		un := one.(codec.DpfEvent)
-		return q.tester(un, este)
+		return q.evtFilter.TestIfMatch(un, este)
 	}); start != nil {
 		startUn := start.(codec.DpfEvent)
 		q.acts = append(q.acts, OpActivity{

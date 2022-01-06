@@ -59,12 +59,13 @@ func (tm *TimelineManager) MapToHosttime(targetCycle uint64) (uint64, bool) {
 	return 0, false
 }
 
-func (tm *TimelineManager) DispatchEvent(evt codec.DpfEvent) {
+func (tm *TimelineManager) DispatchEvent(evt codec.DpfEvent) error {
 	devCy := rtdata.DevCycleTime{
 		DpfSyncIndex: evt.DpfSyncIndex(),
 		DevCycle:     evt.Cycle,
 	}
 	tm.cycles = append(tm.cycles, devCy)
+	return nil
 }
 
 func (tm *TimelineManager) AlignToHostTimeline() {
@@ -145,6 +146,10 @@ func (tm *TimelineManager) Verify() bool {
 		}
 	}
 	return cycleErrCount == 0 && hostErrCount == 0 && indexErrCount == 0
+}
+
+func (tm *TimelineManager) GetEngineTypeCodes() []codec.EngineTypeCode {
+	return []codec.EngineTypeCode{codec.EngCat_PCIE}
 }
 
 func (tm *TimelineManager) DumpInfo() {
