@@ -18,13 +18,11 @@ import (
 
 type metaFileLoader struct {
 	startupPath string
-	rawfilename string
 }
 
-func NewMetaFileLoader(startup string, rawfilename string) metaFileLoader {
-	return metaFileLoader{
+func NewMetaFileLoader(startup string) *metaFileLoader {
+	return &metaFileLoader{
 		startupPath: startup,
-		rawfilename: rawfilename,
 	}
 }
 
@@ -323,10 +321,27 @@ func (d metaFileLoader) LoadExecScope(execUuid uint64) *metadata.ExecScope {
 	return nil
 }
 
-func (d metaFileLoader) LoadRingBufferContent(cid int) []byte {
-	chunk, err := os.ReadFile(d.rawfilename)
+type bufferLoader struct {
+	rawfilenames []string
+	idx          int
+}
+
+func NewContentBufferLoader(rawfilenames ...string) *bufferLoader {
+	var files []string
+	files = append(files, rawfilenames...)
+	return &bufferLoader{rawfilenames: files}
+}
+
+func (bl bufferLoader) HasMore() bool {
+	return bl.idx < len(bl.rawfilenames)
+}
+
+func (bl *bufferLoader) LoadRingBufferContent(cid int) []byte {
+	name := bl.rawfilenames[bl.idx]
+	bl.idx++
+	chunk, err := os.ReadFile(name)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error reading %v\n", d.rawfilename)
+		fmt.Fprintf(os.Stderr, "error reading %v\n", name)
 		os.Exit(1)
 	}
 	return chunk

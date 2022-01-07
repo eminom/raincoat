@@ -82,7 +82,28 @@ func (pb pbLoader) LoadWildcards(checkExist func(str string) bool,
 
 }
 
-func (pb pbLoader) LoadRingBufferContent(cid int) []byte {
+type PbComplex struct {
+	pbLoader
+	ringbufferContentIdx int
+}
+
+func NewPbComplex(name string) (
+	pbCom PbComplex,
+	err error,
+) {
+	pbl, err := NewPbLoader(name)
+	if err != nil {
+		return
+	}
+	pbCom = PbComplex{pbLoader: pbl}
+	return
+}
+
+func (pb PbComplex) HasMore() bool {
+	return pb.ringbufferContentIdx < 1
+}
+
+func (pb *PbComplex) LoadRingBufferContent(cid int) []byte {
 	if cid < 0 || cid >= len(pb.pbObj.Dtu.Data.TimestampVec) {
 		log.Printf("invalid cid: %v", cid)
 		return nil
@@ -95,5 +116,7 @@ func (pb pbLoader) LoadRingBufferContent(cid int) []byte {
 		binary.LittleEndian.PutUint64(out[:], ts)
 		buffer.Write(out[:])
 	}
+
+	pb.ringbufferContentIdx++
 	return buffer.Bytes()
 }

@@ -55,7 +55,22 @@ func (p PostProcessor) GetSinkers() []sess.EventSinker {
 	}
 }
 
-func (p PostProcessor) DoPostProcessing() {
+type DbDumper interface {
+	DumpDtuOps(
+		coords rtdata.Coords,
+		bundle []rtdata.OpActivity,
+		tm *rtinfo.TimelineManager,
+		extractor dbexport.ExtractOpInfo,
+	)
+	DumpFwActs(
+		coords rtdata.Coords,
+		bundle []rtdata.OpActivity,
+		tm *rtinfo.TimelineManager,
+		extractor dbexport.ExtractOpInfo,
+	)
+}
+
+func (p PostProcessor) DoPostProcessing(coord rtdata.Coords, dbe DbDumper) {
 	log.Printf("fwVec count: %v", len(p.fwVec.OpActivity()))
 
 	p.qm.DumpInfo()
@@ -128,39 +143,34 @@ func (p PostProcessor) DoPostProcessing() {
 			len(wildProcess))
 		tr.DumpToFile("dtuop_trace.json")
 
-		outputVpd := "fake.vpd"
-		if dbe, err := dbexport.NewDbSession(outputVpd); nil == err {
-			defer dbe.Close()
-			dbe.DumpDtuOps(
-				rtdata.Coords{NodeID: 0, DeviceID: 0},
-				p.qm.OpActivity(), p.tm,
-				func(act rtdata.OpActivity) (bool, string, string) {
-					if act.IsOpRefValid() {
-						return true,
-							act.GetTask().ToShortString(),
-							act.GetOp().OpName
-					}
-					return false, "Unknown Task", "Unk"
-				},
-			)
+		dbe.DumpDtuOps(
+			coord,
+			p.qm.OpActivity(), p.tm,
+			func(act rtdata.OpActivity) (bool, string, string) {
+				if act.IsOpRefValid() {
+					return true,
+						act.GetTask().ToShortString(),
+						act.GetOp().OpName
+				}
+				return false, "Unknown Task", "Unk"
+			},
+		)
 
-			dbe.DumpFwActs(
-				rtdata.Coords{NodeID: 0, DeviceID: 0},
-				p.fwVec.OpActivity(), p.tm,
-				func(act rtdata.OpActivity) (bool, string, string) {
-					switch act.Start.EngineTypeCode {
-					case codec.EngCat_TS:
-						str, _ := rtdata.ToTSEventString(act.Start.Event)
-						return true, "", str
-					case codec.EngCat_CQM, codec.EngCat_GSYNC:
-						str, _ := rtdata.ToCQMEventString(act.Start.Event)
-						return true, "", str
-					}
-					return false, "", ""
-				},
-			)
+		dbe.DumpFwActs(
+			coord,
+			p.fwVec.OpActivity(), p.tm,
+			func(act rtdata.OpActivity) (bool, string, string) {
+				switch act.Start.EngineTypeCode {
+				case codec.EngCat_TS:
+					str, _ := rtdata.ToTSEventString(act.Start.Event)
+					return true, "", str
+				case codec.EngCat_CQM, codec.EngCat_GSYNC:
+					str, _ := rtdata.ToCQMEventString(act.Start.Event)
+					return true, "", str
+				}
+				return false, "", ""
+			},
+		)
 
-			fmt.Printf("dumped to %v\n", outputVpd)
-		}
 	}
 }

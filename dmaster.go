@@ -7,8 +7,10 @@ import (
 	"os"
 
 	"git.enflame.cn/hai.bai/dmaster/codec"
+	"git.enflame.cn/hai.bai/dmaster/dbexport"
 	"git.enflame.cn/hai.bai/dmaster/efintf"
 	"git.enflame.cn/hai.bai/dmaster/rtinfo/infoloader"
+	"git.enflame.cn/hai.bai/dmaster/rtinfo/rtdata"
 	"git.enflame.cn/hai.bai/dmaster/sess"
 	"git.enflame.cn/hai.bai/dmaster/topsdev"
 )
@@ -25,7 +27,6 @@ var (
 		"dump raw value\n"+
 			"if -dump is set, dmaster is going to dump the original value from ring buffer\n",
 	)
-	fProc        = flag.Bool("proc", false, "post-processing")
 	fMetaStartup = flag.String("meta", "",
 		"meta startup folder, if need to do some post-processing meta must be specified")
 	fPbMode = flag.Bool("pb", false, "protobuf mode, the latest state-of-art")
@@ -34,14 +35,6 @@ var (
 func init() {
 	flag.Parse()
 	log.SetFlags(log.Lshortfile)
-	if *fPbMode {
-		//Derives
-		*fProc = true
-	}
-
-	if len(*fMetaStartup) > 0 {
-		*fProc = true
-	}
 
 	switch *fArch {
 	case "pavo":
@@ -52,51 +45,67 @@ func init() {
 	}
 }
 
-func DoProcess(sess *sess.SessBroadcaster) {
-
+func DoProcess(sess *sess.SessBroadcaster, coord rtdata.Coords, dbe DbDumper) {
 	loader := sess.GetLoader()
 	processer := NewPostProcesser(loader)
 	sess.DispatchToSinkers(processer.GetSinkers()...)
-	processer.DoPostProcessing()
+	processer.DoPostProcessing(coord, dbe)
 }
 
 func main() {
 
 	var loader efintf.InfoReceiver
+	var contentLoader efintf.RingBufferLoader
 
 	if len(flag.Args()) >= 1 {
 		if *fPbMode {
-			var err error
-			loader, err = topsdev.NewPbLoader(flag.Args()[0])
+			pbLoader, err := topsdev.NewPbComplex(flag.Args()[0])
 			if err != nil {
 				log.Fatalf("error load in pbmode: %v", err)
 			}
+			// Cast into content-loader
+			loader = pbLoader
+			contentLoader = &pbLoader
 		} else {
 			metaStartup := *fMetaStartup
-			loader = infoloader.NewMetaFileLoader(metaStartup, flag.Args()[0])
+			loader = infoloader.NewMetaFileLoader(metaStartup)
+			contentLoader = infoloader.NewContentBufferLoader(flag.Args()...)
 		}
 	}
 
-	sess := sess.NewSessBroadcaster(sess.SessionOpt{
-		Debug:        *fDebug,
-		Sort:         *fSort,
-		DecodeFull:   *fDecodeFull,
-		EngineFilter: *fEng,
-		InfoLoader:   loader,
-	})
 	decoder := codec.NewDecodeMaster(*fArch)
-	if len(flag.Args()) > 0 {
-		sess.DecodeFromFile(decoder)
-	} else {
-		sess.DecodeFromTextStream(os.Stdin, decoder)
+
+	// The very ancient way
+	if len(flag.Args()) == 0 {
+		TextProcess(decoder)
+		return
 	}
+
 	if *fDump {
-		sess.PrintItems(*fRaw)
+		BinaryProcess(flag.Args()[0], decoder)
+		return
 	}
 
-	if *fProc {
-		DoProcess(sess)
+	outputVpd := "fake.vpd"
+	dbObj, err := dbexport.NewDbSession(outputVpd)
+	if err != nil {
+		panic(err)
+	}
+	defer dbObj.Close()
+
+	var coord = rtdata.Coords{
+		NodeID:   0,
+		DeviceID: 0,
+	}
+	for contentLoader.HasMore() {
+		// chunk := sess.sessOpt.InfoLoader.LoadRingBufferContent(cidToDecode)
+		cidToDecode := 0
+		chunk := contentLoader.LoadRingBufferContent(cidToDecode)
+		sess := sess.NewSessBroadcaster(loader)
+		sess.DecodeChunk(chunk, decoder)
+		DoProcess(sess, coord, dbObj)
+		coord.DeviceID++
 	}
 
-	// fmt.Printf("done")
+	fmt.Printf("dumped to %v\n", outputVpd)
 }

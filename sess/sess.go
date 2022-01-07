@@ -23,7 +23,6 @@ type SessionOpt struct {
 	Debug        bool
 	DecodeFull   bool
 	Sort         bool
-	InfoLoader   efintf.InfoReceiver
 }
 
 type EventSinker interface {
@@ -164,15 +163,14 @@ func (sess *Session) DecodeFromTextStream(
 	errWatcher.SumUp()
 }
 
-func (sess *Session) DecodeFromFile(
+func (sess *Session) DecodeChunk(
+	chunk []byte,
 	decoder *codec.DecodeMaster,
 ) {
 	// realpath, e2 := os.Readlink(filename)
 	// if nil == e2 {
 	// 	filename = realpath
 	// }
-	cidToDecode := 0
-	chunk := sess.sessOpt.InfoLoader.LoadRingBufferContent(cidToDecode)
 	itemSize := len(chunk) / 16 * 16
 	var errWatcher = ErrorWatcher{printQuota: 10}
 	for i := 0; i < itemSize; i += 16 {
@@ -208,18 +206,20 @@ func (sess Session) PrintItems(printRaw bool) {
 	}
 }
 
-func (sess Session) GetLoader() efintf.InfoReceiver {
-	return sess.sessOpt.InfoLoader
-}
-
 type SessBroadcaster struct {
 	Session
+	loader efintf.InfoReceiver
 }
 
-func NewSessBroadcaster(sessOpt SessionOpt) *SessBroadcaster {
+func NewSessBroadcaster(loader efintf.InfoReceiver) *SessBroadcaster {
 	return &SessBroadcaster{
-		Session: NewSession(sessOpt),
+		Session: NewSession(SessionOpt{}),
+		loader:  loader,
 	}
+}
+
+func (sess SessBroadcaster) GetLoader() efintf.InfoReceiver {
+	return sess.loader
 }
 
 func (sess *SessBroadcaster) DispatchToSinkers(

@@ -16,7 +16,7 @@ fi
 INF="raw_dpf.bin"
 OUT="result.txt"
 rm -rfv fake.vpd
-time $(pwd)/build/dmaster -proc -meta /home/hai.bai/data16/meta ${INF} | tee ${OUT}
+time $(pwd)/build/dmaster -meta /home/hai.bai/data16/meta ${INF} | tee ${OUT}
 
 if [[ x$? == x0 ]]; then
   echo result save to ${OUT}
