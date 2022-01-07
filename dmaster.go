@@ -69,10 +69,7 @@ func DoProcess(sess *sess.SessBroadcaster) {
 	tm := rtinfo.NewTimelineManager()
 	tm.LoadTimepoints(loader)
 
-	sess.RegisterSinkers(rtDict, tm, fwVec, qm)
-	// Start iteration for all
-	sess.EmitForEach()
-
+	sess.DispatchToSinkers(rtDict, tm, fwVec, qm)
 	log.Printf("fwVec count: %v", len(fwVec.OpActivity()))
 
 	qm.DumpInfo()

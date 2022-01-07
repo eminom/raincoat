@@ -214,34 +214,36 @@ func (sess Session) GetLoader() efintf.InfoReceiver {
 
 type SessBroadcaster struct {
 	Session
-	subscribers map[codec.EngineTypeCode][]EventSinker
 }
 
 func NewSessBroadcaster(sessOpt SessionOpt) *SessBroadcaster {
 	return &SessBroadcaster{
-		Session:     NewSession(sessOpt),
-		subscribers: make(map[codec.EngineTypeCode][]EventSinker),
+		Session: NewSession(sessOpt),
 	}
 }
 
-func (sess *SessBroadcaster) RegisterSinker(
-	subscriber EventSinker) {
-	for _, typeCode := range subscriber.GetEngineTypeCodes() {
-		sess.subscribers[typeCode] = append(sess.subscribers[typeCode],
-			subscriber)
+func (sess *SessBroadcaster) DispatchToSinkers(
+	sinkers ...EventSinker,
+) {
+	// subscribers dict
+	subscribers := make(map[codec.EngineTypeCode][]EventSinker)
+
+	// register for all
+	for _, sinker := range sinkers {
+		for _, typeCode := range sinker.GetEngineTypeCodes() {
+			subscribers[typeCode] = append(subscribers[typeCode],
+				sinker)
+		}
 	}
+
+	sess.emitEventsToSubscribers(subscribers)
 }
 
-func (sess *SessBroadcaster) RegisterSinkers(
-	subscribers ...EventSinker) {
-	for _, sub := range subscribers {
-		sess.RegisterSinker(sub)
-	}
-}
-
-func (sess SessBroadcaster) EmitForEach() {
+func (sess SessBroadcaster) emitEventsToSubscribers(
+	subscribers map[codec.EngineTypeCode][]EventSinker,
+) {
 	for _, evt := range sess.items {
-		for _, subscriber := range sess.subscribers[evt.EngineTypeCode] {
+		for _, subscriber := range subscribers[evt.EngineTypeCode] {
 			err := subscriber.DispatchEvent(evt)
 			if err != nil {
 				fmt.Printf("error dispatch event: %v\n", err)
