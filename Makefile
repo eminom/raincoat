@@ -7,3 +7,4 @@ install:	all
 pack:	all
 	cp scripts/* build
 	tar czvf dmaster.tar.gz build/*
+	sha256sum dmaster.tar.gz

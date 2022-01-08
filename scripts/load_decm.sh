@@ -2,7 +2,8 @@
 
 pushd .
 TARGETD=$(dirname $0)
-echo "update in ${TARGETD}"
+cd ${TARGETD}
+echo now update in $(pwd)
 if [[ x$? != x0 ]]; then
   echo switch error 1>&2
   exit 1

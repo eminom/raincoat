@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 
 	"git.enflame.cn/hai.bai/dmaster/codec"
 	"git.enflame.cn/hai.bai/dmaster/dbexport"
@@ -52,8 +53,8 @@ func DoProcess(sess *sess.SessBroadcaster, coord rtdata.Coords, dbe DbDumper) {
 	processer.DoPostProcessing(coord, dbe)
 }
 
-func getInputName(a string) string {
-	return a + ".vpd"
+func getOutputName(a string) string {
+	return filepath.Base(a) + ".vpd"
 }
 
 func main() {
@@ -91,7 +92,7 @@ func main() {
 	}
 
 	// Use the first input file as the output filename
-	outputVpd := getInputName(flag.Args()[0])
+	outputVpd := getOutputName(flag.Args()[0])
 	dbObj, err := dbexport.NewDbSession(outputVpd)
 	if err != nil {
 		panic(err)
