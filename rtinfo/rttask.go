@@ -54,7 +54,7 @@ func (rtm *RuntimeTaskManager) LoadRuntimeTask(
 
 func (rtm *RuntimeTaskManager) DispatchEvent(evt codec.DpfEvent) error {
 	if evt.Event == codec.TsLaunchCqmStart {
-		rtm.tsHead.AppendNode(evt)
+		rtm.tsHead.AppendAtTail(evt)
 		return nil
 	}
 	if evt.Event == codec.TsLaunchCqmEnd {

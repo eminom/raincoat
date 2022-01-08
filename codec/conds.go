@@ -47,8 +47,12 @@ func (FwPktDetector) TestIfMatch(former, latter DpfEvent) bool {
 	if isDebugOpPacket(former) {
 		return former.PacketID+1 == latter.PacketID
 	}
+	// if former.EngineTypeCode == EngCat_CQM &&
+	// 	former.Event == CqmEventCmdPacketStart {
+	// 	return former.PacketID == latter.PacketID
+	// }
 	// Or the rest of the event must be of the same packet-ID??
-	return true
+	return former.PacketID == latter.PacketID
 }
 
 func (DbgPktDetector) GetEngineTypes() []EngineTypeCode {

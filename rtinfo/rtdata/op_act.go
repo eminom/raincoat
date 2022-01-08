@@ -53,7 +53,7 @@ func (q *OpEventQueue) DispatchEvent(este codec.DpfEvent) error {
 	)
 	isStart, isEnd := q.evtFilter.IsStarterMark(este)
 	if isStart {
-		q.distr[index].AppendNode(este)
+		q.distr[index].AppendAtFront(este)
 		return nil
 	}
 	if !isEnd {
