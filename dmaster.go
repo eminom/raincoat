@@ -52,6 +52,10 @@ func DoProcess(sess *sess.SessBroadcaster, coord rtdata.Coords, dbe DbDumper) {
 	processer.DoPostProcessing(coord, dbe)
 }
 
+func getInputName(a string) string {
+	return a + ".vpd"
+}
+
 func main() {
 
 	var loader efintf.InfoReceiver
@@ -86,7 +90,8 @@ func main() {
 		return
 	}
 
-	outputVpd := "fake.vpd"
+	// Use the first input file as the output filename
+	outputVpd := getInputName(flag.Args()[0])
 	dbObj, err := dbexport.NewDbSession(outputVpd)
 	if err != nil {
 		panic(err)
@@ -98,7 +103,6 @@ func main() {
 		DeviceID: 0,
 	}
 	for contentLoader.HasMore() {
-		// chunk := sess.sessOpt.InfoLoader.LoadRingBufferContent(cidToDecode)
 		cidToDecode := 0
 		chunk := contentLoader.LoadRingBufferContent(cidToDecode)
 		sess := sess.NewSessBroadcaster(loader)
