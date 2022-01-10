@@ -3,7 +3,8 @@ package codec
 func isDebugOpPacket(evt DpfEvent) bool {
 	switch evt.EngineTypeCode {
 	case EngCat_GSYNC, EngCat_CQM:
-		return evt.Event == CqmEventOpStart
+		return evt.Event == CqmEventOpStart ||
+			evt.Event == CqmEventDebugPacketStepStart
 	}
 	return false
 }
