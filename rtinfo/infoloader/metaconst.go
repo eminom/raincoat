@@ -6,7 +6,7 @@ var (
 
 type SuffixConf struct {
 	suffixName     string
-	fetcherCreator func() FormatFetcher
+	fetcherCreator func() DtuOpFormatFetcher
 }
 
 var (

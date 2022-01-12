@@ -213,7 +213,7 @@ func testMetaFileName(execUuid uint64, prefix string, suffixes []string) (string
 }
 
 func testOpMetaFileName(execUuid uint64, prefix string, suffixes []SuffixConf) (
-	string, func() FormatFetcher, bool) {
+	string, func() DtuOpFormatFetcher, bool) {
 	mark := fmt.Sprintf("0x%016x", execUuid)[:10]
 	for _, suf := range suffixes {
 		if inputName := filepath.Join(prefix,
@@ -270,7 +270,7 @@ func loadPktToOpMap(execUuid uint64, prefix string) map[int]int {
 }
 
 func loadOpMap(execUuid uint64, prefix string) map[int]metadata.DtuOp {
-	inputName, creator, fileOK := testOpMetaFileName(
+	inputName, dtuOpParserCreator, fileOK := testOpMetaFileName(
 		execUuid,
 		prefix,
 		opFileSuffixes,
@@ -286,7 +286,7 @@ func loadOpMap(execUuid uint64, prefix string) map[int]metadata.DtuOp {
 		return nil
 	}
 	defer fin.Close()
-	var fetcher FormatFetcher = creator()
+	var fetcher DtuOpFormatFetcher = dtuOpParserCreator()
 	opMap := make(map[int]metadata.DtuOp)
 	scan := bufio.NewScanner(fin)
 	for {

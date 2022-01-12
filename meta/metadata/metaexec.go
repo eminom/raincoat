@@ -11,11 +11,6 @@ var (
 	ErrInvalidPacketId   = errors.New("invalid packet id")
 )
 
-type DtuOp struct {
-	OpName string
-	OpId   int
-}
-
 type ExecScope struct {
 	execUuid  uint64
 	pktIdToOp map[int]int
