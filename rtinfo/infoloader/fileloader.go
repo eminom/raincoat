@@ -10,7 +10,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"unicode"
 
 	"git.enflame.cn/hai.bai/dmaster/meta/metadata"
 	"git.enflame.cn/hai.bai/dmaster/rtinfo/rtdata"
@@ -95,26 +94,6 @@ func (d metaFileLoader) LoadTask() (
 	return
 }
 
-func xsplit(a string) []string {
-	rv := []string{}
-	lz := len(a)
-	i := 0
-	for i < lz {
-		for i < lz && unicode.IsSpace(rune(a[i])) {
-			i++
-		}
-		j := i
-		for j < lz && !unicode.IsSpace(rune(a[j])) {
-			j++
-		}
-		if j-i > 0 {
-			rv = append(rv, a[i:j])
-		}
-		i = j
-	}
-	return rv
-}
-
 func (d metaFileLoader) LoadTimepoints() (hosttp []rtdata.HostTimeEntry, ok bool) {
 	filename := d.GetTimepointsPath()
 	fin, err := os.Open(filename)
@@ -130,7 +109,7 @@ func (d metaFileLoader) LoadTimepoints() (hosttp []rtdata.HostTimeEntry, ok bool
 			break
 		}
 		text := scan.Text()
-		vs := xsplit(text)
+		vs := strings.Fields(text)
 		if len(vs) != 3 {
 			panic(fmt.Errorf("error timepoints file content: %v"+
 				", split len is %v",
