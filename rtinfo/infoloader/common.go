@@ -4,7 +4,7 @@ func XSplit(a string, count int) []string {
 	var intv [][]int
 	lz := len(a)
 	start, i := 0, 0
-	for i < lz && len(intv) < count {
+	for i < lz && len(intv) < count-1 {
 		for i < lz && a[i] != ' ' {
 			i++
 		}
@@ -15,7 +15,7 @@ func XSplit(a string, count int) []string {
 		start = i
 	}
 	if start < lz {
-		intv = append(intv, []int{start, i})
+		intv = append(intv, []int{start, lz})
 	}
 	vs := make([]string, len(intv))
 	for i, r := range intv {

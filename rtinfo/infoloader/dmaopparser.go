@@ -10,11 +10,25 @@ import (
 	"git.enflame.cn/hai.bai/dmaster/meta/metadata"
 )
 
+type DmaInfoMap struct {
+	info map[int]metadata.DmaOp
+}
+
+func newDmaInfoMap(dc map[int]metadata.DmaOp) DmaInfoMap {
+	return DmaInfoMap{
+		info: dc,
+	}
+}
+
 type DmaOpFormatFetcher interface {
-	FetchDmaOpDict(string) map[int]metadata.DmaOp
+	FetchDmaOpDict(string) DmaInfoMap
 }
 
 type compatibleDmaFetcher struct{}
+
+func NewCompatibleDmaInfoLoader() compatibleDmaFetcher {
+	return compatibleDmaFetcher{}
+}
 
 /*
 ofs << sec->pkt << " " << strConverter.CheckoutStringAt(sec->dma_op)
@@ -26,7 +40,7 @@ ofs << sec->pkt << " " << strConverter.CheckoutStringAt(sec->dma_op)
 */
 func (compatibleDmaFetcher) FetchDmaOpDict(
 	filename string,
-) map[int]metadata.DmaOp {
+) DmaInfoMap {
 	fin, err := os.Open(filename)
 	if err != nil {
 		panic(err)
@@ -45,11 +59,30 @@ func (compatibleDmaFetcher) FetchDmaOpDict(
 		}
 		dmaOpDict[pktId] = dmaOp
 	}
-	return dmaOpDict
+	return newDmaInfoMap(dmaOpDict)
+}
+
+// Split into 7 segments
+func elementSplitAndCombines(text string, fieldsCount int) []string {
+	vs := strings.Fields(text)
+	if len(vs) == 0 {
+		return nil
+	}
+	var rvs = []string{vs[0]}
+	pos := 0
+	for i := 1; i < len(vs); i++ {
+		if strings.HasSuffix(rvs[pos], ",") {
+			rvs[pos] += vs[i]
+			continue
+		}
+		pos++
+		rvs = append(rvs, vs[i])
+	}
+	return rvs
 }
 
 func parseSingleLineV0(text string) (int, metadata.DmaOp) {
-	vs := XSplit(text, 7)
+	vs := elementSplitAndCombines(text, 7)
 	pktId, err := strconv.ParseInt(vs[0], 10, 32)
 	if err != nil {
 		panic(err)
@@ -59,6 +92,10 @@ func parseSingleLineV0(text string) (int, metadata.DmaOp) {
 	if err != nil {
 		panic(err)
 	}
+	attrsStr := ""
+	if len(vs) >= 7 {
+		attrsStr = vs[6]
+	}
 	return int(pktId), metadata.DmaOp{
 		PktId:       int(pktId),
 		DmaOpString: dmaOp,
@@ -66,7 +103,7 @@ func parseSingleLineV0(text string) (int, metadata.DmaOp) {
 		EngineIndex: int(engineIdx),
 		Input:       vs[4],
 		Output:      vs[5],
-		Attrs:       parserAttrsV0(vs[6]),
+		Attrs:       parserAttrsV0(attrsStr),
 	}
 }
 
@@ -86,9 +123,13 @@ func parserAttrsV0(attrText string) map[string]string {
 
 type pbDmaMetaFetcher struct{}
 
+func NewPbDmaInfoLoader() pbDmaMetaFetcher {
+	return pbDmaMetaFetcher{}
+}
+
 func (pbDmaMetaFetcher) FetchDmaOpDict(
 	filename string,
-) map[int]metadata.DmaOp {
+) DmaInfoMap {
 	fin, err := os.Open(filename)
 	if err != nil {
 		panic(err)
@@ -101,6 +142,13 @@ func (pbDmaMetaFetcher) FetchDmaOpDict(
 	curDma.PktId = -1
 	appendNewItem := func() {
 		if curDma.PktId >= 0 {
+			// Special extraction
+			if dmaOp, ok := curDma.Attrs["dma_op"]; ok {
+				curDma.DmaOpString = dmaOp
+			}
+			if engine, ok := curDma.Attrs["engine"]; ok {
+				curDma.EngineTy = engine
+			}
 			if _, ok := dmaOpDict[curDma.PktId]; ok {
 				panic("duplicated")
 			}
@@ -126,10 +174,11 @@ func (pbDmaMetaFetcher) FetchDmaOpDict(
 
 			// OK. Create a new session for DmaOp
 			vs := XSplit(text, 4)
-			if len(vs) != 4 {
+			if len(vs) < 4 {
 				panic(fmt.Errorf(
 					"not expecting for dma op input line: %v", text))
 			}
+			vs[3] = strings.Join(vs[3:], ",")
 			pktId, err := strconv.ParseInt(vs[0], 10, 32)
 			if err != nil {
 				panic(err)
@@ -148,5 +197,5 @@ func (pbDmaMetaFetcher) FetchDmaOpDict(
 		}
 	}
 	appendNewItem()
-	return dmaOpDict
+	return newDmaInfoMap(dmaOpDict)
 }

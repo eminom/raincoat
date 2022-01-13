@@ -1,5 +1,7 @@
 package metadata
 
+import "fmt"
+
 type DmaOp struct {
 	PktId       int
 	DmaOpString string
@@ -8,4 +10,8 @@ type DmaOp struct {
 	Input       string
 	Output      string
 	Attrs       map[string]string
+}
+
+func (d DmaOp) ToString() string {
+	return fmt.Sprintf("%v; %v; %v", d.PktId, d.DmaOpString, d.EngineIndex)
 }
