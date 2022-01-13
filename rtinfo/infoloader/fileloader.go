@@ -192,7 +192,7 @@ func testMetaFileName(execUuid uint64, prefix string, suffixes []string) (string
 }
 
 func testOpMetaFileName(execUuid uint64, prefix string, suffixes []SuffixConf) (
-	string, func() DtuOpFormatFetcher, bool) {
+	string, func() DtuOpMapLoader, bool) {
 	mark := fmt.Sprintf("0x%016x", execUuid)[:10]
 	for _, suf := range suffixes {
 		if inputName := filepath.Join(prefix,
@@ -249,7 +249,7 @@ func loadPktToOpMap(execUuid uint64, prefix string) map[int]int {
 }
 
 func loadOpMap(execUuid uint64, prefix string) map[int]metadata.DtuOp {
-	inputName, dtuOpParserCreator, fileOK := testOpMetaFileName(
+	inputName, dtuOpInfLoaderCreator, fileOK := testOpMetaFileName(
 		execUuid,
 		prefix,
 		opFileSuffixes,
@@ -257,34 +257,7 @@ func loadOpMap(execUuid uint64, prefix string) map[int]metadata.DtuOp {
 	if !fileOK {
 		return nil
 	}
-	fin, err := os.Open(inputName)
-	if err != nil {
-		log.Printf("error load dtu-op file for %016x: %v\n",
-			execUuid,
-			err)
-		return nil
-	}
-	defer fin.Close()
-	var fetcher DtuOpFormatFetcher = dtuOpParserCreator()
-	opMap := make(map[int]metadata.DtuOp)
-	scan := bufio.NewScanner(fin)
-	for {
-		if !scan.Scan() {
-			break
-		}
-		opIdStr, opName := fetcher.FetchOpIdOpName(scan.Text())
-		opId, _ := strconv.Atoi(opIdStr)
-		if _, ok := opMap[opId]; ok {
-			panic(fmt.Errorf("duplicate op id for exec 0x%016x with op-id=%v",
-				execUuid, opId,
-			))
-		}
-		opMap[opId] = metadata.DtuOp{
-			OpId:   opId,
-			OpName: opName,
-		}
-	}
-	return opMap
+	return dtuOpInfLoaderCreator().LoadOpMap(inputName)
 }
 
 func (d metaFileLoader) LoadExecScope(execUuid uint64) *metadata.ExecScope {

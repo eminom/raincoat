@@ -6,18 +6,18 @@ var (
 
 type SuffixConf struct {
 	suffixName     string
-	fetcherCreator func() DtuOpFormatFetcher
+	fetcherCreator func() DtuOpMapLoader
 }
 
 var (
 	opFileSuffixes = []SuffixConf{
 		{
 			"_dtuop.dumptxt",
-			newCompatibleOpFetcher,
+			newCompatibleOpLoader,
 		},
 		{
 			"_opmeta.pbdumptxt",
-			newNuevoOpFetcher,
+			newNuevoOpLoader,
 		},
 	}
 )
