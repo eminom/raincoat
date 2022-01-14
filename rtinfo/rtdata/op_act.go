@@ -91,16 +91,18 @@ func (q OpEventQueue) DumpInfo() {
 	fmt.Printf("Cqm Op debug packet distribution:\n")
 	for index, count := range chDictInAll {
 		masterVal, ctx := q.eAlgo.DecodeChan(index)
-		fmt.Printf(" Cqm master(%v) ctx(%v) count: %v\n",
-			masterVal, ctx, count,
+		engTy, engIdx, clusterId := q.eAlgo.DecodeMasterValue(masterVal)
+		fmt.Printf(" %v(%v) Cid(%v) ctx(%v) count: %v\n",
+			engTy, engIdx, clusterId, ctx, count,
 		)
 	}
 
 	for ch, v := range q.distr {
 		if v.ElementCount() > 0 {
 			masterVal, ctx := q.eAlgo.DecodeChan(ch)
-			fmt.Printf("Engine master(%d) Ctx(%d) has %v in dangle\n",
-				masterVal, ctx, v.ElementCount(),
+			engTy, engIdx, clusterId := q.eAlgo.DecodeMasterValue(masterVal)
+			fmt.Printf("Engine %v(%v) Cid(%v) Ctx(%d) has %v in dangle\n",
+				engTy, engIdx, clusterId, ctx, v.ElementCount(),
 			)
 			v.ConstForEach(func(evt interface{}) {
 				dpfEvent := evt.(codec.DpfEvent)

@@ -14,6 +14,7 @@ import (
 	"git.enflame.cn/hai.bai/dmaster/rtinfo/rtdata"
 	"git.enflame.cn/hai.bai/dmaster/sess"
 	"git.enflame.cn/hai.bai/dmaster/topsdev"
+	"git.enflame.cn/hai.bai/dmaster/vgrule"
 )
 
 var (
@@ -46,9 +47,11 @@ func init() {
 	}
 }
 
-func DoProcess(sess *sess.SessBroadcaster, coord rtdata.Coords, dbe DbDumper) {
+func DoProcess(sess *sess.SessBroadcaster, coord rtdata.Coords,
+	algo vgrule.ActMatchAlgo, dbe DbDumper) {
 	loader := sess.GetLoader()
-	processer := NewPostProcesser(loader)
+
+	processer := NewPostProcesser(loader, algo)
 	sess.DispatchToSinkers(processer.GetSinkers()...)
 	processer.DoPostProcessing(coord, dbe)
 }
@@ -103,12 +106,13 @@ func main() {
 		NodeID:   0,
 		DeviceID: 0,
 	}
+	curAlgo := vgrule.NewDoradoRule(decoder)
 	for contentLoader.HasMore() {
 		cidToDecode := 0
 		chunk := contentLoader.LoadRingBufferContent(cidToDecode)
 		sess := sess.NewSessBroadcaster(loader)
 		sess.DecodeChunk(chunk, decoder)
-		DoProcess(sess, coord, dbObj)
+		DoProcess(sess, coord, curAlgo, dbObj)
 		coord.DeviceID++
 	}
 

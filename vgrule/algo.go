@@ -6,17 +6,28 @@ type EngineOrder interface {
 	GetEngineOrder(dpf codec.DpfEvent) int
 }
 
+type MasterValueDecoder interface {
+	DecodeMasterValue(int) (string, int, int)
+}
+
 type ActMatchAlgo interface {
 	EngineOrder
+	MasterValueDecoder
 	GetChannelNum() int
 	MapToChan(masterValue, ctx int) int
 	DecodeChan(chNum int) (int, int)
 }
 
-type doradoRule struct{}
+type doradoRule struct {
+	mDecoder MasterValueDecoder
+}
 
-func NewDoradoRule() *doradoRule {
-	return new(doradoRule)
+func NewDoradoRule(decoder MasterValueDecoder) *doradoRule {
+	return &doradoRule{mDecoder: decoder}
+}
+
+func (a doradoRule) DecodeMasterValue(val int) (string, int, int) {
+	return a.mDecoder.DecodeMasterValue(val)
 }
 
 func (a doradoRule) GetChannelNum() int {

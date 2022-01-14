@@ -1,5 +1,7 @@
 package codec
 
+import "git.enflame.cn/hai.bai/dmaster/assert"
+
 /*
 Descriptive in C++
 
@@ -319,6 +321,14 @@ func NewDecodeMaster(arch string) *DecodeMaster {
 
 func (md *DecodeMaster) EngUniqueIndexToTypeName(engineUniqIdx int) string {
 	return md.engIdxToNameMap.Lookup(engineUniqIdx)
+}
+
+func (md *DecodeMaster) DecodeMasterValue(masterVal int) (string, int, int) {
+	lo, hi := int64(masterVal&0x1f), int64((masterVal>>5)&0x1f)
+	engineIdx, mVal, clusterId := md.decoder(lo, hi)
+	assert.Assert(mVal == masterVal, "Yes")
+	typeStr := md.EngUniqueIndexToTypeName(masterVal)
+	return typeStr, engineIdx, clusterId
 }
 
 // Format V1: flag = 0

@@ -23,10 +23,12 @@ type PostProcessor struct {
 	loader  efintf.InfoReceiver
 }
 
-func NewPostProcesser(loader efintf.InfoReceiver) PostProcessor {
+func NewPostProcesser(loader efintf.InfoReceiver,
+	curAlgo vgrule.ActMatchAlgo,
+) PostProcessor {
 	rtDict := rtinfo.NewRuntimeTaskManager()
 	rtDict.LoadRuntimeTask(loader)
-	curAlgo := vgrule.NewDoradoRule()
+
 	qm := rtdata.NewOpEventQueue(curAlgo,
 		codec.DbgPktDetector{},
 	)
