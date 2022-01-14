@@ -28,14 +28,28 @@ const (
 )
 
 const (
-	TableCategory_DTUOpActivity = "DTUOpActivity"
-	TableCategory_DTUFwActivity = "DTUFwActivity"
+	createMemcpyTable = `
+	CREATE TABLE memcpy(idx INT,name TEXT,node_id INT,description TEXT,context_id INT,
+		start_timestamp INT,end_timestamp INT,duration_timestamp INT,
+		start_cycle INT,end_cycle INT,duration_cycle INT,
+		packet_id INT,device_id INT,cluster_id INT,engine_id INT,
+		engine_type TEXT,op_id INT,op_name TEXT,
+		src_addr INT,dst_addr INT,src_size INT,dst_size INT,
+		direction TEXT,tiling_mode TEXT,vc INT,
+		args TEXT,vp_id INT,row_name TEXT,tid TEXT);`
+)
+
+const (
+	TableCategory_DTUOpActivity     = "DTUOpActivity"
+	TableCategory_DTUFwActivity     = "DTUFwActivity"
+	TableCategory_DTUMemcpyActivity = "DTUMemcpyActivity"
 )
 
 func getDbInitSchema() string {
 	return createHeaderTable + "\n" +
 		createDtuOpTable + "\n" +
-		createFwTable + `
+		createFwTable + "\n" +
+		createMemcpyTable + `
 	delete from dtu_op;
 	`
 }

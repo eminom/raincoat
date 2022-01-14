@@ -13,8 +13,8 @@ var (
 )
 
 func ToDmaEventString(evtID int) (string, bool) {
-	if name, ok := dmaEventNameKeeper.nameDict[evtID]; ok {
+	if name, ok := dmaEventNameKeeper.nameDict[evtID&3]; ok {
 		return name, true
 	}
-	return "", false
+	return "Unknown.1x.dma", false
 }

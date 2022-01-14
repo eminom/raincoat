@@ -42,6 +42,7 @@ type DbSession struct {
 
 	dtuOpCount int
 	fwOpCount  int
+	dmaOpCount int
 }
 
 func ifFileExist(file string) bool {
@@ -79,6 +80,8 @@ func (dbs *DbSession) Close() {
 		TableCategory_DTUOpActivity, dbs.dtuOpCount, "ns")
 	hs.AddHeader("fw", "1.0",
 		TableCategory_DTUFwActivity, dbs.fwOpCount, "ns")
+	hs.AddHeader("memcpy", "1.0",
+		TableCategory_DTUMemcpyActivity, dbs.dmaOpCount, "ns")
 	hs.Close()
 	// And finally , close DB handle
 	dbs.dbObject.Close()
@@ -114,9 +117,9 @@ func (dbs *DbSession) DumpDtuOps(
 		}
 	}
 	if convertToHostError > 0 {
-		fmt.Printf("error: convert-time error: %v\n", convertToHostError)
+		fmt.Printf("error: DTU-Op convert-time error: %v\n", convertToHostError)
 	}
-	log.Printf("%v dtu-op record(s) have been traced into %v",
+	log.Printf("%v DTU-OPs have been traced into %v",
 		dtuOpCount,
 		dbs.targetName,
 	)
@@ -159,10 +162,51 @@ func (dbs *DbSession) DumpFwActs(
 		}
 	}
 	if convertToHostError > 0 {
-		fmt.Printf("error: convert-time error: %v\n", convertToHostError)
+		fmt.Printf("error: FW ACT convert-time error: %v\n", convertToHostError)
 	}
-	log.Printf("%v fw record(s) have been traced into %v",
+	log.Printf("%v FW record(s) have been traced into %v",
 		fwActCount,
 		dbs.targetName,
 	)
+}
+
+func (dbs *DbSession) DumpDmaActs(
+	coords rtdata.Coords,
+	bundle []rtdata.OpActivity,
+	tm *rtinfo.TimelineManager,
+	extractor ExtractOpInfo,
+) {
+	dmaS := NewDmaSession(dbs.dbObject)
+	defer dmaS.Close()
+
+	dmaActCount, convertToHostError := 0, 0
+	nodeID, deviceID := coords.NodeID, coords.DeviceID
+	for _, act := range bundle {
+		if okToShow, _, name := extractor(act); okToShow {
+			dmaActCount++
+			startHostTime, startOK := tm.MapToHosttime(act.StartCycle())
+			endHostTime, endOK := tm.MapToHosttime(act.EndCycle())
+			if startOK && endOK {
+				packetID, contextID := act.Start.PacketID, act.Start.Context
+				dmaS.AddDmaTrace(dbs.idx, nodeID, deviceID, act.Start.ClusterID, contextID, name,
+					startHostTime, endHostTime, endHostTime-startHostTime,
+					act.StartCycle(), act.EndCycle(), act.EndCycle()-act.StartCycle(),
+					packetID, act.Start.EngineTy,
+					act.Start.EngineIndex,
+				)
+				dbs.dmaOpCount++
+				dbs.idx++
+			} else {
+				convertToHostError++
+			}
+		}
+	}
+	if convertToHostError > 0 {
+		fmt.Printf("error: DMA ACT convert-time error: %v\n", convertToHostError)
+	}
+	log.Printf("%v DMA ACT record(s) have been traced into %v",
+		dmaActCount,
+		dbs.targetName,
+	)
+
 }

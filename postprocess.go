@@ -74,6 +74,12 @@ type DbDumper interface {
 		tm *rtinfo.TimelineManager,
 		extractor dbexport.ExtractOpInfo,
 	)
+	DumpDmaActs(
+		coords rtdata.Coords,
+		bundle []rtdata.OpActivity,
+		tm *rtinfo.TimelineManager,
+		extractor dbexport.ExtractOpInfo,
+	)
 }
 
 func (p PostProcessor) DoPostProcessing(coord rtdata.Coords, dbe DbDumper) {
@@ -176,6 +182,16 @@ func (p PostProcessor) DoPostProcessing(coord rtdata.Coords, dbe DbDumper) {
 					return true, "", str
 				}
 				return false, "", ""
+			},
+		)
+
+		dbe.DumpDmaActs(
+			coord,
+			p.dmaVec.OpActivity(), p.tm,
+			func(act rtdata.OpActivity) (bool, string, string) {
+				name, _ := rtdata.ToDmaEventString(act.Start.Event)
+				return true, "", name
+
 			},
 		)
 
