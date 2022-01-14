@@ -48,7 +48,7 @@ func (q *OpEventQueue) OpActivity() []OpActivity {
 
 func (q *OpEventQueue) DispatchEvent(este codec.DpfEvent) error {
 	index := q.eAlgo.MapToChan(
-		este.EngineIndex,
+		este.MasterIdValue(),
 		este.Context,
 	)
 	isStart, isEnd := q.evtFilter.IsStarterMark(este)
@@ -82,7 +82,7 @@ func (q OpEventQueue) DumpInfo() {
 	chDictInAll := make(map[int]int)
 	for _, v := range q.acts {
 		index := q.eAlgo.MapToChan(
-			v.Start.EngineIndex,
+			v.Start.MasterIdValue(),
 			v.Start.Context,
 		)
 		chDictInAll[index]++
@@ -90,17 +90,17 @@ func (q OpEventQueue) DumpInfo() {
 
 	fmt.Printf("Cqm Op debug packet distribution:\n")
 	for index, count := range chDictInAll {
-		engId, ctx := q.eAlgo.DecodeChan(index)
-		fmt.Printf(" Cqm(%v) ctx(%v) count: %v\n",
-			engId, ctx, count,
+		masterVal, ctx := q.eAlgo.DecodeChan(index)
+		fmt.Printf(" Cqm master(%v) ctx(%v) count: %v\n",
+			masterVal, ctx, count,
 		)
 	}
 
 	for ch, v := range q.distr {
 		if v.ElementCount() > 0 {
-			engIdx, ctx := q.eAlgo.DecodeChan(ch)
-			fmt.Printf("Engine(%d) Ctx(%d) has %v in dangle\n",
-				engIdx, ctx, v.ElementCount(),
+			masterVal, ctx := q.eAlgo.DecodeChan(ch)
+			fmt.Printf("Engine master(%d) Ctx(%d) has %v in dangle\n",
+				masterVal, ctx, v.ElementCount(),
 			)
 			v.ConstForEach(func(evt interface{}) {
 				dpfEvent := evt.(codec.DpfEvent)

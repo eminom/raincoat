@@ -9,7 +9,7 @@ type EngineOrder interface {
 type ActMatchAlgo interface {
 	EngineOrder
 	GetChannelNum() int
-	MapToChan(engineIdx, ctx int) int
+	MapToChan(masterValue, ctx int) int
 	DecodeChan(chNum int) (int, int)
 }
 
@@ -20,15 +20,16 @@ func NewDoradoRule() *doradoRule {
 }
 
 func (a doradoRule) GetChannelNum() int {
-	return 1 << 8
+	return codec.MASTERVALUE_COUNT * codec.RTCONTEXT_COUNT
 }
 
-func (a doradoRule) MapToChan(engineIdx, ctx int) int {
-	return engineIdx<<4 + ctx
+func (a doradoRule) MapToChan(masterValue, ctx int) int {
+	return masterValue<<codec.RTCONTEXT_BITCOUNT + ctx
 }
 
 func (a doradoRule) DecodeChan(chNum int) (int, int) {
-	return chNum >> 4, chNum & 0xF
+	return chNum >> codec.RTCONTEXT_BITCOUNT,
+		chNum & (1<<codec.RTCONTEXT_BITCOUNT - 1)
 }
 
 func (a doradoRule) GetEngineOrder(dpf codec.DpfEvent) int {

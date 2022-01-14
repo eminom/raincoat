@@ -42,8 +42,7 @@ func (FwPktDetector) IsStarterMark(evt DpfEvent) (bool, bool) {
 
 func (FwPktDetector) TestIfMatch(former, latter DpfEvent) bool {
 	if former.EngineTypeCode != latter.EngineTypeCode ||
-		former.Event-1 != latter.Event || // event in pairs
-		former.ClusterID != latter.ClusterID {
+		former.Event-1 != latter.Event {
 		return false
 	}
 	if isDebugOpPacket(former) {
@@ -70,8 +69,7 @@ func (DbgPktDetector) IsStarterMark(evt DpfEvent) (bool, bool) {
 
 func (DbgPktDetector) TestIfMatch(former, latter DpfEvent) bool {
 	return former.EngineTypeCode == latter.EngineTypeCode &&
-		former.PacketID+1 == latter.PacketID &&
-		former.ClusterID == latter.ClusterID
+		former.PacketID+1 == latter.PacketID
 }
 
 func (DmaDetector) GetEngineTypes() []EngineTypeCode {
@@ -102,6 +100,5 @@ func getVcVal(v int) int {
 func (DmaDetector) TestIfMatch(former, latter DpfEvent) bool {
 	return former.EngineTypeCode == latter.EngineTypeCode &&
 		former.PacketID == latter.PacketID &&
-		getVcVal(former.Event) == getVcVal(latter.Event) &&
-		former.ClusterID == latter.ClusterID
+		getVcVal(former.Event) == getVcVal(latter.Event)
 }

@@ -10,6 +10,15 @@ var (
 	errDpfItemDecodeErr  = errors.New("decode error")
 )
 
+const (
+	MASTERVALUE_BITCOUNT = 10
+	MASTERVALUE_COUNT    = 1 << MASTERVALUE_BITCOUNT
+
+	RTCONTEXT_BITCOUNT = 4
+	RTCONTEXT_COUNT    = 1 << RTCONTEXT_BITCOUNT
+	// RTCONTEXT_BITMASK  = (1 << RTCONTEXT_BITCOUNT) - 1
+)
+
 type DpfEvent struct {
 	RawValue [4]uint32
 
@@ -32,6 +41,10 @@ type DpfEvent struct {
 // This field is at-most 31-bit width
 func (d DpfEvent) DpfSyncIndex() int {
 	return int(d.RawValue[0] >> 1)
+}
+
+func (d DpfEvent) MasterIdValue() int {
+	return int(d.RawValue[1]) & ((1 << MASTERVALUE_BITCOUNT) - 1)
 }
 
 func (d DpfEvent) ToString() string {
