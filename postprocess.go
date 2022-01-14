@@ -15,10 +15,9 @@ import (
 )
 
 type PostProcessor struct {
-	rtDict *rtinfo.RuntimeTaskManager
-	qm     *rtdata.OpEventQueue
-	fwVec  *rtdata.OpEventQueue
-	tm     *rtinfo.TimelineManager
+	rtDict            *rtinfo.RuntimeTaskManager
+	qm, fwVec, dmaVec *rtdata.OpEventQueue
+	tm                *rtinfo.TimelineManager
 
 	curAlgo vgrule.ActMatchAlgo
 	loader  efintf.InfoReceiver
@@ -34,6 +33,9 @@ func NewPostProcesser(loader efintf.InfoReceiver) PostProcessor {
 	fwVec := rtdata.NewOpEventQueue(curAlgo,
 		codec.FwPktDetector{},
 	)
+	dmaVec := rtdata.NewOpEventQueue(curAlgo,
+		codec.DmaDetector{},
+	)
 	tm := rtinfo.NewTimelineManager()
 	tm.LoadTimepoints(loader)
 	return PostProcessor{
@@ -42,6 +44,7 @@ func NewPostProcesser(loader efintf.InfoReceiver) PostProcessor {
 		rtDict:  rtDict,
 		qm:      qm,
 		fwVec:   fwVec,
+		dmaVec:  dmaVec,
 		tm:      tm,
 	}
 }
@@ -52,6 +55,7 @@ func (p PostProcessor) GetSinkers() []sess.EventSinker {
 		p.qm,
 		p.fwVec,
 		p.tm,
+		p.dmaVec,
 	}
 }
 
@@ -72,6 +76,7 @@ type DbDumper interface {
 
 func (p PostProcessor) DoPostProcessing(coord rtdata.Coords, dbe DbDumper) {
 	log.Printf("fwVec count: %v", len(p.fwVec.OpActivity()))
+	log.Printf("dmaVec count: %v", len(p.dmaVec.OpActivity()))
 
 	p.qm.DumpInfo()
 	p.tm.AlignToHostTimeline()

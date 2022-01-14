@@ -11,6 +11,7 @@ func isDebugOpPacket(evt DpfEvent) bool {
 
 type FwPktDetector struct{}
 type DbgPktDetector struct{}
+type DmaDetector struct{}
 
 // Implementations
 
@@ -70,5 +71,37 @@ func (DbgPktDetector) IsStarterMark(evt DpfEvent) (bool, bool) {
 func (DbgPktDetector) TestIfMatch(former, latter DpfEvent) bool {
 	return former.EngineTypeCode == latter.EngineTypeCode &&
 		former.PacketID+1 == latter.PacketID &&
+		former.ClusterID == latter.ClusterID
+}
+
+func (DmaDetector) GetEngineTypes() []EngineTypeCode {
+	return []EngineTypeCode{
+		EngCat_CDMA,
+		EngCat_SDMA,
+	}
+}
+
+// Master Word for CDMA/SDMA
+// bit0: flag b'0
+// bit1-2:  event
+// bit3-7:  vc id (5bit)
+// bit8: b'0
+// bit9~31(23 bit packet id)
+func (DmaDetector) IsStarterMark(evt DpfEvent) (bool, bool) {
+	return evt.Event&3 == DmaVcExecStart, evt.Event&3 == DmaVcExecEnd
+}
+
+func getVcVal(v int) int {
+	const VC_BITCOUNT = 6
+	// Shift 1 to elide the start/end flag
+	// and event bits are reduced from 2 bits to 1 bit
+	// Plus the Vc bits, to form the mask bit (1+VC_BITCOUNT)
+	return (v >> 1) & ((1 << (VC_BITCOUNT + 1)) - 1)
+}
+
+func (DmaDetector) TestIfMatch(former, latter DpfEvent) bool {
+	return former.EngineTypeCode == latter.EngineTypeCode &&
+		former.PacketID == latter.PacketID &&
+		getVcVal(former.Event) == getVcVal(latter.Event) &&
 		former.ClusterID == latter.ClusterID
 }
