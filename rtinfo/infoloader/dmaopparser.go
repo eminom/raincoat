@@ -10,23 +10,19 @@ import (
 	"git.enflame.cn/hai.bai/dmaster/meta/metadata"
 )
 
-type DmaInfoMap struct {
-	info map[int]metadata.DmaOp
-}
-
-func newDmaInfoMap(dc map[int]metadata.DmaOp) DmaInfoMap {
-	return DmaInfoMap{
-		info: dc,
+func newDmaInfoMap(dc map[int]metadata.DmaOp) metadata.DmaInfoMap {
+	return metadata.DmaInfoMap{
+		Info: dc,
 	}
 }
 
 type DmaOpFormatFetcher interface {
-	FetchDmaOpDict(string) DmaInfoMap
+	FetchDmaOpDict(string) metadata.DmaInfoMap
 }
 
 type compatibleDmaFetcher struct{}
 
-func NewCompatibleDmaInfoLoader() compatibleDmaFetcher {
+func NewCompatibleDmaInfoLoader() DmaOpFormatFetcher {
 	return compatibleDmaFetcher{}
 }
 
@@ -40,7 +36,7 @@ ofs << sec->pkt << " " << strConverter.CheckoutStringAt(sec->dma_op)
 */
 func (compatibleDmaFetcher) FetchDmaOpDict(
 	filename string,
-) DmaInfoMap {
+) metadata.DmaInfoMap {
 	fin, err := os.Open(filename)
 	if err != nil {
 		panic(err)
@@ -123,13 +119,13 @@ func parserAttrsV0(attrText string) map[string]string {
 
 type pbDmaMetaFetcher struct{}
 
-func NewPbDmaInfoLoader() pbDmaMetaFetcher {
+func NewPbDmaInfoLoader() DmaOpFormatFetcher {
 	return pbDmaMetaFetcher{}
 }
 
 func (pbDmaMetaFetcher) FetchDmaOpDict(
 	filename string,
-) DmaInfoMap {
+) metadata.DmaInfoMap {
 	fin, err := os.Open(filename)
 	if err != nil {
 		panic(err)

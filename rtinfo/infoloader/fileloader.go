@@ -191,7 +191,7 @@ func testMetaFileName(execUuid uint64, prefix string, suffixes []string) (string
 	return "", false
 }
 
-func testOpMetaFileName(execUuid uint64, prefix string, suffixes []SuffixConf) (
+func testOpMetaFileName(execUuid uint64, prefix string, suffixes []OpInfoSuffixConf) (
 	string, func() DtuOpMapLoader, bool) {
 	mark := fmt.Sprintf("0x%016x", execUuid)[:10]
 	for _, suf := range suffixes {
@@ -202,6 +202,18 @@ func testOpMetaFileName(execUuid uint64, prefix string, suffixes []SuffixConf) (
 		}
 	}
 	return "", nil, false
+}
+
+func testDmaMetaFileName(execUuid uint64, prefix string, suffixes []DmaInfoSuffixConf) (
+	string, func() DmaOpFormatFetcher, bool) {
+	mark := fmt.Sprintf("0x%016x", execUuid)[:10]
+	for _, suf := range suffixes {
+		if inputName := filepath.Join(prefix,
+			mark+suf.suffixName); isFileExist(inputName) {
+			return inputName, suf.fetcherCreator, true
+		}
+	}
+	return "dma-meta-file-not-exist", nil, false
 }
 
 func loadPktToOpMap(execUuid uint64, prefix string) map[int]int {
@@ -252,7 +264,7 @@ func loadOpMap(execUuid uint64, prefix string) map[int]metadata.DtuOp {
 	inputName, dtuOpInfLoaderCreator, fileOK := testOpMetaFileName(
 		execUuid,
 		prefix,
-		opFileSuffixes,
+		GetOpFileSuffixes(),
 	)
 	if !fileOK {
 		return nil
@@ -260,14 +272,28 @@ func loadOpMap(execUuid uint64, prefix string) map[int]metadata.DtuOp {
 	return dtuOpInfLoaderCreator().LoadOpMap(inputName)
 }
 
+func loadDmaMap(execUuid uint64, prefix string) metadata.DmaInfoMap {
+	inputName, dmaInfoLoaderCreator, fileOK := testDmaMetaFileName(
+		execUuid,
+		prefix,
+		GetDmaInfoFileSuffix(),
+	)
+	if !fileOK {
+		return metadata.DmaInfoMap{}
+	}
+	return dmaInfoLoaderCreator().FetchDmaOpDict(inputName)
+}
+
 func (d metaFileLoader) LoadExecScope(execUuid uint64) *metadata.ExecScope {
 	opMap := loadOpMap(execUuid, d.startupPath)
 	pktMap := loadPktToOpMap(execUuid, d.startupPath)
+	dmaMap := loadDmaMap(execUuid, d.startupPath)
 	if opMap != nil && pktMap != nil {
 		return metadata.NewExecScope(
 			execUuid,
 			pktMap,
 			opMap,
+			dmaMap,
 		)
 	}
 	return nil

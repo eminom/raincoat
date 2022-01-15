@@ -233,6 +233,33 @@ func (ps ProfileSecPipBoy) ExtractStringAt(offset int) string {
 	return string(ps.stringPool[offset:i])
 }
 
+func (ps ProfileSecPipBoy) ExtractArgsAt(offset int, args int) map[string]string {
+	dc := make(map[string]string)
+	start := offset
+
+	extractOne := func() string {
+		for start < len(ps.stringPool) && ps.stringPool[start] == 0 {
+			start++
+		}
+		i := start
+		for i < len(ps.stringPool) && ps.stringPool[i] != 0 {
+			i++
+		}
+		oneStr := string(ps.stringPool[start:i])
+		start = i
+		return oneStr
+	}
+	for j := 0; j < args; j++ {
+		key := extractOne()
+		ty := extractOne()
+		_ = ty
+		val := extractOne()
+		dc[key] = val
+	}
+	return dc
+
+}
+
 func (ps ProfileSecPipBoy) verifySize() bool {
 	totSize := ps.HeaderSize() + ps.pkt2OpSecSize() +
 		ps.opMetaSecSize() + ps.moduleSecSize() + ps.memcpySecSize()
@@ -305,9 +332,36 @@ func ParseProfileSection(pb *topspb.SerializeExecutableData) *metadata.ExecScope
 	}
 	log.Printf("%v op info entries added", len(opInformationMap))
 
+	getDataChunk(newPb.opMetaSecSize())
+	dataStart = getDataChunk(newPb.moduleSecSize())
+	dmaInfoMap := make(map[int]metadata.DmaOp)
+	addDmaInfo := func(packetId int, dc map[string]string) {
+		if _, ok := dmaInfoMap[packetId]; ok {
+			panic(fmt.Errorf("duplicate dma packet id(in meta): %v", packetId))
+		}
+		log.Printf("dma: <%v>", dc["dma_op"])
+		dmaInfoMap[packetId] = metadata.DmaOp{
+			PktId:       packetId,
+			DmaOpString: dc["dma_op"],
+			Input:       dc["input"],
+			Output:      dc["output"],
+			Attrs:       dc,
+		}
+	}
+	for i := 0; i < newPb.MemcpyCount(); i++ {
+		slice := dataStart[i*int(GetPbMemcpySecSize()):]
+		uVal := reflect.ValueOf(slice).Pointer()
+		memcpyMetaSec := *(*C.PbMemcpySec)(unsafe.Pointer(uVal))
+		dc := newPb.ExtractArgsAt(int(memcpyMetaSec.args), int(memcpyMetaSec.args_count))
+		addDmaInfo(int(memcpyMetaSec.pkt), dc)
+	}
+
 	return metadata.NewExecScope(pb.GetExecUuid(),
 		pkt2OpDict,
 		opInformationMap,
+		metadata.DmaInfoMap{
+			Info: dmaInfoMap,
+		},
 	)
 }
 

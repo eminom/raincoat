@@ -15,3 +15,7 @@ type DmaOp struct {
 func (d DmaOp) ToString() string {
 	return fmt.Sprintf("%v; %v; %v", d.PktId, d.DmaOpString, d.EngineIndex)
 }
+
+type DmaInfoMap struct {
+	Info map[int]DmaOp
+}

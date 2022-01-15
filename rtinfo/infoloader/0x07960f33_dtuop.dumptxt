@@ -1,0 +1,1 @@
+10 copy_cpu %1 = "dtu_hlir.copy"(%0) {name = "copy", op_id = 10 : i64, unique_name = "copy_cpu"} : (tensor<1x18224xf32>) -> tensor<1x18224xf32>

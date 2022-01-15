@@ -1,9 +1,13 @@
 package infoloader
 
-import "testing"
+import (
+	"testing"
 
-func checkT(t *testing.T, dc DmaInfoMap) {
-	for _, dop := range dc.info {
+	"git.enflame.cn/hai.bai/dmaster/meta/metadata"
+)
+
+func checkT(t *testing.T, dc metadata.DmaInfoMap) {
+	for _, dop := range dc.Info {
 		switch dop.EngineTy {
 		case "CDMA", "SDMA", "unk", "sip launch":
 		default:
@@ -16,7 +20,7 @@ func checkT(t *testing.T, dc DmaInfoMap) {
 
 func TestLoadDma(t *testing.T) {
 	var loader DmaOpFormatFetcher
-	var dc DmaInfoMap
+	var dc metadata.DmaInfoMap
 
 	loader = NewCompatibleDmaInfoLoader()
 	dc = loader.FetchDmaOpDict("0x97a7adea_memcpy_meta.dumptxt")

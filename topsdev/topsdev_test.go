@@ -8,7 +8,7 @@ const (
 	sampleInput = "/home/hai.bai/data18/new6a/20211230141724.16847.topspti.data"
 )
 
-func TestBasic(t *testing.T) {
+func TestBasicTopsdev(t *testing.T) {
 	ph, body, err := DecodeFile(sampleInput)
 	if err != nil {
 		t.Logf("error: %v", err)

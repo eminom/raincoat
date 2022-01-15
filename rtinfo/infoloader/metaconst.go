@@ -4,13 +4,13 @@ var (
 	pkt2opFileSuffixes = []string{"_pkt2op.dumptxt", "_pkt2op.pbdumptxt"}
 )
 
-type SuffixConf struct {
+type OpInfoSuffixConf struct {
 	suffixName     string
 	fetcherCreator func() DtuOpMapLoader
 }
 
 var (
-	opFileSuffixes = []SuffixConf{
+	opFileSuffixes = []OpInfoSuffixConf{
 		{
 			"_dtuop.dumptxt",
 			newCompatibleOpLoader,
@@ -21,3 +21,29 @@ var (
 		},
 	}
 )
+
+func GetOpFileSuffixes() []OpInfoSuffixConf {
+	return opFileSuffixes
+}
+
+type DmaInfoSuffixConf struct {
+	suffixName     string
+	fetcherCreator func() DmaOpFormatFetcher
+}
+
+var (
+	dmaInfoFileSuffixes = []DmaInfoSuffixConf{
+		{
+			"_memcpy_meta.dumptxt",
+			NewCompatibleDmaInfoLoader,
+		},
+		{
+			"_opmeta.pbdumptxt",
+			NewPbDmaInfoLoader,
+		},
+	}
+)
+
+func GetDmaInfoFileSuffix() []DmaInfoSuffixConf {
+	return dmaInfoFileSuffixes
+}

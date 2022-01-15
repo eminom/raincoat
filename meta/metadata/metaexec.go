@@ -15,14 +15,16 @@ type ExecScope struct {
 	execUuid  uint64
 	pktIdToOp map[int]int
 	opMap     map[int]DtuOp
+	dmaMap    DmaInfoMap
 }
 
 func NewExecScope(execUuid uint64,
-	pktIdToOp map[int]int, opMap map[int]DtuOp) *ExecScope {
+	pktIdToOp map[int]int, opMap map[int]DtuOp, dmaMap DmaInfoMap) *ExecScope {
 	return &ExecScope{
 		execUuid,
 		pktIdToOp,
 		opMap,
+		dmaMap,
 	}
 }
 
