@@ -7,20 +7,24 @@ import (
 	"git.enflame.cn/hai.bai/dmaster/vgrule"
 )
 
-type DmaEventQueue struct {
+type DmaActCollector struct {
 	acts  DmaActivityVec
 	eAlgo vgrule.ActMatchAlgo
 }
 
-func (q DmaEventQueue) DmaActivity() []DmaActivity {
+func NewDmaCollector(algo vgrule.ActMatchAlgo) ActCollector {
+	return &DmaActCollector{eAlgo: algo}
+}
+
+func (q DmaActCollector) GetActivity() interface{} {
 	return q.acts
 }
 
-func (q DmaEventQueue) GetAlgo() vgrule.ActMatchAlgo {
+func (q DmaActCollector) GetAlgo() vgrule.ActMatchAlgo {
 	return q.eAlgo
 }
 
-func (q DmaEventQueue) DumpInfo() {
+func (q DmaActCollector) DumpInfo() {
 	fmt.Printf("%v Dma Acts found\n", len(q.acts))
 
 	chDictInAll := make(map[int]int)
@@ -42,7 +46,7 @@ func (q DmaEventQueue) DumpInfo() {
 	}
 }
 
-func (dmaVec *DmaEventQueue) AddAct(start, end codec.DpfEvent) {
+func (dmaVec *DmaActCollector) AddAct(start, end codec.DpfEvent) {
 	dmaVec.acts = append(dmaVec.acts, DmaActivity{
 		DpfAct: DpfAct{
 			start, end,

@@ -91,3 +91,11 @@ func (q EventQueue) DumpInfo() {
 func (q EventQueue) OpActivity() []OpActivity {
 	return ([]OpActivity)(q.GetActivity().(OpActivityVector))
 }
+
+func (q EventQueue) DmaActivity() []DmaActivity {
+	return ([]DmaActivity)(q.GetActivity().(DmaActivityVec))
+}
+
+func (q EventQueue) FwActivity() []FwActivity {
+	return ([]FwActivity)(q.GetActivity().(FwActivityVec))
+}

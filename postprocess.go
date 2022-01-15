@@ -17,7 +17,8 @@ import (
 type PostProcessor struct {
 	rtDict *rtinfo.RuntimeTaskManager
 	qm     *rtdata.EventQueue
-	// fwVec, dmaVec *rtdata.EventQueue
+	fwVec  *rtdata.EventQueue
+	// dmaVec *rtdata.EventQueue
 	tm *rtinfo.TimelineManager
 
 	curAlgo vgrule.ActMatchAlgo
@@ -33,9 +34,9 @@ func NewPostProcesser(loader efintf.InfoReceiver,
 	qm := rtdata.NewOpEventQueue(rtdata.NewOpActCollector(curAlgo),
 		codec.DbgPktDetector{},
 	)
-	// fwVec := rtdata.NewOpEventQueue(curAlgo,
-	// 	codec.FwPktDetector{},
-	// )
+	fwVec := rtdata.NewOpEventQueue(rtdata.NewFwActCollector(curAlgo),
+		codec.FwPktDetector{},
+	)
 	// dmaVec := rtdata.NewOpEventQueue(curAlgo,
 	// 	codec.DmaDetector{},
 	// )
@@ -46,7 +47,7 @@ func NewPostProcesser(loader efintf.InfoReceiver,
 		curAlgo: curAlgo,
 		rtDict:  rtDict,
 		qm:      qm,
-		// fwVec:   fwVec,
+		fwVec:   fwVec,
 		// dmaVec:  dmaVec,
 		tm: tm,
 	}
@@ -56,7 +57,7 @@ func (p PostProcessor) GetSinkers() []sess.EventSinker {
 	return []sess.EventSinker{
 		p.rtDict,
 		p.qm,
-		// p.fwVec,
+		p.fwVec,
 		p.tm,
 		// p.dmaVec,
 	}
@@ -71,9 +72,8 @@ type DbDumper interface {
 	)
 	DumpFwActs(
 		coords rtdata.Coords,
-		bundle []rtdata.OpActivity,
+		bundle []rtdata.FwActivity,
 		tm *rtinfo.TimelineManager,
-		extractor dbexport.ExtractOpInfo,
 	)
 	DumpDmaActs(
 		coords rtdata.Coords,
@@ -84,7 +84,7 @@ type DbDumper interface {
 }
 
 func (p PostProcessor) DoPostProcessing(coord rtdata.Coords, dbe DbDumper) {
-	// log.Printf("fwVec count: %v", len(p.fwVec.OpActivity()))
+	log.Printf("fwVec count: %v", len(p.fwVec.FwActivity()))
 	// log.Printf("dmaVec count: %v", len(p.dmaVec.OpActivity()))
 
 	p.qm.DumpInfo()
@@ -171,21 +171,10 @@ func (p PostProcessor) DoPostProcessing(coord rtdata.Coords, dbe DbDumper) {
 			},
 		)
 
-		// dbe.DumpFwActs(
-		// 	coord,
-		// 	p.fwVec.OpActivity(), p.tm,
-		// 	func(act rtdata.OpActivity) (bool, string, string) {
-		// 		switch act.Start.EngineTypeCode {
-		// 		case codec.EngCat_TS:
-		// 			str, _ := rtdata.ToTSEventString(act.Start.Event)
-		// 			return true, "", str
-		// 		case codec.EngCat_CQM, codec.EngCat_GSYNC:
-		// 			str, _ := rtdata.ToCQMEventString(act.Start.Event)
-		// 			return true, "", str
-		// 		}
-		// 		return false, "", ""
-		// 	},
-		// )
+		dbe.DumpFwActs(
+			coord,
+			p.fwVec.FwActivity(), p.tm,
+		)
 
 		// dbe.DumpDmaActs(
 		// 	coord,

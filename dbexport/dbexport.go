@@ -127,9 +127,8 @@ func (dbs *DbSession) DumpDtuOps(
 
 func (dbs *DbSession) DumpFwActs(
 	coords rtdata.Coords,
-	bundle []rtdata.OpActivity,
+	bundle []rtdata.FwActivity,
 	tm *rtinfo.TimelineManager,
-	extractor ExtractOpInfo,
 ) {
 	fw := NewFwSession(dbs.dbObject)
 	defer fw.Close()
@@ -137,29 +136,42 @@ func (dbs *DbSession) DumpFwActs(
 	fwActCount, convertToHostError := 0, 0
 	nodeID, deviceID := coords.NodeID, coords.DeviceID
 	for _, act := range bundle {
-		if okToShow, _, name := extractor(act); okToShow {
-			fwActCount++
-			startHostTime, startOK := tm.MapToHosttime(act.StartCycle())
-			endHostTime, endOK := tm.MapToHosttime(act.EndCycle())
-			if startOK && endOK {
-				packetID, contextID := 0, -1
-				switch act.Start.EngineTypeCode {
-				case codec.EngCat_CQM, codec.EngCat_GSYNC:
-					packetID = act.Start.PacketID
-					contextID = act.Start.Context
-				}
-				fw.AddFwTrace(dbs.idx, nodeID, deviceID, act.Start.ClusterID, contextID, name,
-					startHostTime, endHostTime, endHostTime-startHostTime,
-					act.StartCycle(), act.EndCycle(), act.EndCycle()-act.StartCycle(),
-					packetID, act.Start.EngineTy,
-					act.Start.EngineIndex,
-				)
-				dbs.fwOpCount++
-				dbs.idx++
-			} else {
-				convertToHostError++
+
+		getName := func(act rtdata.FwActivity) string {
+			switch act.Start.EngineTypeCode {
+			case codec.EngCat_TS:
+				str, _ := rtdata.ToTSEventString(act.Start.Event)
+				return str
+			case codec.EngCat_CQM, codec.EngCat_GSYNC:
+				str, _ := rtdata.ToCQMEventString(act.Start.Event)
+				return str
 			}
+			return fmt.Sprintf("Engine(%v)", act.Start.EngineTy)
 		}
+		name := getName(act)
+
+		fwActCount++
+		startHostTime, startOK := tm.MapToHosttime(act.StartCycle())
+		endHostTime, endOK := tm.MapToHosttime(act.EndCycle())
+		if startOK && endOK {
+			packetID, contextID := 0, -1
+			switch act.Start.EngineTypeCode {
+			case codec.EngCat_CQM, codec.EngCat_GSYNC:
+				packetID = act.Start.PacketID
+				contextID = act.Start.Context
+			}
+			fw.AddFwTrace(dbs.idx, nodeID, deviceID, act.Start.ClusterID, contextID, name,
+				startHostTime, endHostTime, endHostTime-startHostTime,
+				act.StartCycle(), act.EndCycle(), act.EndCycle()-act.StartCycle(),
+				packetID, act.Start.EngineTy,
+				act.Start.EngineIndex,
+			)
+			dbs.fwOpCount++
+			dbs.idx++
+		} else {
+			convertToHostError++
+		}
+
 	}
 	if convertToHostError > 0 {
 		fmt.Printf("error: FW ACT convert-time error: %v\n", convertToHostError)
