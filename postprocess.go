@@ -15,9 +15,10 @@ import (
 )
 
 type PostProcessor struct {
-	rtDict            *rtinfo.RuntimeTaskManager
-	qm, fwVec, dmaVec *rtdata.OpEventQueue
-	tm                *rtinfo.TimelineManager
+	rtDict *rtinfo.RuntimeTaskManager
+	qm     *rtdata.EventQueue
+	// fwVec, dmaVec *rtdata.EventQueue
+	tm *rtinfo.TimelineManager
 
 	curAlgo vgrule.ActMatchAlgo
 	loader  efintf.InfoReceiver
@@ -29,15 +30,15 @@ func NewPostProcesser(loader efintf.InfoReceiver,
 	rtDict := rtinfo.NewRuntimeTaskManager()
 	rtDict.LoadRuntimeTask(loader)
 
-	qm := rtdata.NewOpEventQueue(curAlgo,
+	qm := rtdata.NewOpEventQueue(rtdata.NewOpActCollector(curAlgo),
 		codec.DbgPktDetector{},
 	)
-	fwVec := rtdata.NewOpEventQueue(curAlgo,
-		codec.FwPktDetector{},
-	)
-	dmaVec := rtdata.NewOpEventQueue(curAlgo,
-		codec.DmaDetector{},
-	)
+	// fwVec := rtdata.NewOpEventQueue(curAlgo,
+	// 	codec.FwPktDetector{},
+	// )
+	// dmaVec := rtdata.NewOpEventQueue(curAlgo,
+	// 	codec.DmaDetector{},
+	// )
 	tm := rtinfo.NewTimelineManager()
 	tm.LoadTimepoints(loader)
 	return PostProcessor{
@@ -45,9 +46,9 @@ func NewPostProcesser(loader efintf.InfoReceiver,
 		curAlgo: curAlgo,
 		rtDict:  rtDict,
 		qm:      qm,
-		fwVec:   fwVec,
-		dmaVec:  dmaVec,
-		tm:      tm,
+		// fwVec:   fwVec,
+		// dmaVec:  dmaVec,
+		tm: tm,
 	}
 }
 
@@ -55,9 +56,9 @@ func (p PostProcessor) GetSinkers() []sess.EventSinker {
 	return []sess.EventSinker{
 		p.rtDict,
 		p.qm,
-		p.fwVec,
+		// p.fwVec,
 		p.tm,
-		p.dmaVec,
+		// p.dmaVec,
 	}
 }
 
@@ -83,8 +84,8 @@ type DbDumper interface {
 }
 
 func (p PostProcessor) DoPostProcessing(coord rtdata.Coords, dbe DbDumper) {
-	log.Printf("fwVec count: %v", len(p.fwVec.OpActivity()))
-	log.Printf("dmaVec count: %v", len(p.dmaVec.OpActivity()))
+	// log.Printf("fwVec count: %v", len(p.fwVec.OpActivity()))
+	// log.Printf("dmaVec count: %v", len(p.dmaVec.OpActivity()))
 
 	p.qm.DumpInfo()
 	p.tm.AlignToHostTimeline()
@@ -103,6 +104,7 @@ func (p PostProcessor) DoPostProcessing(coord rtdata.Coords, dbe DbDumper) {
 		meta.TestExecRaw(p.rtDict.GetExecRaw())
 
 		var tr dbexport.TraceEventSession
+
 		unProcessed := p.rtDict.CookCqm(p.qm.OpActivity(),
 			p.curAlgo)
 		var wildProcess []rtdata.OpActivity
@@ -169,31 +171,31 @@ func (p PostProcessor) DoPostProcessing(coord rtdata.Coords, dbe DbDumper) {
 			},
 		)
 
-		dbe.DumpFwActs(
-			coord,
-			p.fwVec.OpActivity(), p.tm,
-			func(act rtdata.OpActivity) (bool, string, string) {
-				switch act.Start.EngineTypeCode {
-				case codec.EngCat_TS:
-					str, _ := rtdata.ToTSEventString(act.Start.Event)
-					return true, "", str
-				case codec.EngCat_CQM, codec.EngCat_GSYNC:
-					str, _ := rtdata.ToCQMEventString(act.Start.Event)
-					return true, "", str
-				}
-				return false, "", ""
-			},
-		)
+		// dbe.DumpFwActs(
+		// 	coord,
+		// 	p.fwVec.OpActivity(), p.tm,
+		// 	func(act rtdata.OpActivity) (bool, string, string) {
+		// 		switch act.Start.EngineTypeCode {
+		// 		case codec.EngCat_TS:
+		// 			str, _ := rtdata.ToTSEventString(act.Start.Event)
+		// 			return true, "", str
+		// 		case codec.EngCat_CQM, codec.EngCat_GSYNC:
+		// 			str, _ := rtdata.ToCQMEventString(act.Start.Event)
+		// 			return true, "", str
+		// 		}
+		// 		return false, "", ""
+		// 	},
+		// )
 
-		dbe.DumpDmaActs(
-			coord,
-			p.dmaVec.OpActivity(), p.tm,
-			func(act rtdata.OpActivity) (bool, string, string) {
-				name, _ := rtdata.ToDmaEventString(act.Start.Event)
-				return true, "", name
+		// dbe.DumpDmaActs(
+		// 	coord,
+		// 	p.dmaVec.OpActivity(), p.tm,
+		// 	func(act rtdata.OpActivity) (bool, string, string) {
+		// 		name, _ := rtdata.ToDmaEventString(act.Start.Event)
+		// 		return true, "", name
 
-			},
-		)
+		// 	},
+		// )
 
 	}
 }
