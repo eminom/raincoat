@@ -37,15 +37,16 @@ func (dmaS *DmaSession) AddDmaTrace(idx, nodeID, devID, clusterID, ctxID int, na
 	startTS, endTS, durTS uint64,
 	startCy, endCy, durCy uint64,
 	packetId int, engineType string,
+	tilingMode string,
 	engineID int) {
 	//0:0:-1:2:ENGINE_TS:0:CQM Executable Launch0
 	// row_name as name
-	tilingMode := engineType
+	rowName := name
 	_, err := dmaS.stmt.Exec(idx, nodeID, devID, clusterID, ctxID, name,
 		startTS, endTS, durTS,
 		startCy, endCy, durCy,
 		packetId, engineType,
-		GetNextVpId(), name,
+		GetNextVpId(), rowName,
 		tilingMode,
 		engineID,
 		fmt.Sprintf("%v:%v:%v:%v:%v:%v:%v",

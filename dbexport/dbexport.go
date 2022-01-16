@@ -194,22 +194,25 @@ func (dbs *DbSession) DumpDmaActs(
 	nodeID, deviceID := coords.NodeID, coords.DeviceID
 	for _, act := range bundle {
 
-		getName := func(act rtdata.DmaActivity) string {
-			name, _ := rtdata.ToDmaEventString(act.Start.Event)
-			return name
-		}
-
-		name := getName(act)
 		dmaActCount++
 		startHostTime, startOK := tm.MapToHosttime(act.StartCycle())
 		endHostTime, endOK := tm.MapToHosttime(act.EndCycle())
 		if startOK && endOK {
 			packetID, contextID := act.Start.PacketID, act.Start.Context
+
+			name, _ := rtdata.ToDmaEventString(act.Start.Event)
+			tilingMode := act.Start.EngineTy // Unknown tiling mode(Slice,Transpose, etc)
+			if act.IsDmaMetaRefValid() {
+				dmaMeta := act.GetDmaMeta()
+				tilingMode = dmaMeta.DmaOpString
+			}
+
 			dmaS.AddDmaTrace(dbs.idx, nodeID, deviceID, act.Start.ClusterID,
 				contextID, name,
 				startHostTime, endHostTime, endHostTime-startHostTime,
 				act.StartCycle(), act.EndCycle(), act.EndCycle()-act.StartCycle(),
 				packetID, act.Start.EngineTy,
+				tilingMode,
 				act.Start.EngineIndex,
 			)
 			dbs.dmaOpCount++
