@@ -46,6 +46,13 @@ func (es ExecScope) FindOp(packetId int) (DtuOp, error) {
 	return DtuOp{}, ErrInvalidPacketId
 }
 
+func (es ExecScope) FindDma(packetId int) (DmaOp, error) {
+	if dmaOp, ok := es.dmaMap.Info[packetId]; ok {
+		return dmaOp, nil
+	}
+	return DmaOp{}, ErrInvalidPacketId
+}
+
 func (es ExecScope) CheckOpMapStatus(opMap map[int]bool) {
 	matchedCount := 0
 	for opId := range opMap {

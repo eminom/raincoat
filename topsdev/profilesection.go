@@ -112,6 +112,7 @@ import "C"
 import (
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"reflect"
 	"unsafe"
@@ -276,7 +277,10 @@ func (ps ProfileSecPipBoy) verifySize() bool {
 	return true
 }
 
-func ParseProfileSection(pb *topspb.SerializeExecutableData) *metadata.ExecScope {
+func ParseProfileSection(
+	pb *topspb.SerializeExecutableData,
+	debugStdout io.Writer,
+) *metadata.ExecScope {
 	data := pb.GetData()
 
 	newPb := NewProfileSecPipBoy(data)
@@ -311,7 +315,8 @@ func ParseProfileSection(pb *topspb.SerializeExecutableData) *metadata.ExecScope
 		pkt2opSec := *(*C.Pkt2OpSec)(unsafe.Pointer(uVal))
 		addPkt2Op(int(pkt2opSec.pkt), int(pkt2opSec.op))
 	}
-	log.Printf("%v pkt to op entries added", len(pkt2OpDict))
+	fmt.Fprintf(debugStdout, "# %v pkt to op entries added", len(pkt2OpDict))
+	fmt.Fprintf(debugStdout, "\n")
 
 	dataStart = getDataChunk(newPb.pkt2OpSecSize())
 	opInformationMap := make(map[int]metadata.DtuOp)
@@ -319,7 +324,8 @@ func ParseProfileSection(pb *topspb.SerializeExecutableData) *metadata.ExecScope
 		if _, ok := opInformationMap[opId]; ok {
 			panic(errors.New("duplicate op-id"))
 		}
-		log.Printf("op: <%v>", name)
+		fmt.Fprintf(debugStdout, "op: <%v>", name)
+		fmt.Fprintf(debugStdout, "\n")
 		opInformationMap[opId] = metadata.DtuOp{
 			OpId:   opId,
 			OpName: name,
@@ -330,7 +336,8 @@ func ParseProfileSection(pb *topspb.SerializeExecutableData) *metadata.ExecScope
 		opMetaSec := *(*C.OpMetaSec)(unsafe.Pointer(uVal))
 		addOpInfo(int(opMetaSec.id), newPb.ExtractStringAt(int(opMetaSec.name)))
 	}
-	log.Printf("%v op info entries added", len(opInformationMap))
+	fmt.Fprintf(debugStdout, "%v op info entries added", len(opInformationMap))
+	fmt.Fprintf(debugStdout, "\n")
 
 	getDataChunk(newPb.opMetaSecSize())
 	dataStart = getDataChunk(newPb.moduleSecSize())
@@ -339,7 +346,8 @@ func ParseProfileSection(pb *topspb.SerializeExecutableData) *metadata.ExecScope
 		if _, ok := dmaInfoMap[packetId]; ok {
 			panic(fmt.Errorf("duplicate dma packet id(in meta): %v", packetId))
 		}
-		log.Printf("dma: <%v>", dc["dma_op"])
+		fmt.Fprintf(debugStdout, "dma: <%v>", dc["dma_op"])
+		fmt.Fprintf(debugStdout, "\n")
 		dmaInfoMap[packetId] = metadata.DmaOp{
 			PktId:       packetId,
 			DmaOpString: dc["dma_op"],

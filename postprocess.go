@@ -18,8 +18,8 @@ type PostProcessor struct {
 	rtDict *rtinfo.RuntimeTaskManager
 	qm     *rtdata.EventQueue
 	fwVec  *rtdata.EventQueue
-	// dmaVec *rtdata.EventQueue
-	tm *rtinfo.TimelineManager
+	dmaVec *rtdata.EventQueue
+	tm     *rtinfo.TimelineManager
 
 	curAlgo vgrule.ActMatchAlgo
 	loader  efintf.InfoReceiver
@@ -37,9 +37,9 @@ func NewPostProcesser(loader efintf.InfoReceiver,
 	fwVec := rtdata.NewOpEventQueue(rtdata.NewFwActCollector(curAlgo),
 		codec.FwPktDetector{},
 	)
-	// dmaVec := rtdata.NewOpEventQueue(curAlgo,
-	// 	codec.DmaDetector{},
-	// )
+	dmaVec := rtdata.NewOpEventQueue(rtdata.NewDmaCollector(curAlgo),
+		codec.DmaDetector{},
+	)
 	tm := rtinfo.NewTimelineManager()
 	tm.LoadTimepoints(loader)
 	return PostProcessor{
@@ -48,8 +48,8 @@ func NewPostProcesser(loader efintf.InfoReceiver,
 		rtDict:  rtDict,
 		qm:      qm,
 		fwVec:   fwVec,
-		// dmaVec:  dmaVec,
-		tm: tm,
+		dmaVec:  dmaVec,
+		tm:      tm,
 	}
 }
 
@@ -59,7 +59,7 @@ func (p PostProcessor) GetSinkers() []sess.EventSinker {
 		p.qm,
 		p.fwVec,
 		p.tm,
-		// p.dmaVec,
+		p.dmaVec,
 	}
 }
 
@@ -77,15 +77,14 @@ type DbDumper interface {
 	)
 	DumpDmaActs(
 		coords rtdata.Coords,
-		bundle []rtdata.OpActivity,
+		bundle []rtdata.DmaActivity,
 		tm *rtinfo.TimelineManager,
-		extractor dbexport.ExtractOpInfo,
 	)
 }
 
 func (p PostProcessor) DoPostProcessing(coord rtdata.Coords, dbe DbDumper) {
-	log.Printf("fwVec count: %v", len(p.fwVec.FwActivity()))
-	// log.Printf("dmaVec count: %v", len(p.dmaVec.OpActivity()))
+	log.Printf("# fwVec count: %v", p.fwVec.ActCount())
+	log.Printf("# dmaVec count: %v", p.dmaVec.ActCount())
 
 	p.qm.DumpInfo()
 	p.tm.AlignToHostTimeline()
@@ -176,15 +175,12 @@ func (p PostProcessor) DoPostProcessing(coord rtdata.Coords, dbe DbDumper) {
 			p.fwVec.FwActivity(), p.tm,
 		)
 
-		// dbe.DumpDmaActs(
-		// 	coord,
-		// 	p.dmaVec.OpActivity(), p.tm,
-		// 	func(act rtdata.OpActivity) (bool, string, string) {
-		// 		name, _ := rtdata.ToDmaEventString(act.Start.Event)
-		// 		return true, "", name
+		p.rtDict.CookDma(p.dmaVec.DmaActivity(), p.curAlgo)
 
-		// 	},
-		// )
+		dbe.DumpDmaActs(
+			coord,
+			p.dmaVec.DmaActivity(), p.tm,
+		)
 
 	}
 }

@@ -28,3 +28,7 @@ func (q FwActCollector) DumpInfo() {
 func (q FwActCollector) GetActivity() interface{} {
 	return q.acts
 }
+
+func (q FwActCollector) ActCount() int {
+	return len(q.acts)
+}

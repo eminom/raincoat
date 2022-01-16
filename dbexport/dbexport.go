@@ -184,9 +184,8 @@ func (dbs *DbSession) DumpFwActs(
 
 func (dbs *DbSession) DumpDmaActs(
 	coords rtdata.Coords,
-	bundle []rtdata.OpActivity,
+	bundle []rtdata.DmaActivity,
 	tm *rtinfo.TimelineManager,
-	extractor ExtractOpInfo,
 ) {
 	dmaS := NewDmaSession(dbs.dbObject)
 	defer dmaS.Close()
@@ -194,24 +193,31 @@ func (dbs *DbSession) DumpDmaActs(
 	dmaActCount, convertToHostError := 0, 0
 	nodeID, deviceID := coords.NodeID, coords.DeviceID
 	for _, act := range bundle {
-		if okToShow, _, name := extractor(act); okToShow {
-			dmaActCount++
-			startHostTime, startOK := tm.MapToHosttime(act.StartCycle())
-			endHostTime, endOK := tm.MapToHosttime(act.EndCycle())
-			if startOK && endOK {
-				packetID, contextID := act.Start.PacketID, act.Start.Context
-				dmaS.AddDmaTrace(dbs.idx, nodeID, deviceID, act.Start.ClusterID, contextID, name,
-					startHostTime, endHostTime, endHostTime-startHostTime,
-					act.StartCycle(), act.EndCycle(), act.EndCycle()-act.StartCycle(),
-					packetID, act.Start.EngineTy,
-					act.Start.EngineIndex,
-				)
-				dbs.dmaOpCount++
-				dbs.idx++
-			} else {
-				convertToHostError++
-			}
+
+		getName := func(act rtdata.DmaActivity) string {
+			name, _ := rtdata.ToDmaEventString(act.Start.Event)
+			return name
 		}
+
+		name := getName(act)
+		dmaActCount++
+		startHostTime, startOK := tm.MapToHosttime(act.StartCycle())
+		endHostTime, endOK := tm.MapToHosttime(act.EndCycle())
+		if startOK && endOK {
+			packetID, contextID := act.Start.PacketID, act.Start.Context
+			dmaS.AddDmaTrace(dbs.idx, nodeID, deviceID, act.Start.ClusterID,
+				contextID, name,
+				startHostTime, endHostTime, endHostTime-startHostTime,
+				act.StartCycle(), act.EndCycle(), act.EndCycle()-act.StartCycle(),
+				packetID, act.Start.EngineTy,
+				act.Start.EngineIndex,
+			)
+			dbs.dmaOpCount++
+			dbs.idx++
+		} else {
+			convertToHostError++
+		}
+		// }
 	}
 	if convertToHostError > 0 {
 		fmt.Printf("error: DMA ACT convert-time error: %v\n", convertToHostError)

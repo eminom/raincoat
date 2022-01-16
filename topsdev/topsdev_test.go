@@ -1,6 +1,7 @@
 package topsdev
 
 import (
+	"os"
 	"testing"
 )
 
@@ -28,7 +29,7 @@ func TestBasicTopsdev(t *testing.T) {
 	dumpDpfringbuffer(pb)
 	dumpExecRaw(pb)
 	for _, seri := range pb.Dtu.Meta.ExecutableProfileSerialize {
-		ParseProfileSection(seri)
+		ParseProfileSection(seri, os.Stdout)
 	}
 	t.Logf("done parse profile section")
 }

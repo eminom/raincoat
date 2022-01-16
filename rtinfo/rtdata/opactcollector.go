@@ -55,3 +55,7 @@ func (opVec *OpActCollector) AddAct(start, end codec.DpfEvent) {
 		},
 	})
 }
+
+func (opVec OpActCollector) ActCount() int {
+	return len(opVec.acts)
+}

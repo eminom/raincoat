@@ -20,3 +20,7 @@ func (q DpfAct) EndCycle() uint64 {
 func (q DpfAct) Duration() int64 {
 	return int64(q.EndCycle()) - int64(q.StartCycle())
 }
+
+func (q DpfAct) IsOfEngine(engineTypeCode codec.EngineTypeCode) bool {
+	return q.Start.EngineTypeCode == engineTypeCode
+}

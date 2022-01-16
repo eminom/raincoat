@@ -53,3 +53,7 @@ func (dmaVec *DmaActCollector) AddAct(start, end codec.DpfEvent) {
 		},
 	})
 }
+
+func (dmaVec DmaActCollector) ActCount() int {
+	return len(dmaVec.acts)
+}

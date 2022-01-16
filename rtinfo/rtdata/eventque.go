@@ -13,6 +13,7 @@ type ActCollector interface {
 	GetAlgo() vgrule.ActMatchAlgo
 	DumpInfo()
 	GetActivity() interface{}
+	ActCount() int
 }
 
 type EventQueue struct {
@@ -86,6 +87,8 @@ func (q EventQueue) DumpInfo() {
 		}
 	}
 }
+
+// func (q EventQueue)
 
 // Some casters
 func (q EventQueue) OpActivity() []OpActivity {

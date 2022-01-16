@@ -68,10 +68,16 @@ func (pb pbLoader) LoadTimepoints() (hosttp []rtdata.HostTimeEntry, ok bool) {
 	return
 }
 
+type DummyStdout struct{}
+
+func (DummyStdout) Write(buf []byte) (int, error) {
+	return len(buf), nil
+}
+
 func (pb pbLoader) LoadExecScope(execUuid uint64) *metadata.ExecScope {
 	for _, seri := range pb.pbObj.Dtu.Meta.ExecutableProfileSerialize {
 		if seri.GetExecUuid() == execUuid {
-			return ParseProfileSection(seri)
+			return ParseProfileSection(seri, DummyStdout{})
 		}
 	}
 	return nil

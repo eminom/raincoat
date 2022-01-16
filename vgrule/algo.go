@@ -1,9 +1,18 @@
 package vgrule
 
-import "git.enflame.cn/hai.bai/dmaster/codec"
+import (
+	"math/bits"
+
+	"git.enflame.cn/hai.bai/dmaster/assert"
+	"git.enflame.cn/hai.bai/dmaster/codec"
+)
 
 type EngineOrder interface {
 	GetEngineOrder(dpf codec.DpfEvent) int
+	GetCdmaPgBitOrder(codec.DpfEvent) int
+	GetSdmaPgBitOrder(codec.DpfEvent) int
+	MapPgMaskBitsToCdmaEngineMask(pgMask int) int
+	MapPgMaskBitsToSdmaEngineMask(pgMask int) int
 }
 
 type MasterValueDecoder interface {
@@ -43,6 +52,49 @@ func (a doradoRule) DecodeChan(chNum int) (int, int) {
 		chNum & (1<<codec.RTCONTEXT_BITCOUNT - 1)
 }
 
+/*
+Get engine order for CQM/GSYNC
+6 pg, 6 CQM/GSYNC (master engine)
+*/
 func (a doradoRule) GetEngineOrder(dpf codec.DpfEvent) int {
 	return dpf.EngineIndex + 3*dpf.ClusterID
+}
+
+func (a doradoRule) GetCdmaPgBitOrder(dpf codec.DpfEvent) int {
+	return a.GetEngineOrder(dpf)
+}
+
+/*
+12 SIPs per cluster
+0~3   pg 0
+4~7   pg 1
+8~11  pg 2
+Going to fit into the 1 of the 6 bits (6 PGs for dorado)
+*/
+func (a doradoRule) GetSdmaPgBitOrder(dpf codec.DpfEvent) int {
+	return dpf.EngineIndex/4 + 3*dpf.ClusterID
+}
+
+func (a doradoRule) MapPgMaskBitsToCdmaEngineMask(pgMask int) int {
+	// For now(Until Jan.16.2022)
+	// Only single PG is implemented
+	// SO TODO
+	if bits.OnesCount(uint(pgMask)) == 1 {
+		return pgMask
+	}
+	// Could be more
+	assert.Assert(false, "No a single bit pg-mask")
+	return 0
+}
+
+func (a doradoRule) MapPgMaskBitsToSdmaEngineMask(pgMask int) int {
+	// For now(Until Jan.16.2022)
+	// Only single PG is implemented
+	// SO TODO
+	if bits.OnesCount(uint(pgMask)) == 1 {
+		return pgMask
+	}
+	// Could be more
+	assert.Assert(false, "No a single bit pg-mask")
+	return 0
 }

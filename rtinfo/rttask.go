@@ -17,6 +17,8 @@ import (
 	"git.enflame.cn/hai.bai/dmaster/vgrule"
 )
 
+const MAX_BACKTRACE_TASK_COUNT = 6
+
 var (
 	ErrNoExecMeta = errors.New("no exec meta info for runtime")
 )
@@ -166,6 +168,18 @@ func (r *RuntimeTaskManager) LookupOpIdByPacketID(
 	return exec.FindOp(packetId)
 }
 
+func (r *RuntimeTaskManager) LookupDma(execUuid uint64, packetId int) (metadata.DmaOp, error) {
+	if r.execKnowledge == nil {
+		return metadata.DmaOp{}, ErrNoExecMeta
+	}
+	exec, ok := r.execKnowledge.FindExecScope(execUuid)
+	if !ok {
+		log.Printf("exec %016x is not loaded", exec)
+		return metadata.DmaOp{}, ErrNoExecMeta
+	}
+	return exec.FindDma(packetId)
+}
+
 func (r RuntimeTaskManager) lowerBoundForTaskVec(cycle uint64) int {
 	lz := len(r.orderedTaskVector)
 	lo, hi := 0, lz
@@ -197,7 +211,10 @@ func (r RuntimeTaskManager) upperBoundForTaskVec(cycle uint64) int {
 }
 
 // CookCqm:  find dtu-op meta information for the Cqm Act
-func (rtm *RuntimeTaskManager) CookCqm(opActVec []rtdata.OpActivity, rule vgrule.EngineOrder) []rtdata.OpActivity {
+func (rtm *RuntimeTaskManager) CookCqm(
+	opActVec []rtdata.OpActivity,
+	rule vgrule.EngineOrder,
+) []rtdata.OpActivity {
 	// Each time we start processing a new session
 	// We create a new object to do the math
 	vec := rtm.orderedTaskVector
@@ -211,10 +228,9 @@ func (rtm *RuntimeTaskManager) CookCqm(opActVec []rtdata.OpActivity, rule vgrule
 		curAct := &opActVec[i]
 		start := curAct.StartCycle()
 		idxStart := rtm.upperBoundForTaskVec(start)
-		// backtrace for no more than 5
-		const maxBacktraceTaskCount = 6
+		// backtrace for no more than MAX_BACKTRACE_TASK_COUNT
 		found := false
-		for j := idxStart - 1; j > idxStart-1-maxBacktraceTaskCount; j-- {
+		for j := idxStart - 1; j > idxStart-1-MAX_BACKTRACE_TASK_COUNT; j-- {
 			if j < 0 || j >= len(vec) {
 				continue
 			}
@@ -491,4 +507,44 @@ func (rtm *RuntimeTaskManager) DumpInfos(orderTask rtdata.OrderTasks) {
 		execScope := rtm.FindExecFor(task.GetExecUuid())
 		task.DumpStatusInfo(execScope)
 	}
+}
+
+func (rtm *RuntimeTaskManager) CookDma(
+	dmaActVec []rtdata.DmaActivity,
+	algo vgrule.ActMatchAlgo,
+) []rtdata.DmaActivity {
+	vec := rtm.orderedTaskVector
+	for i := 0; i < len(vec); i++ {
+		vec[i].CreateNewState()
+	}
+
+	bingoCount := 0
+	for i := 0; i < len(dmaActVec); i++ {
+		curAct := &dmaActVec[i]
+		startCy := curAct.StartCycle()
+		idxStart := rtm.upperBoundForTaskVec(startCy)
+		for j := idxStart - 1; j >= 0 &&
+			j > idxStart-1-MAX_BACKTRACE_TASK_COUNT; j-- {
+			// taskInOrder := vec[j]
+			taskInOrder := vec[j]
+			if !taskInOrder.IsValid() {
+				// SKIP. It is danger to skip
+				// just because it is not setup correctly with meta.
+				continue
+			}
+			if !taskInOrder.MatchXDMA(*curAct, algo) {
+				continue
+			}
+			if dmaOp, err := rtm.LookupDma(taskInOrder.GetExecUuid(),
+				curAct.Start.PacketID); err == nil {
+				bingoCount++
+				curAct.SetDmaRef(rtdata.NewDmaRef(&dmaOp,
+					taskInOrder.GetRefToTask()))
+			} else {
+				fmt.Printf("error for dma: %v, packet id = %v\n", err, curAct.Start.PacketID)
+			}
+		}
+	}
+	fmt.Printf("Dma meta set SUCCESS %v out of %v\n", bingoCount, len(dmaActVec))
+	return nil
 }
