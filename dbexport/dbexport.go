@@ -210,10 +210,11 @@ func (dbs *DbSession) DumpDmaActs(
 			dmaS.AddDmaTrace(dbs.idx, nodeID, deviceID, act.Start.ClusterID,
 				contextID, name,
 				startHostTime, endHostTime, endHostTime-startHostTime,
-				act.StartCycle(), act.EndCycle(), act.EndCycle()-act.StartCycle(),
+				act.StartCycle(), act.EndCycle(), uint64(act.Duration()),
 				packetID, act.Start.EngineTy,
 				tilingMode,
-				act.Start.EngineIndex,
+				act.GetEngineIndex(),
+				act.GetVcId(),
 			)
 			dbs.dmaOpCount++
 			dbs.idx++

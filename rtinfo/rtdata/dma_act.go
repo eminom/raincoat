@@ -35,4 +35,12 @@ func (q *DmaActivity) SetDmaRef(dmaRef DmaMetaRef) {
 	q.dmaRef = dmaRef
 }
 
+func (q DmaActivity) GetVcId() int {
+	return (q.Start.Event >> 2) & (1<<6 - 1)
+}
+
+func (q DmaActivity) GetEngineIndex() int {
+	return q.Start.EngineIndex
+}
+
 type DmaActivityVec []DmaActivity

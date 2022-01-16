@@ -21,6 +21,7 @@ func NewDmaSession(db *sql.DB) *DmaSession {
 			vp_id, row_name,
 			tiling_mode,
 			engine_id,
+			vc,
 			tid
 		) values(?, ?, ?, ?, ?, ?,
 		         ?, ?, ?,
@@ -29,16 +30,19 @@ func NewDmaSession(db *sql.DB) *DmaSession {
 				 ?, ?,
 				 ?,
 				 ?,
+				 ?,
 				 ?)`),
 	}
 }
 
-func (dmaS *DmaSession) AddDmaTrace(idx, nodeID, devID, clusterID, ctxID int, name string,
+func (dmaS *DmaSession) AddDmaTrace(idx, nodeID, devID, clusterID, ctxID int,
+	name string,
 	startTS, endTS, durTS uint64,
 	startCy, endCy, durCy uint64,
 	packetId int, engineType string,
 	tilingMode string,
-	engineID int) {
+	engineID int,
+	vc int) {
 	//0:0:-1:2:ENGINE_TS:0:CQM Executable Launch0
 	// row_name as name
 	rowName := name
@@ -49,6 +53,7 @@ func (dmaS *DmaSession) AddDmaTrace(idx, nodeID, devID, clusterID, ctxID int, na
 		GetNextVpId(), rowName,
 		tilingMode,
 		engineID,
+		vc,
 		fmt.Sprintf("%v:%v:%v:%v:%v:%v:%v",
 			nodeID, devID, ctxID, clusterID, engineType, engineID, name),
 	)

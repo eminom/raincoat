@@ -86,7 +86,9 @@ func (DmaDetector) GetEngineTypes() []EngineTypeCode {
 // bit8: b'0
 // bit9~31(23 bit packet id)
 func (DmaDetector) IsStarterMark(evt DpfEvent) (bool, bool) {
-	return evt.Event&3 == DmaVcExecStart, evt.Event&3 == DmaVcExecEnd
+	evtCode := evt.Event & 3
+	return evtCode == DmaVcExecStart || evtCode == DmaBusyStart,
+		evtCode == DmaVcExecEnd || evtCode == DmaBusyEnd
 }
 
 func getVcVal(v int) int {
