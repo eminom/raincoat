@@ -38,7 +38,7 @@ var (
 			NewCompatibleDmaInfoLoader,
 		},
 		{
-			"_opmeta.pbdumptxt",
+			"_memcpy.pbdumptxt",
 			NewPbDmaInfoLoader,
 		},
 	}
