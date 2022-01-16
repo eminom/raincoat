@@ -99,8 +99,13 @@ func getVcVal(v int) int {
 	return (v >> 1) & ((1 << (VC_BITCOUNT + 1)) - 1)
 }
 
+func getXdmaEvt(dpf DpfEvent) int {
+	return (dpf.Event >> 1) & 1
+}
+
 func (DmaDetector) TestIfMatch(former, latter DpfEvent) bool {
 	return former.EngineTypeCode == latter.EngineTypeCode &&
 		former.PacketID == latter.PacketID &&
+		getXdmaEvt(former) == getXdmaEvt(latter) &&
 		getVcVal(former.Event) == getVcVal(latter.Event)
 }
