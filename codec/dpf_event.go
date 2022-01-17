@@ -54,10 +54,10 @@ func (d DpfEvent) ToString() string {
 			return fmt.Sprintf("%-10v %-10v ts=%v",
 				d.EngineTy, d.DpfSyncIndex(), d.Cycle)
 		}
-		return fmt.Sprintf("%-10v %-2v %-2v %-2v event=%-4v pid=%v ts=%08x",
+		return fmt.Sprintf("%-10v %-2v %-2v %-2v event=%-4v pid=%v ts=%-14d",
 			d.EngineTy, d.ClusterID, d.EngineIndex, d.Context, d.Event, d.PacketID, d.Cycle)
 	}
-	return fmt.Sprintf("%-6v %-2v %-2v event=%v payload=%v ts=%08x",
+	return fmt.Sprintf("%-6v %-2v %-2v event=%v payload=%v ts=%-14d",
 		d.EngineTy, d.ClusterID, d.EngineIndex, d.Event, d.Payload, d.Cycle)
 }
 
