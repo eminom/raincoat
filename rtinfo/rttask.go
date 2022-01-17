@@ -519,6 +519,10 @@ func (rtm *RuntimeTaskManager) CookDma(
 	}
 
 	bingoCount := 0
+	errDmaCount := 0
+	cdmaErrCount, sdmaErrCount := 0, 0
+	skippedDmaCount := 0
+	const errPrintLimit = 10
 	for i := 0; i < len(dmaActVec); i++ {
 		curAct := &dmaActVec[i]
 		startCy := curAct.StartCycle()
@@ -541,10 +545,44 @@ func (rtm *RuntimeTaskManager) CookDma(
 				curAct.SetDmaRef(rtdata.NewDmaRef(&dmaOp,
 					taskInOrder.GetRefToTask()))
 			} else {
-				fmt.Printf("error for dma: %v, packet id = %v\n", err, curAct.Start.PacketID)
+				if !shallSkipErrDma(curAct.Start) {
+					errDmaCount++
+					if errDmaCount < errPrintLimit {
+						fmt.Printf("error for dma: %v, packet id = %v, %v\n",
+							err,
+							curAct.Start.PacketID,
+							curAct.Start.EngineTy,
+						)
+					} else if errDmaCount == errPrintLimit {
+						fmt.Printf("too many dma errors")
+					}
+
+					// statistics
+					switch curAct.Start.EngineTypeCode {
+					case codec.EngCat_SDMA:
+						sdmaErrCount++
+					case codec.EngCat_CDMA:
+						cdmaErrCount++
+					}
+
+				} else {
+					skippedDmaCount++
+				}
 			}
 		}
 	}
-	fmt.Printf("Dma meta set SUCCESS %v out of %v\n", bingoCount, len(dmaActVec))
+	fmt.Printf("Dma meta set SUCCESS %v out of %v, error count: %v\n",
+		bingoCount,
+		len(dmaActVec),
+		errDmaCount,
+	)
+	fmt.Printf("   %v are skipped\n", skippedDmaCount)
+	fmt.Printf("   Cdma error: %v, Sdma error: %v\n",
+		cdmaErrCount, sdmaErrCount)
 	return nil
+}
+
+// For now only some SDMA are skipped
+func shallSkipErrDma(evt codec.DpfEvent) bool {
+	return evt.EngineTypeCode == codec.EngCat_SDMA && evt.PacketID == 0x5beaf
 }

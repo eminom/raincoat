@@ -242,12 +242,20 @@ func (sess *SessBroadcaster) DispatchToSinkers(
 func (sess SessBroadcaster) emitEventsToSubscribers(
 	subscribers map[codec.EngineTypeCode][]EventSinker,
 ) {
+	errCount := 0
+	const errDisplayLimit = 30
 	for _, evt := range sess.items {
 		for _, subscriber := range subscribers[evt.EngineTypeCode] {
 			err := subscriber.DispatchEvent(evt)
 			if err != nil {
-				fmt.Printf("error dispatch event: %v\n", err)
+				errCount++
+				if errCount < errDisplayLimit {
+					fmt.Printf("error dispatch event: %v\n", err)
+				} else if errCount == errDisplayLimit {
+					fmt.Printf("too many errors for event dispatching\n")
+				}
 			}
 		}
 	}
+	fmt.Printf("# error count: %v\n", errCount)
 }
