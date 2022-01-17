@@ -56,6 +56,8 @@ func (FwPktDetector) TestIfMatch(former, latter DpfEvent) bool {
 	return former.PacketID == latter.PacketID
 }
 
+func (FwPktDetector) PurgePreviousEvents() bool { return false }
+
 func (DbgPktDetector) GetEngineTypes() []EngineTypeCode {
 	return []EngineTypeCode{
 		EngCat_CQM,
@@ -71,6 +73,8 @@ func (DbgPktDetector) TestIfMatch(former, latter DpfEvent) bool {
 	return former.EngineTypeCode == latter.EngineTypeCode &&
 		former.PacketID+1 == latter.PacketID
 }
+
+func (DbgPktDetector) PurgePreviousEvents() bool { return false }
 
 func (DmaDetector) GetEngineTypes() []EngineTypeCode {
 	return []EngineTypeCode{
@@ -109,3 +113,5 @@ func (DmaDetector) TestIfMatch(former, latter DpfEvent) bool {
 		getXdmaEvt(former) == getXdmaEvt(latter) &&
 		getVcVal(former.Event) == getVcVal(latter.Event)
 }
+
+func (DmaDetector) PurgePreviousEvents() bool { return true }

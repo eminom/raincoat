@@ -26,6 +26,7 @@ type EventFilter interface {
 	IsStarterMark(codec.DpfEvent) (bool, bool)
 	TestIfMatch(codec.DpfEvent, codec.DpfEvent) bool
 	GetEngineTypes() []codec.EngineTypeCode
+	PurgePreviousEvents() bool
 }
 
 func NewOpEventQueue(act ActCollector,
@@ -57,10 +58,18 @@ func (q *EventQueue) DispatchEvent(este codec.DpfEvent) error {
 		// Filter-out
 		return nil
 	}
-	if start := q.distr[index].Extract(func(one interface{}) bool {
+
+	tester := func(one interface{}) bool {
 		un := one.(codec.DpfEvent)
 		return q.evtFilter.TestIfMatch(un, este)
-	}); start != nil {
+	}
+
+	if start := q.distr[index].Extract(tester); start != nil {
+		if q.evtFilter.PurgePreviousEvents() {
+			for q.distr[index].Extract(tester) != nil {
+			}
+		}
+
 		startUn := start.(codec.DpfEvent)
 		q.ActCollector.AddAct(startUn, este)
 		return nil

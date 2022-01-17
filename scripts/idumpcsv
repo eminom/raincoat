@@ -1,0 +1,60 @@
+#!/bin/bash
+
+TARGET=$1
+if [ -z ${TARGET} ]; then
+  echo no input 1>&2
+  exit 1
+fi
+
+TABLE=$2
+if [ -z ${TABLE} ]; then
+  TABLE="dtu_op";
+fi
+
+# check
+case ${TABLE} in
+dtu_op)
+;;
+memcpy)
+;;
+fw)
+;;
+*)
+echo UNKNOWN Table ${TABLE} 1>&2
+exit 1
+;;
+esac
+
+TEMPCSV=$(mktemp)
+
+gen_src() {
+cat <<EOF
+.headers on
+.mode csv
+.output ${TEMPCSV}
+select * from ${TABLE};
+EOF
+}
+
+
+SRC=$(mktemp)
+gen_src > ${SRC}
+#cat ${SRC}
+
+sqlite3 ${TARGET} < ${SRC}
+if [[ x$? != x0 ]]; then
+  echo dump error 1>&2
+  exit 1
+fi
+
+OUTHASH=$(sha256sum ${TEMPCSV}|awk '{print $1}')
+INHASH=$(sha256sum ${TARGET}|awk '{print $1}')
+
+echo Taret: ${TARGET}
+echo Table: ${TABLE}
+echo Input: ${INHASH}
+echo Output: ${OUTHASH}
+
+
+
+
