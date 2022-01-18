@@ -43,16 +43,31 @@ func (d DpfEvent) DpfSyncIndex() int {
 	return int(d.RawValue[0] >> 1)
 }
 
+func (d DpfEvent) DpfSyncIndexMasked() int {
+	val := int(d.RawValue[0])
+	// 4 27 1
+	val &= ^(0xF << 28)
+	return val >> 1
+}
+
+func (d DpfEvent) DpfSyncProcId() int {
+	val := int(d.RawValue[0])
+	return 0xf & (val >> 28)
+}
+
 func (d DpfEvent) MasterIdValue() int {
 	return int(d.RawValue[1]) & ((1 << MASTERVALUE_BITCOUNT) - 1)
 }
 
 func (d DpfEvent) ToString() string {
 	if d.Flag == 0 {
-		switch d.EngineTy {
-		case ENGINE_PCIE:
-			return fmt.Sprintf("%-10v %-10v ts=%v",
-				d.EngineTy, d.DpfSyncIndex(), d.Cycle)
+		switch d.EngineTypeCode {
+		case EngCat_PCIE:
+			return fmt.Sprintf("%-10v 0x%x %-10v ts=%v",
+				d.EngineTy,
+				d.DpfSyncProcId(),
+				d.DpfSyncIndexMasked(),
+				d.Cycle)
 		}
 		return fmt.Sprintf("%-10v %-2v %-2v %-2v event=%-4v pid=%v ts=%-14d",
 			d.EngineTy, d.ClusterID, d.EngineIndex, d.Context, d.Event, d.PacketID, d.Cycle)
