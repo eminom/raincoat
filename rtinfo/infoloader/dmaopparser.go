@@ -3,6 +3,7 @@ package infoloader
 import (
 	"bufio"
 	"fmt"
+	"log"
 	"os"
 	"strconv"
 	"strings"
@@ -49,7 +50,12 @@ func (compatibleDmaFetcher) FetchDmaOpDict(
 		if !scan.Scan() {
 			break
 		}
-		pktId, dmaOp := parseSingleLineV0(scan.Text())
+		text := scan.Text()
+		pktId, dmaOp, err := parseSingleLineV0(text)
+		if err != nil {
+			log.Printf("error: parsing %v for text %v", filename, text)
+			panic(err)
+		}
 		if _, ok := dmaOpDict[pktId]; ok {
 			panic(fmt.Errorf("duplicated dma op id: %v", pktId))
 		}
@@ -59,7 +65,7 @@ func (compatibleDmaFetcher) FetchDmaOpDict(
 }
 
 // Split into 7 segments
-func elementSplitAndCombines(text string, fieldsCount int) []string {
+func elementSplitAndCombines(text string) []string {
 	vs := strings.Fields(text)
 	if len(vs) == 0 {
 		return nil
@@ -77,8 +83,23 @@ func elementSplitAndCombines(text string, fieldsCount int) []string {
 	return rvs
 }
 
-func parseSingleLineV0(text string) (int, metadata.DmaOp) {
-	vs := elementSplitAndCombines(text, 7)
+func specialCombines(vs []string) []string {
+	var rv []string
+	for i := 0; i < len(vs); i++ {
+		if vs[i] == "sip" && i < len(vs)-1 && vs[i+1] == "launch" {
+			rv = append(rv, "sip launch")
+			i++
+			continue
+		}
+		rv = append(rv, vs[i])
+	}
+	return rv
+}
+
+func parseSingleLineV0(text string) (int, metadata.DmaOp, error) {
+	vs := elementSplitAndCombines(text)
+	vs = specialCombines(vs)
+
 	pktId, err := strconv.ParseInt(vs[0], 10, 32)
 	if err != nil {
 		panic(err)
@@ -86,7 +107,8 @@ func parseSingleLineV0(text string) (int, metadata.DmaOp) {
 	dmaOp, engineTy := vs[1], vs[2]
 	engineIdx, err := strconv.ParseInt(vs[3], 10, 32)
 	if err != nil {
-		panic(err)
+		return 0, metadata.DmaOp{},
+			fmt.Errorf("error parsing\n%v\nerr: %v", text, err)
 	}
 	attrsStr := ""
 	if len(vs) >= 7 {
@@ -100,7 +122,7 @@ func parseSingleLineV0(text string) (int, metadata.DmaOp) {
 		Input:       vs[4],
 		Output:      vs[5],
 		Attrs:       parserAttrsV0(attrsStr),
-	}
+	}, nil
 }
 
 func parserAttrsV0(attrText string) map[string]string {

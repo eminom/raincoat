@@ -1,0 +1,1 @@
+8388623 dtu.launch_cpu sip launch -1 !dtu.tensor<32x1x5x5xf32:L3> !dtu.tensor<32x1x5x5xf32:L3> 
