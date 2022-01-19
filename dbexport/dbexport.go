@@ -192,6 +192,9 @@ func (dbs *DbSession) DumpDmaActs(
 
 	dmaActCount, convertToHostError := 0, 0
 	nodeID, deviceID := coords.NodeID, coords.DeviceID
+
+	const TimeErrDisplayLimit = 10
+	timeErrCount := 0
 	for _, act := range bundle {
 
 		dmaActCount++
@@ -220,8 +223,18 @@ func (dbs *DbSession) DumpDmaActs(
 			dbs.idx++
 		} else {
 			convertToHostError++
+			timeErrCount++
+			if timeErrCount < TimeErrDisplayLimit {
+				if !startOK {
+					fmt.Printf("start_cycle: %v\n", act.StartCycle())
+				}
+				if !endOK {
+					fmt.Printf("end_cycle: %v\n", act.EndCycle())
+				}
+			} else if timeErrCount == TimeErrDisplayLimit {
+				fmt.Printf("too many DtoH time convert error\n")
+			}
 		}
-		// }
 	}
 	if convertToHostError > 0 {
 		fmt.Printf("error: DMA ACT convert-time error: %v\n", convertToHostError)

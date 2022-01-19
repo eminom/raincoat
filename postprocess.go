@@ -27,6 +27,7 @@ type PostProcessor struct {
 
 func NewPostProcesser(loader efintf.InfoReceiver,
 	curAlgo vgrule.ActMatchAlgo,
+	enableExtendedTimeline bool,
 ) PostProcessor {
 	rtDict := rtinfo.NewRuntimeTaskManager()
 	rtDict.LoadRuntimeTask(loader)
@@ -40,7 +41,10 @@ func NewPostProcesser(loader efintf.InfoReceiver,
 	dmaVec := rtdata.NewOpEventQueue(rtdata.NewDmaCollector(curAlgo),
 		codec.DmaDetector{},
 	)
-	tm := rtinfo.NewTimelineManager()
+	tm := rtinfo.NewTimelineManager(
+		rtinfo.TimeLineManagerOpt{
+			EnableExtendedTimeline: enableExtendedTimeline,
+		})
 	tm.LoadTimepoints(loader)
 	return PostProcessor{
 		loader:  loader,
@@ -53,14 +57,17 @@ func NewPostProcesser(loader efintf.InfoReceiver,
 	}
 }
 
-func (p PostProcessor) GetSinkers() []sess.EventSinker {
-	return []sess.EventSinker{
+func (p PostProcessor) GetSinkers(disableDma bool) []sess.EventSinker {
+	rv := []sess.EventSinker{
 		p.rtDict,
 		p.qm,
 		p.fwVec,
 		p.tm,
-		p.dmaVec,
 	}
+	if !disableDma {
+		rv = append(rv, p.dmaVec)
+	}
+	return rv
 }
 
 type DbDumper interface {

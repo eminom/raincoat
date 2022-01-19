@@ -11,14 +11,19 @@ import (
 	"git.enflame.cn/hai.bai/dmaster/rtinfo/rtdata"
 )
 
+type TimeLineManagerOpt struct {
+	EnableExtendedTimeline bool
+}
+
 type TimelineManager struct {
 	cycles     []rtdata.DevCycleTime
 	hosttp     []rtdata.HostTimeEntry
 	alignedVec []rtdata.DevCycleAligned
+	opts       TimeLineManagerOpt
 }
 
-func NewTimelineManager() *TimelineManager {
-	return &TimelineManager{}
+func NewTimelineManager(opts TimeLineManagerOpt) *TimelineManager {
+	return &TimelineManager{opts: opts}
 }
 
 func ratioMapTo(a, b uint64, c uint64) uint64 {
@@ -30,18 +35,16 @@ func (tm *TimelineManager) MapToHosttime(targetCycle uint64) (uint64, bool) {
 	alignedVec := tm.alignedVec
 	lz := len(alignedVec)
 	lo, hi := 0, lz
+	// looking for upper bound
 	for lo < hi {
 		md := (lo + hi) >> 1
-		if alignedVec[md].DevCycle >= targetCycle {
+		if alignedVec[md].DevCycle > targetCycle {
 			hi = md
 		} else {
 			lo = 1 + md
 		}
 	}
-	bound := lo
-	if bound < lz && alignedVec[bound].DevCycle > targetCycle {
-		bound--
-	}
+	bound := lo - 1
 	if bound < lz-1 && bound >= 0 {
 		hostStart, hostClose := alignedVec[bound].Hosttime,
 			alignedVec[bound+1].Hosttime
@@ -55,7 +58,14 @@ func (tm *TimelineManager) MapToHosttime(targetCycle uint64) (uint64, bool) {
 		hostAligned := hostStart +
 			ratioMapTo(targetCycle-cyStart, cySpan, hostSpan)
 		return hostAligned, true
+	} else if tm.opts.EnableExtendedTimeline {
+		if bound < lz {
+			hostStart := alignedVec[bound].Hosttime
+			devCycleSpan := targetCycle - alignedVec[bound].DevCycle
+			return hostStart + devCycleSpan, true
+		}
 	}
+
 	return 0, false
 }
 

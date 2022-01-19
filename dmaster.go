@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"time"
 
 	"git.enflame.cn/hai.bai/dmaster/codec"
 	"git.enflame.cn/hai.bai/dmaster/dbexport"
@@ -32,6 +33,9 @@ var (
 	fMetaStartup = flag.String("meta", "",
 		"meta startup folder, if need to do some post-processing meta must be specified")
 	fPbMode = flag.Bool("pb", false, "protobuf mode, the latest state-of-art")
+
+	fEnableExTime = flag.Bool("extimeline", false, "enable extended timeline")
+	fDiableDma    = flag.Bool("disabledma", false, "disable dma event dispatching")
 )
 
 func init() {
@@ -51,8 +55,20 @@ func DoProcess(sess *sess.SessBroadcaster, coord rtdata.Coords,
 	algo vgrule.ActMatchAlgo, dbe DbDumper) {
 	loader := sess.GetLoader()
 
-	processer := NewPostProcesser(loader, algo)
-	sess.DispatchToSinkers(processer.GetSinkers()...)
+	processer := NewPostProcesser(loader, algo, *fEnableExTime)
+
+	startTime := time.Now()
+	log.Printf("Starting dispatch events at %v", startTime.Format(time.RFC3339))
+	sess.DispatchToSinkers(
+		processer.GetSinkers(
+			*fDiableDma,
+		)...)
+
+	endTime := time.Now()
+	log.Printf("Done dispatch events at %v", endTime.Format(time.RFC3339))
+
+	durationTime := endTime.Sub(startTime)
+	log.Printf("dispatching cost %v", durationTime)
 	processer.DoPostProcessing(coord, dbe)
 }
 
