@@ -527,6 +527,8 @@ func (rtm *RuntimeTaskManager) CookDma(
 		curAct := &dmaActVec[i]
 		startCy := curAct.StartCycle()
 		idxStart := rtm.upperBoundForTaskVec(startCy)
+		foundDmaMeta := false
+	A100:
 		for j := idxStart - 1; j >= 0 &&
 			j > idxStart-1-MAX_BACKTRACE_TASK_COUNT; j-- {
 			// taskInOrder := vec[j]
@@ -541,33 +543,35 @@ func (rtm *RuntimeTaskManager) CookDma(
 			}
 			if dmaOp, err := rtm.LookupDma(taskInOrder.GetExecUuid(),
 				curAct.Start.PacketID); err == nil {
-				bingoCount++
 				curAct.SetDmaRef(rtdata.NewDmaRef(&dmaOp,
 					taskInOrder.GetRefToTask()))
-			} else {
-				if !shallSkipErrDma(curAct.Start) {
-					errDmaCount++
-					if errDmaCount < errPrintLimit {
-						fmt.Printf("error for dma: %v, packet id = %v, %v\n",
-							err,
-							curAct.Start.PacketID,
-							curAct.Start.EngineTy,
-						)
-					} else if errDmaCount == errPrintLimit {
-						fmt.Printf("too many dma errors")
-					}
-
-					// statistics
-					switch curAct.Start.EngineTypeCode {
-					case codec.EngCat_SDMA:
-						sdmaErrCount++
-					case codec.EngCat_CDMA:
-						cdmaErrCount++
-					}
-
-				} else {
-					skippedDmaCount++
+				foundDmaMeta = true
+				break A100
+			}
+		} // for backtrace all possible tasks
+		if foundDmaMeta {
+			bingoCount++
+		} else {
+			if !shallSkipErrDma(curAct.Start) {
+				errDmaCount++
+				if errDmaCount < errPrintLimit {
+					fmt.Printf("error for no meta dma packet id = %v, %v\n",
+						curAct.Start.PacketID,
+						curAct.Start.EngineTy,
+					)
+				} else if errDmaCount == errPrintLimit {
+					fmt.Printf("too many dma errors\n")
 				}
+
+				// statistics
+				switch curAct.Start.EngineTypeCode {
+				case codec.EngCat_SDMA:
+					sdmaErrCount++
+				case codec.EngCat_CDMA:
+					cdmaErrCount++
+				}
+			} else {
+				skippedDmaCount++
 			}
 		}
 	}
