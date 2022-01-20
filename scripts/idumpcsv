@@ -6,9 +6,26 @@ if [ -z ${TARGET} ]; then
   exit 1
 fi
 
+if [[ ! -f ${TARGET} ]]; then
+  echo not a valid input 1>&2
+  exit
+fi
+
+WC=$(file ${TARGET}|grep SQLite|wc -l)
+if [[ x${WC} != x1 ]]; then
+  echo not a valid db file 1>&2
+  exit
+fi
+
 TABLE=$2
 if [ -z ${TABLE} ]; then
   TABLE="dtu_op";
+fi
+
+
+XLIMIT=""
+if [[ x$3 != x ]]; then
+  XLIMIT=" limit $3"
 fi
 
 # check
@@ -27,12 +44,28 @@ esac
 
 TEMPCSV=$(mktemp)
 
+
+gen_brief() {
+cat <<EOF
+select count(*) from ${TABLE};
+select * from ${TABLE} limit 5;
+EOF
+}
+
+SRC0=$(mktemp)
+gen_brief > ${SRC0}
+sqlite3 ${TARGET} < ${SRC0}
+if [[ x$? != x0 ]]; then
+  echo breifing error 1>&2
+  exit 1
+fi
+
 gen_src() {
 cat <<EOF
 .headers on
 .mode csv
 .output ${TEMPCSV}
-select * from ${TABLE};
+select * from ${TABLE} ${XLIMIT};
 EOF
 }
 
@@ -54,6 +87,9 @@ echo Taret: ${TARGET}
 echo Table: ${TABLE}
 echo Input: ${INHASH}
 echo Output: ${OUTHASH}
+
+set +x
+mv -v ${TEMPCSV} output.csv
 
 
 
