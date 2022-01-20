@@ -61,16 +61,17 @@ func DoProcess(jobCount int, sess *sess.SessBroadcaster, coord rtdata.Coords,
 	startTime := time.Now()
 	log.Printf("Starting dispatch events at %v", startTime.Format(time.RFC3339))
 
-	//
-	// sess.DispatchToSinkers(
-	// 	processer.GetSinkers(
-	// 		*fDiableDma,
-	// 	)...)
-
-	sess.DispatchToConcurSinkers(
-		jobCount,
-		processer.GetConcurSinkers()...,
-	)
+	if jobCount <= 0 {
+		sess.DispatchToSinkers(
+			processer.GetSinkers(
+				*fDiableDma,
+			)...)
+	} else {
+		sess.DispatchToConcurSinkers(
+			jobCount,
+			processer.GetConcurSinkers()...,
+		)
+	}
 
 	endTime := time.Now()
 	log.Printf("Done dispatch events at %v", endTime.Format(time.RFC3339))
@@ -136,7 +137,7 @@ func main() {
 		chunk := contentLoader.LoadRingBufferContent(cidToDecode)
 		sess := sess.NewSessBroadcaster(loader)
 		sess.DecodeChunk(chunk, decoder)
-		DoProcess(sess, coord, curAlgo, dbObj)
+		DoProcess(*fJob, sess, coord, curAlgo, dbObj)
 		coord.DeviceID++
 	}
 
