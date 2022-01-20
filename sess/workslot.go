@@ -85,7 +85,7 @@ func (ws *WorkSlot) FinalizeSlot() {
 		for _, evt := range ws.unprocVec {
 			ws.prevChan <- evt
 		}
-		fmt.Printf("worker{%v} is closing previous chan\n", ws.ToString())
+		// fmt.Printf("worker{%v} is closing previous chan\n", ws.ToString())
 		close(ws.prevChan)
 	}
 }

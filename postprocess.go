@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"time"
 
 	"git.enflame.cn/hai.bai/dmaster/codec"
 	"git.enflame.cn/hai.bai/dmaster/dbexport"
@@ -60,13 +61,13 @@ func NewPostProcesser(loader efintf.InfoReceiver,
 func (p PostProcessor) GetSinkers(disableDma bool) []sessintf.EventSinker {
 	rv := []sessintf.EventSinker{
 		p.rtDict,
-		// p.qm,
-		// p.fwVec,
-		// p.tm,
+		p.qm,
+		p.fwVec,
+		p.tm,
 	}
-	// if !disableDma {
-	// rv = append(rv, p.dmaVec)
-	// }
+	if !disableDma {
+		rv = append(rv, p.dmaVec)
+	}
 	return rv
 }
 
@@ -193,12 +194,14 @@ func (p PostProcessor) DoPostProcessing(coord rtdata.Coords, dbe DbDumper) {
 			p.fwVec.FwActivity(), p.tm,
 		)
 
+		startDmaTs := time.Now()
 		p.rtDict.CookDma(p.dmaVec.DmaActivity(), p.curAlgo)
 
 		dbe.DumpDmaActs(
 			coord,
 			p.dmaVec.DmaActivity(), p.tm,
 		)
+		fmt.Printf("dma cook and save to db cost %v\n", time.Since(startDmaTs))
 
 	}
 }

@@ -247,7 +247,10 @@ func (sess *SessBroadcaster) DispatchToConcurSinkers(
 			subs[typeCode] = append(subs[typeCode], sub)
 		}
 	}
+
+	startTs := time.Now()
 	sess.emitEventsToSubscribersEx(jobCount, subs)
+	fmt.Printf("# event dispatching cost %v\n", time.Since(startTs))
 }
 
 func (sess SessBroadcaster) emitEventsToSubscribersEx(
