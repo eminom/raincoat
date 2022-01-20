@@ -256,8 +256,9 @@ func (sess SessBroadcaster) emitEventsToSubscribersEx(
 ) {
 	// Divide the cake
 	totCount := len(sess.items)
-	workerItemCount, segmentSize := DetermineWorkThread(jobCount,
-		len(sess.items))
+	workerItemCount, segmentSize := DefaultJobDivider().
+		DetermineWorkThread(jobCount,
+			len(sess.items))
 
 	// Create work slot array
 	workers := make([]*WorkSlot, workerItemCount)
