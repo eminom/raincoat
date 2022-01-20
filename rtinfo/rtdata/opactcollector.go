@@ -59,3 +59,15 @@ func (opVec *OpActCollector) AddAct(start, end codec.DpfEvent) {
 func (opVec OpActCollector) ActCount() int {
 	return len(opVec.acts)
 }
+
+func (opVec OpActCollector) AxSelfClone() ActCollector {
+	return &OpActCollector{eAlgo: opVec.eAlgo}
+}
+
+func (opVec OpActCollector) MergeInto(lhs ActCollector) {
+	master := lhs.(*OpActCollector)
+	fmt.Printf("merge %v OpActs into master(currently %v)\n",
+		len(opVec.acts), len(master.acts),
+	)
+	master.acts = append(master.acts, opVec.acts...)
+}

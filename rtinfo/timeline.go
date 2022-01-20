@@ -8,6 +8,7 @@ import (
 	"git.enflame.cn/hai.bai/dmaster/assert"
 	"git.enflame.cn/hai.bai/dmaster/codec"
 	"git.enflame.cn/hai.bai/dmaster/efintf"
+	"git.enflame.cn/hai.bai/dmaster/efintf/sessintf"
 	"git.enflame.cn/hai.bai/dmaster/rtinfo/rtdata"
 )
 
@@ -76,6 +77,16 @@ func (tm *TimelineManager) DispatchEvent(evt codec.DpfEvent) error {
 	}
 	tm.cycles = append(tm.cycles, devCy)
 	return nil
+}
+
+func (tm *TimelineManager) SelfClone() sessintf.ConcurEventSinker {
+	return &TimelineManager{}
+}
+
+func (tm TimelineManager) MergeTo(lhs interface{}) bool {
+	master := lhs.(*TimelineManager)
+	master.cycles = append(master.cycles, tm.cycles...)
+	return true
 }
 
 func (tm *TimelineManager) AlignToHostTimeline() {

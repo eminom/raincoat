@@ -59,10 +59,16 @@ func DoProcess(sess *sess.SessBroadcaster, coord rtdata.Coords,
 
 	startTime := time.Now()
 	log.Printf("Starting dispatch events at %v", startTime.Format(time.RFC3339))
-	sess.DispatchToSinkers(
-		processer.GetSinkers(
-			*fDiableDma,
-		)...)
+
+	//
+	// sess.DispatchToSinkers(
+	// 	processer.GetSinkers(
+	// 		*fDiableDma,
+	// 	)...)
+
+	sess.DispatchToConcurSinkers(
+		processer.GetConcurSinkers()...,
+	)
 
 	endTime := time.Now()
 	log.Printf("Done dispatch events at %v", endTime.Format(time.RFC3339))

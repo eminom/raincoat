@@ -10,6 +10,7 @@ import (
 	"git.enflame.cn/hai.bai/dmaster/assert"
 	"git.enflame.cn/hai.bai/dmaster/codec"
 	"git.enflame.cn/hai.bai/dmaster/efintf"
+	"git.enflame.cn/hai.bai/dmaster/efintf/sessintf"
 	"git.enflame.cn/hai.bai/dmaster/meta"
 	"git.enflame.cn/hai.bai/dmaster/meta/metadata"
 	"git.enflame.cn/hai.bai/dmaster/misc/linklist"
@@ -23,11 +24,17 @@ var (
 	ErrNoExecMeta = errors.New("no exec meta info for runtime")
 )
 
-type RuntimeTaskManager struct {
+var (
+	errNoStartTsEvent = errors.New("no start ts event")
+)
+
+type RuntimeTaskManagerBase struct {
 	taskIdToTask map[int]*rtdata.RuntimeTask // Full runtime task info, include cyccled ones and ones without cycles
 	taskIdVec    []int                       // Full task id vec
 	tsHead       *linklist.Lnk
-
+}
+type RuntimeTaskManager struct {
+	RuntimeTaskManagerBase
 	execKnowledge     *meta.ExecRaw
 	orderedTaskVector []rtdata.OrderTask
 	fullTaskVector    []rtdata.OrderTask
@@ -35,26 +42,49 @@ type RuntimeTaskManager struct {
 
 func NewRuntimeTaskManager() *RuntimeTaskManager {
 	return &RuntimeTaskManager{
-		tsHead: linklist.NewLnkHead(),
+		RuntimeTaskManagerBase: RuntimeTaskManagerBase{
+			tsHead: linklist.NewLnkHead(),
+		},
 	}
 }
 
-func (rtm RuntimeTaskManager) GetEngineTypeCodes() []codec.EngineTypeCode {
-	return []codec.EngineTypeCode{codec.EngCat_TS}
+func (rtm *RuntimeTaskManagerBase) SelfClone() sessintf.ConcurEventSinker {
+	assert.Assert(rtm.tsHead.ElementCount() == 0, "Must be empty")
+	clonedTaskDc := make(map[int]*rtdata.RuntimeTask)
+	for taskId, pToTask := range rtm.taskIdToTask {
+		task := *pToTask // Copy
+		clonedTaskDc[taskId] = &task
+	}
+	clonedTaskIdVec := make([]int, len(rtm.taskIdVec))
+	copy(clonedTaskIdVec, rtm.taskIdVec)
+	cloned := &RuntimeTaskManagerBase{
+		taskIdToTask: clonedTaskDc,
+		taskIdVec:    clonedTaskIdVec,
+		tsHead:       linklist.NewLnkHead(),
+	}
+	return cloned
 }
 
-func (rtm *RuntimeTaskManager) LoadRuntimeTask(
-	infoReceiver efintf.InfoReceiver,
-) bool {
-	dc, taskSequentials, ok := infoReceiver.LoadTask()
-	if !ok {
-		return false
+func (cloned *RuntimeTaskManagerBase) MergeTo(lhs interface{}) bool {
+	master := lhs.(*RuntimeTaskManager)
+	for taskId, pToTask := range cloned.taskIdToTask {
+		if pToTask.CycleValid {
+			pThisTask, ok := master.taskIdToTask[taskId]
+			assert.Assert(ok, "must be there")
+			pThisTask.StartCycle = pToTask.StartCycle
+			pThisTask.EndCycle = pToTask.EndCycle
+			pThisTask.CycleValid = true
+		}
 	}
-	rtm.taskIdToTask, rtm.taskIdVec = dc, taskSequentials
 	return true
 }
 
-func (rtm *RuntimeTaskManager) DispatchEvent(evt codec.DpfEvent) error {
+func (rtm RuntimeTaskManagerBase) GetEngineTypeCodes() []codec.EngineTypeCode {
+	return []codec.EngineTypeCode{codec.EngCat_TS}
+}
+
+// If there is an error, please propagate this event
+func (rtm *RuntimeTaskManagerBase) DispatchEvent(evt codec.DpfEvent) error {
 	if evt.Event == codec.TsLaunchCqmStart {
 		rtm.tsHead.AppendAtTail(evt)
 		return nil
@@ -75,10 +105,24 @@ func (rtm *RuntimeTaskManager) DispatchEvent(evt codec.DpfEvent) error {
 			}
 			return nil
 		}
+		// No start is found
+		return errNoStartTsEvent
 	}
 
 	// Do something for the rest of TS events ??
 	return nil
+}
+
+// For RuntimeTaskManager
+func (rtm *RuntimeTaskManager) LoadRuntimeTask(
+	infoReceiver efintf.InfoReceiver,
+) bool {
+	dc, taskSequentials, ok := infoReceiver.LoadTask()
+	if !ok {
+		return false
+	}
+	rtm.taskIdToTask, rtm.taskIdVec = dc, taskSequentials
+	return true
 }
 
 func (r RuntimeTaskManager) DumpInfo() {

@@ -391,6 +391,20 @@ const (
 	EngCat_UNKNOWN
 )
 
+func EngineTypeCodeFor(walk func(typeCode EngineTypeCode)) {
+	for _, v := range []EngineTypeCode{
+		EngCat_TS,
+		EngCat_PCIE,
+		EngCat_GSYNC,
+		EngCat_CQM,
+		EngCat_CDMA,
+		EngCat_SDMA,
+		EngCat_SIP,
+	} {
+		walk(v)
+	}
+}
+
 func ToEngineTypeCode(engingDesc string) EngineTypeCode {
 	switch engingDesc {
 	case ENGINE_SIP:

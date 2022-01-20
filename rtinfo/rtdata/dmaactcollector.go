@@ -57,3 +57,14 @@ func (dmaVec *DmaActCollector) AddAct(start, end codec.DpfEvent) {
 func (dmaVec DmaActCollector) ActCount() int {
 	return len(dmaVec.acts)
 }
+
+func (dmaVec DmaActCollector) AxSelfClone() ActCollector {
+	return &DmaActCollector{eAlgo: dmaVec.eAlgo}
+}
+
+func (dmaVec DmaActCollector) MergeInto(lhs ActCollector) {
+	master := lhs.(*DmaActCollector)
+	fmt.Printf("merge %v Dma Acts into master(currently %v)\n",
+		len(dmaVec.acts), len(master.acts))
+	master.acts = append(master.acts, dmaVec.acts...)
+}

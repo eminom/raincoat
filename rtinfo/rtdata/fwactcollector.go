@@ -1,6 +1,8 @@
 package rtdata
 
 import (
+	"fmt"
+
 	"git.enflame.cn/hai.bai/dmaster/codec"
 	"git.enflame.cn/hai.bai/dmaster/vgrule"
 )
@@ -31,4 +33,15 @@ func (q FwActCollector) GetActivity() interface{} {
 
 func (q FwActCollector) ActCount() int {
 	return len(q.acts)
+}
+
+func (dmaVec FwActCollector) AxSelfClone() ActCollector {
+	return &FwActCollector{algo: dmaVec.algo}
+}
+
+func (q FwActCollector) MergeInto(lhs ActCollector) {
+	master := lhs.(*FwActCollector)
+	fmt.Printf("merge %v Fw Acts into master(currently %v)\n",
+		len(q.acts), len(master.acts))
+	master.acts = append(master.acts, q.acts...)
 }

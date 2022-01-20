@@ -3,7 +3,9 @@ package rtdata
 import (
 	"fmt"
 
+	"git.enflame.cn/hai.bai/dmaster/assert"
 	"git.enflame.cn/hai.bai/dmaster/codec"
+	"git.enflame.cn/hai.bai/dmaster/efintf/sessintf"
 	"git.enflame.cn/hai.bai/dmaster/misc/linklist"
 	"git.enflame.cn/hai.bai/dmaster/vgrule"
 )
@@ -14,6 +16,9 @@ type ActCollector interface {
 	DumpInfo()
 	GetActivity() interface{}
 	ActCount() int
+
+	MergeInto(ActCollector)
+	AxSelfClone() ActCollector
 }
 
 type EventQueue struct {
@@ -110,4 +115,30 @@ func (q EventQueue) DmaActivity() []DmaActivity {
 
 func (q EventQueue) FwActivity() []FwActivity {
 	return ([]FwActivity)(q.GetActivity().(FwActivityVec))
+}
+
+func (q EventQueue) AllZero() bool {
+	for _, el := range q.distr {
+		if el.ElementCount() > 0 {
+			return false
+		}
+	}
+	return true
+}
+
+func (q EventQueue) SelfClone() sessintf.ConcurEventSinker {
+	assert.Assert(q.AllZero(), "Must be empty")
+
+	cloned := &EventQueue{
+		ActCollector: q.ActCollector.AxSelfClone(),
+		distr:        linklist.NewLnkArray(q.GetAlgo().GetChannelNum()),
+		evtFilter:    q.evtFilter,
+	}
+	return cloned
+}
+
+func (cloned EventQueue) MergeTo(lhs interface{}) bool {
+	master := lhs.(*EventQueue)
+	cloned.MergeInto(master.ActCollector)
+	return true
 }

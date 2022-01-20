@@ -7,10 +7,10 @@ import (
 	"git.enflame.cn/hai.bai/dmaster/codec"
 	"git.enflame.cn/hai.bai/dmaster/dbexport"
 	"git.enflame.cn/hai.bai/dmaster/efintf"
+	"git.enflame.cn/hai.bai/dmaster/efintf/sessintf"
 	"git.enflame.cn/hai.bai/dmaster/meta"
 	"git.enflame.cn/hai.bai/dmaster/rtinfo"
 	"git.enflame.cn/hai.bai/dmaster/rtinfo/rtdata"
-	"git.enflame.cn/hai.bai/dmaster/sess"
 	"git.enflame.cn/hai.bai/dmaster/vgrule"
 )
 
@@ -57,15 +57,26 @@ func NewPostProcesser(loader efintf.InfoReceiver,
 	}
 }
 
-func (p PostProcessor) GetSinkers(disableDma bool) []sess.EventSinker {
-	rv := []sess.EventSinker{
+func (p PostProcessor) GetSinkers(disableDma bool) []sessintf.EventSinker {
+	rv := []sessintf.EventSinker{
+		p.rtDict,
+		// p.qm,
+		// p.fwVec,
+		// p.tm,
+	}
+	// if !disableDma {
+	// rv = append(rv, p.dmaVec)
+	// }
+	return rv
+}
+
+func (p PostProcessor) GetConcurSinkers() []sessintf.ConcurEventSinker {
+	rv := []sessintf.ConcurEventSinker{
 		p.rtDict,
 		p.qm,
 		p.fwVec,
 		p.tm,
-	}
-	if !disableDma {
-		rv = append(rv, p.dmaVec)
+		p.dmaVec,
 	}
 	return rv
 }

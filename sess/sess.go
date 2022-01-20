@@ -9,9 +9,12 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 
 	"git.enflame.cn/hai.bai/dmaster/codec"
 	"git.enflame.cn/hai.bai/dmaster/efintf"
+	"git.enflame.cn/hai.bai/dmaster/efintf/sessintf"
 )
 
 var (
@@ -23,11 +26,6 @@ type SessionOpt struct {
 	Debug        bool
 	DecodeFull   bool
 	Sort         bool
-}
-
-type EventSinker interface {
-	GetEngineTypeCodes() []codec.EngineTypeCode
-	DispatchEvent(codec.DpfEvent) error
 }
 
 type Session struct {
@@ -223,10 +221,10 @@ func (sess SessBroadcaster) GetLoader() efintf.InfoReceiver {
 }
 
 func (sess *SessBroadcaster) DispatchToSinkers(
-	sinkers ...EventSinker,
+	sinkers ...sessintf.EventSinker,
 ) {
 	// subscribers dict
-	subscribers := make(map[codec.EngineTypeCode][]EventSinker)
+	subscribers := make(map[codec.EngineTypeCode][]sessintf.EventSinker)
 
 	// register for all
 	for _, sinker := range sinkers {
@@ -236,22 +234,112 @@ func (sess *SessBroadcaster) DispatchToSinkers(
 		}
 	}
 
-	sess.emitEventsToSubscribers(subscribers)
+	sess.emitEventsToSubscribersSequentials(subscribers)
 }
 
-func (sess SessBroadcaster) emitEventsToSubscribers(
-	subscribers map[codec.EngineTypeCode][]EventSinker,
+func (sess *SessBroadcaster) DispatchToConcurSinkers(
+	sinkers ...sessintf.ConcurEventSinker,
+) {
+	subs := make(map[codec.EngineTypeCode][]sessintf.ConcurEventSinker)
+	for _, sub := range sinkers {
+		for _, typeCode := range sub.GetEngineTypeCodes() {
+			subs[typeCode] = append(subs[typeCode], sub)
+		}
+	}
+	sess.emitEventsToSubscribersEx(subs)
+}
+
+func (sess SessBroadcaster) emitEventsToSubscribersEx(
+	sinkers map[codec.EngineTypeCode][]sessintf.ConcurEventSinker,
+) {
+	// Create work slot array
+	const WorkerItemCount = 7
+	workers := make([]*WorkSlot, WorkerItemCount)
+
+	// Clone work slot
+	for i := 0; i < WorkerItemCount; i++ {
+		workers[i] = NewWorkSlot(i, sinkers)
+	}
+
+	// Create working channels
+	channels := make([]chan codec.DpfEvent, WorkerItemCount)
+	const BUFSIZ = 16
+	for i := 0; i < WorkerItemCount; i++ {
+		channels[i] = make(chan codec.DpfEvent, BUFSIZ)
+	}
+	for i := 0; i < WorkerItemCount; i++ {
+		if i > 0 {
+			workers[i].prevChan = channels[i-1]
+		}
+		if i < WorkerItemCount-1 {
+			workers[i].thisChan = channels[i]
+		}
+	}
+
+	// Launch go-routines carrying the real work
+	var wg sync.WaitGroup
+	workerFunc := func(eventSlice []codec.DpfEvent, wSlot *WorkSlot, nameI int) {
+		defer wg.Done()
+		fmt.Printf("%v working on %v item(s), evntTypesCount(%v),\n",
+			wSlot.ToString(),
+			len(eventSlice),
+			len(wSlot.subscribers))
+
+		for _, evt := range eventSlice {
+			for _, subscriber := range wSlot.subscribers[evt.EngineTypeCode] {
+				err := subscriber.DispatchEvent(evt)
+				if err != nil {
+					wSlot.CacheToUnprocessed(evt)
+				}
+			}
+		}
+		wSlot.FinalizeSlot()
+		fmt.Printf("%v is quitting\n", wSlot.ToString())
+	}
+
+	// Divide the cake
+	totCount := len(sess.items)
+	segmentSize := (totCount + WorkerItemCount - 1) / WorkerItemCount
+
+	// Now start it
+	for i := 0; i < WorkerItemCount; i++ {
+		start, endi := i*segmentSize, (i+1)*segmentSize
+		if endi > totCount {
+			endi = totCount
+		}
+		wg.Add(1)
+		go workerFunc(sess.items[start:endi], workers[i], i)
+	}
+
+	// Finalize
+	wg.Wait()
+
+	// Merge results
+	fmt.Printf("starting merging results\n")
+	for i := 0; i < WorkerItemCount; i++ {
+		fmt.Printf("merging with [%v]...\n", i)
+		startTs := time.Now()
+		workers[i].DoReduce(sinkers)
+		fmt.Printf("done in %v\n", time.Since(startTs))
+	}
+	fmt.Printf("done merging\n")
+}
+
+func (sess SessBroadcaster) emitEventsToSubscribersSequentials(
+	subscribers map[codec.EngineTypeCode][]sessintf.EventSinker,
 ) {
 	errCount := 0
-	const errDisplayLimit = 30
+	const ErrDisplayCountLimit = 30
+	// The original way
+
 	for _, evt := range sess.items {
 		for _, subscriber := range subscribers[evt.EngineTypeCode] {
 			err := subscriber.DispatchEvent(evt)
 			if err != nil {
 				errCount++
-				if errCount < errDisplayLimit {
+				if errCount < ErrDisplayCountLimit {
 					fmt.Printf("error dispatch event: %v\n", err)
-				} else if errCount == errDisplayLimit {
+				} else if errCount == ErrDisplayCountLimit {
 					fmt.Printf("too many errors for event dispatching\n")
 				}
 			}
