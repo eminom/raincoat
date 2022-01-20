@@ -238,6 +238,7 @@ func (sess *SessBroadcaster) DispatchToSinkers(
 }
 
 func (sess *SessBroadcaster) DispatchToConcurSinkers(
+	jobCount int,
 	sinkers ...sessintf.ConcurEventSinker,
 ) {
 	subs := make(map[codec.EngineTypeCode][]sessintf.ConcurEventSinker)
@@ -246,32 +247,37 @@ func (sess *SessBroadcaster) DispatchToConcurSinkers(
 			subs[typeCode] = append(subs[typeCode], sub)
 		}
 	}
-	sess.emitEventsToSubscribersEx(subs)
+	sess.emitEventsToSubscribersEx(jobCount, subs)
 }
 
 func (sess SessBroadcaster) emitEventsToSubscribersEx(
+	jobCount int,
 	sinkers map[codec.EngineTypeCode][]sessintf.ConcurEventSinker,
 ) {
+	// Divide the cake
+	totCount := len(sess.items)
+	workerItemCount, segmentSize := DetermineWorkThread(jobCount,
+		len(sess.items))
+
 	// Create work slot array
-	const WorkerItemCount = 7
-	workers := make([]*WorkSlot, WorkerItemCount)
+	workers := make([]*WorkSlot, workerItemCount)
 
 	// Clone work slot
-	for i := 0; i < WorkerItemCount; i++ {
+	for i := 0; i < workerItemCount; i++ {
 		workers[i] = NewWorkSlot(i, sinkers)
 	}
 
 	// Create working channels
-	channels := make([]chan codec.DpfEvent, WorkerItemCount)
+	channels := make([]chan codec.DpfEvent, workerItemCount)
 	const BUFSIZ = 16
-	for i := 0; i < WorkerItemCount; i++ {
+	for i := 0; i < workerItemCount; i++ {
 		channels[i] = make(chan codec.DpfEvent, BUFSIZ)
 	}
-	for i := 0; i < WorkerItemCount; i++ {
+	for i := 0; i < workerItemCount; i++ {
 		if i > 0 {
 			workers[i].prevChan = channels[i-1]
 		}
-		if i < WorkerItemCount-1 {
+		if i < workerItemCount-1 {
 			workers[i].thisChan = channels[i]
 		}
 	}
@@ -297,12 +303,8 @@ func (sess SessBroadcaster) emitEventsToSubscribersEx(
 		fmt.Printf("%v is quitting\n", wSlot.ToString())
 	}
 
-	// Divide the cake
-	totCount := len(sess.items)
-	segmentSize := (totCount + WorkerItemCount - 1) / WorkerItemCount
-
 	// Now start it
-	for i := 0; i < WorkerItemCount; i++ {
+	for i := 0; i < workerItemCount; i++ {
 		start, endi := i*segmentSize, (i+1)*segmentSize
 		if endi > totCount {
 			endi = totCount
@@ -316,7 +318,7 @@ func (sess SessBroadcaster) emitEventsToSubscribersEx(
 
 	// Merge results
 	fmt.Printf("starting merging results\n")
-	for i := 0; i < WorkerItemCount; i++ {
+	for i := 0; i < workerItemCount; i++ {
 		fmt.Printf("merging with [%v]...\n", i)
 		startTs := time.Now()
 		workers[i].DoReduce(sinkers)

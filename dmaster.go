@@ -36,6 +36,7 @@ var (
 
 	fEnableExTime = flag.Bool("extimeline", false, "enable extended timeline")
 	fDiableDma    = flag.Bool("disabledma", false, "disable dma event dispatching")
+	fJob          = flag.Int("job", 7, "jobs to go concurrent")
 )
 
 func init() {
@@ -51,7 +52,7 @@ func init() {
 	}
 }
 
-func DoProcess(sess *sess.SessBroadcaster, coord rtdata.Coords,
+func DoProcess(jobCount int, sess *sess.SessBroadcaster, coord rtdata.Coords,
 	algo vgrule.ActMatchAlgo, dbe DbDumper) {
 	loader := sess.GetLoader()
 
@@ -67,6 +68,7 @@ func DoProcess(sess *sess.SessBroadcaster, coord rtdata.Coords,
 	// 	)...)
 
 	sess.DispatchToConcurSinkers(
+		jobCount,
 		processer.GetConcurSinkers()...,
 	)
 
