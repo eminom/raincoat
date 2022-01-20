@@ -296,11 +296,16 @@ func (sess SessBroadcaster) emitEventsToSubscribersEx(
 			len(wSlot.subscribers))
 
 		for _, evt := range eventSlice {
+			needPropagate := false // per event. Do OR logic
 			for _, subscriber := range wSlot.subscribers[evt.EngineTypeCode] {
 				err := subscriber.DispatchEvent(evt)
 				if err != nil {
-					wSlot.CacheToUnprocessed(evt)
+					needPropagate = true
+					// and no break
 				}
+			}
+			if needPropagate {
+				wSlot.CacheToUnprocessed(evt)
 			}
 		}
 		wSlot.FinalizeSlot()
