@@ -2,6 +2,8 @@ package rtdata
 
 import (
 	"fmt"
+	"sort"
+	"time"
 
 	"git.enflame.cn/hai.bai/dmaster/codec"
 	"git.enflame.cn/hai.bai/dmaster/vgrule"
@@ -66,8 +68,15 @@ func (opVec OpActCollector) AxSelfClone() ActCollector {
 
 func (opVec OpActCollector) MergeInto(lhs ActCollector) {
 	master := lhs.(*OpActCollector)
+	opVec.DoSort()
 	fmt.Printf("merge %v OpActs into master(currently %v)\n",
 		len(opVec.acts), len(master.acts),
 	)
 	master.acts = append(master.acts, opVec.acts...)
+}
+
+func (opVec OpActCollector) DoSort() {
+	startTs := time.Now()
+	sort.Sort(opVec.acts)
+	fmt.Printf("sort %v dtuops in %v\n", len(opVec.acts), time.Since(startTs))
 }

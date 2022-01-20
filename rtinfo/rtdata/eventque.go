@@ -19,6 +19,8 @@ type ActCollector interface {
 
 	MergeInto(ActCollector)
 	AxSelfClone() ActCollector
+
+	DoSort()
 }
 
 type EventQueue struct {

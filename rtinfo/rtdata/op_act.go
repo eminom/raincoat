@@ -38,3 +38,15 @@ func (q *OpActivity) SetOpRef(opRef OpRef) {
 }
 
 type OpActivityVector []OpActivity
+
+func (opa OpActivityVector) Len() int {
+	return len(opa)
+}
+
+func (opa OpActivityVector) Less(i, j int) bool {
+	return opa[i].StartCycle() < opa[j].StartCycle()
+}
+
+func (opa OpActivityVector) Swap(i, j int) {
+	opa[i], opa[j] = opa[j], opa[i]
+}

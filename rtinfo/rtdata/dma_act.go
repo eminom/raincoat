@@ -44,3 +44,15 @@ func (q DmaActivity) GetEngineIndex() int {
 }
 
 type DmaActivityVec []DmaActivity
+
+func (d DmaActivityVec) Len() int {
+	return len(d)
+}
+
+func (d DmaActivityVec) Less(i, j int) bool {
+	return d[i].StartCycle() < d[j].StartCycle()
+}
+
+func (d DmaActivityVec) Swap(i, j int) {
+	d[i], d[j] = d[j], d[i]
+}

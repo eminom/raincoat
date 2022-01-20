@@ -66,6 +66,7 @@ func DoProcess(jobCount int, sess *sess.SessBroadcaster, coord rtdata.Coords,
 			processer.GetSinkers(
 				*fDiableDma,
 			)...)
+		processer.Sorts()
 	} else {
 		sess.DispatchToConcurSinkers(
 			jobCount,

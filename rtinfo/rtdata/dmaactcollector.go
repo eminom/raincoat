@@ -2,6 +2,8 @@ package rtdata
 
 import (
 	"fmt"
+	"sort"
+	"time"
 
 	"git.enflame.cn/hai.bai/dmaster/codec"
 	"git.enflame.cn/hai.bai/dmaster/vgrule"
@@ -64,7 +66,14 @@ func (dmaVec DmaActCollector) AxSelfClone() ActCollector {
 
 func (dmaVec DmaActCollector) MergeInto(lhs ActCollector) {
 	master := lhs.(*DmaActCollector)
+	dmaVec.DoSort()
 	fmt.Printf("merge %v Dma Acts into master(currently %v)\n",
 		len(dmaVec.acts), len(master.acts))
 	master.acts = append(master.acts, dmaVec.acts...)
+}
+
+func (dmaVec DmaActCollector) DoSort() {
+	startTs := time.Now()
+	sort.Sort(dmaVec.acts)
+	fmt.Printf("sort %v dma ops in %v\n", len(dmaVec.acts), time.Since(startTs))
 }

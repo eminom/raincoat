@@ -205,3 +205,13 @@ func (p PostProcessor) DoPostProcessing(coord rtdata.Coords, dbe DbDumper) {
 
 	}
 }
+
+func (pp *PostProcessor) Sorts() {
+	for _, v := range []rtdata.ActCollector{
+		pp.dmaVec,
+		pp.qm,
+		pp.fwVec,
+	} {
+		v.DoSort()
+	}
+}
