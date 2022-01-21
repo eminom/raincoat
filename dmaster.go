@@ -6,6 +6,8 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sort"
+	"sync"
 	"time"
 
 	"git.enflame.cn/hai.bai/dmaster/codec"
@@ -52,11 +54,13 @@ func init() {
 	}
 }
 
-func DoProcess(jobCount int, sess *sess.SessBroadcaster, coord rtdata.Coords,
-	algo vgrule.ActMatchAlgo, dbe DbDumper) {
+func DoProcess(jobCount int, sess *sess.SessBroadcaster,
+	algo vgrule.ActMatchAlgo,
+	seqId int,
+) PostProcessor {
 	loader := sess.GetLoader()
 
-	processer := NewPostProcesser(loader, algo, *fEnableExTime)
+	processer := NewPostProcesser(loader, algo, *fEnableExTime, seqId)
 
 	startTime := time.Now()
 	log.Printf("Starting dispatch events at %v", startTime.Format(time.RFC3339))
@@ -81,7 +85,8 @@ func DoProcess(jobCount int, sess *sess.SessBroadcaster, coord rtdata.Coords,
 
 	durationTime := endTime.Sub(startTime)
 	log.Printf("dispatching cost %v", durationTime)
-	processer.DoPostProcessing(coord, dbe)
+	processer.DoPostProcessing()
+	return processer
 }
 
 func getOutputName(a string) string {
@@ -122,6 +127,34 @@ func main() {
 		return
 	}
 
+	curAlgo := vgrule.NewDoradoRule(decoder)
+
+	// Start concurrency
+	rbCount := contentLoader.GetRingBufferCount()
+	resChan := make(chan PostProcessor, rbCount)
+	var wg sync.WaitGroup
+	perCardProcess := func(fileIdx int, outputChan chan<- PostProcessor) {
+		defer wg.Done()
+		cidToDecode := 0
+		chunk := contentLoader.LoadRingBufferContent(cidToDecode, fileIdx)
+		sess := sess.NewSessBroadcaster(loader)
+		sess.DecodeChunk(chunk, decoder)
+		outputChan <- DoProcess(*fJob, sess, curAlgo, fileIdx)
+	}
+	for i := 0; i < rbCount; i++ {
+		wg.Add(1)
+		go perCardProcess(i, resChan)
+	}
+	wg.Wait()
+
+	// Collect result
+	var ps []PostProcessor
+	for i := 0; i < rbCount; i++ {
+		ps = append(ps, <-resChan)
+	}
+	sort.Sort(PostProcessors(ps))
+
+	// Dump to DB
 	// Use the first input file as the output filename
 	outputVpd := getOutputName(flag.Args()[0])
 	dbObj, err := dbexport.NewDbSession(outputVpd)
@@ -134,14 +167,9 @@ func main() {
 		NodeID:   0,
 		DeviceID: 0,
 	}
-	curAlgo := vgrule.NewDoradoRule(decoder)
-	for i := 0; i < contentLoader.GetRingBufferCount(); i++ {
-		cidToDecode := 0
-		chunk := contentLoader.LoadRingBufferContent(cidToDecode, i)
-		sess := sess.NewSessBroadcaster(loader)
-		sess.DecodeChunk(chunk, decoder)
-		DoProcess(*fJob, sess, coord, curAlgo, dbObj)
+	for i := 0; i < rbCount; i++ {
 		coord.DeviceID++
+		ps[i].DumpToDb(coord, dbObj)
 	}
 
 	fmt.Printf("dumped to %v\n", outputVpd)

@@ -24,11 +24,13 @@ type PostProcessor struct {
 
 	curAlgo vgrule.ActMatchAlgo
 	loader  efintf.InfoReceiver
+	seqIdx  int
 }
 
 func NewPostProcesser(loader efintf.InfoReceiver,
 	curAlgo vgrule.ActMatchAlgo,
 	enableExtendedTimeline bool,
+	seqIdx int,
 ) PostProcessor {
 	rtDict := rtinfo.NewRuntimeTaskManager()
 	rtDict.LoadRuntimeTask(loader)
@@ -55,6 +57,7 @@ func NewPostProcesser(loader efintf.InfoReceiver,
 		fwVec:   fwVec,
 		dmaVec:  dmaVec,
 		tm:      tm,
+		seqIdx:  seqIdx,
 	}
 }
 
@@ -101,7 +104,32 @@ type DbDumper interface {
 	)
 }
 
-func (p PostProcessor) DoPostProcessing(coord rtdata.Coords, dbe DbDumper) {
+func (p PostProcessor) DumpToDb(coord rtdata.Coords, dbe DbDumper) {
+	dbe.DumpDtuOps(
+		coord,
+		p.qm.OpActivity(), p.tm,
+		func(act rtdata.OpActivity) (bool, string, string) {
+			if act.IsOpRefValid() {
+				return true,
+					act.GetTask().ToShortString(),
+					act.GetOp().OpName
+			}
+			return false, "Unknown Task", "Unk"
+		},
+	)
+
+	dbe.DumpFwActs(
+		coord,
+		p.fwVec.FwActivity(), p.tm,
+	)
+	dbe.DumpDmaActs(
+		coord,
+		p.dmaVec.DmaActivity(), p.tm,
+	)
+
+}
+
+func (p PostProcessor) DoPostProcessing() {
 	log.Printf("# fwVec count: %v", p.fwVec.ActCount())
 	log.Printf("# dmaVec count: %v", p.dmaVec.ActCount())
 
@@ -176,31 +204,9 @@ func (p PostProcessor) DoPostProcessing(coord rtdata.Coords, dbe DbDumper) {
 			len(wildProcess))
 		tr.DumpToFile("dtuop_trace.json")
 
-		dbe.DumpDtuOps(
-			coord,
-			p.qm.OpActivity(), p.tm,
-			func(act rtdata.OpActivity) (bool, string, string) {
-				if act.IsOpRefValid() {
-					return true,
-						act.GetTask().ToShortString(),
-						act.GetOp().OpName
-				}
-				return false, "Unknown Task", "Unk"
-			},
-		)
-
-		dbe.DumpFwActs(
-			coord,
-			p.fwVec.FwActivity(), p.tm,
-		)
-
 		startDmaTs := time.Now()
 		p.rtDict.CookDma(p.dmaVec.DmaActivity(), p.curAlgo)
 
-		dbe.DumpDmaActs(
-			coord,
-			p.dmaVec.DmaActivity(), p.tm,
-		)
 		fmt.Printf("dma cook and save to db cost %v\n", time.Since(startDmaTs))
 
 	}
@@ -214,4 +220,19 @@ func (pp *PostProcessor) Sorts() {
 	} {
 		v.DoSort()
 	}
+}
+
+// Result must be sorted to keep aligned with result in sequential processing
+type PostProcessors []PostProcessor
+
+func (ps PostProcessors) Len() int {
+	return len(ps)
+}
+
+func (ps PostProcessors) Less(i, j int) bool {
+	return ps[i].seqIdx < ps[j].seqIdx
+}
+
+func (ps PostProcessors) Swap(i, j int) {
+	ps[i], ps[j] = ps[j], ps[i]
 }
