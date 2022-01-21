@@ -66,7 +66,7 @@ func (dmaVec DmaActCollector) AxSelfClone() ActCollector {
 
 func (dmaVec DmaActCollector) MergeInto(lhs ActCollector) {
 	master := lhs.(*DmaActCollector)
-	dmaVec.DoSort()
+	// dmaVec.DoSort()
 	fmt.Printf("merge %v Dma Acts into master(currently %v)\n",
 		len(dmaVec.acts), len(master.acts))
 	master.acts = append(master.acts, dmaVec.acts...)

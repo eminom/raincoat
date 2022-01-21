@@ -53,12 +53,15 @@ EOF
 }
 
 SRC0=$(mktemp)
+
+DOBRIEFX="""
 gen_brief > ${SRC0}
 sqlite3 ${TARGET} < ${SRC0}
 if [[ x$? != x0 ]]; then
   echo breifing error 1>&2
   exit 1
 fi
+"""
 
 gen_src() {
 cat <<EOF
@@ -88,8 +91,8 @@ echo Table: ${TABLE}
 echo Input: ${INHASH}
 echo Output: ${OUTHASH}
 
-set +x
-mv -v ${TEMPCSV} output.csv
+#set +x
+#mv -v ${TEMPCSV} output.csv
 
 
 

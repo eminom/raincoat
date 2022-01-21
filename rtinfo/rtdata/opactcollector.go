@@ -68,7 +68,7 @@ func (opVec OpActCollector) AxSelfClone() ActCollector {
 
 func (opVec OpActCollector) MergeInto(lhs ActCollector) {
 	master := lhs.(*OpActCollector)
-	opVec.DoSort()
+	// opVec.DoSort()
 	fmt.Printf("merge %v OpActs into master(currently %v)\n",
 		len(opVec.acts), len(master.acts),
 	)

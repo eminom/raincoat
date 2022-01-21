@@ -18,40 +18,40 @@ func NewFwActCollector(eAlgo vgrule.ActMatchAlgo) ActCollector {
 	return &FwActCollector{algo: eAlgo}
 }
 
-func (q FwActCollector) GetAlgo() vgrule.ActMatchAlgo {
-	return q.algo
+func (fwa FwActCollector) GetAlgo() vgrule.ActMatchAlgo {
+	return fwa.algo
 }
 
-func (q *FwActCollector) AddAct(start, end codec.DpfEvent) {
-	q.acts = append(q.acts, FwActivity{DpfAct{start, end}})
+func (fwa *FwActCollector) AddAct(start, end codec.DpfEvent) {
+	fwa.acts = append(fwa.acts, FwActivity{DpfAct{start, end}})
 }
 
-func (q FwActCollector) DumpInfo() {
+func (fwa FwActCollector) DumpInfo() {
 
 }
-func (q FwActCollector) GetActivity() interface{} {
-	return q.acts
+func (fwa FwActCollector) GetActivity() interface{} {
+	return fwa.acts
 }
 
-func (q FwActCollector) ActCount() int {
-	return len(q.acts)
+func (fwa FwActCollector) ActCount() int {
+	return len(fwa.acts)
 }
 
-func (dmaVec FwActCollector) AxSelfClone() ActCollector {
-	return &FwActCollector{algo: dmaVec.algo}
+func (fwa FwActCollector) AxSelfClone() ActCollector {
+	return &FwActCollector{algo: fwa.algo}
 }
 
-func (q FwActCollector) MergeInto(lhs ActCollector) {
+func (fwa FwActCollector) MergeInto(lhs ActCollector) {
 	master := lhs.(*FwActCollector)
-	q.DoSort()
+	// fwa.DoSort()
 	fmt.Printf("merge %v Fw Acts into master(currently %v)\n",
-		len(q.acts), len(master.acts))
-	master.acts = append(master.acts, q.acts...)
+		len(fwa.acts), len(master.acts))
+	master.acts = append(master.acts, fwa.acts...)
 }
 
-func (q FwActCollector) DoSort() {
+func (fwa FwActCollector) DoSort() {
 	// In-place sort works
 	startTs := time.Now()
-	sort.Sort(q.acts)
-	fmt.Printf("sort %v fw acts in %v\n", len(q.acts), time.Since(startTs))
+	sort.Sort(fwa.acts)
+	fmt.Printf("sort %v fw acts in %v\n", len(fwa.acts), time.Since(startTs))
 }

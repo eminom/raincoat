@@ -66,13 +66,15 @@ func DoProcess(jobCount int, sess *sess.SessBroadcaster, coord rtdata.Coords,
 			processer.GetSinkers(
 				*fDiableDma,
 			)...)
-		processer.Sorts()
 	} else {
 		sess.DispatchToConcurSinkers(
 			jobCount,
 			processer.GetConcurSinkers()...,
 		)
 	}
+
+	// All sorts
+	processer.Sorts()
 
 	endTime := time.Now()
 	log.Printf("Done dispatch events at %v", endTime.Format(time.RFC3339))
