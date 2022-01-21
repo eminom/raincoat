@@ -135,9 +135,9 @@ func main() {
 		DeviceID: 0,
 	}
 	curAlgo := vgrule.NewDoradoRule(decoder)
-	for contentLoader.HasMore() {
+	for i := 0; i < contentLoader.GetRingBufferCount(); i++ {
 		cidToDecode := 0
-		chunk := contentLoader.LoadRingBufferContent(cidToDecode)
+		chunk := contentLoader.LoadRingBufferContent(cidToDecode, i)
 		sess := sess.NewSessBroadcaster(loader)
 		sess.DecodeChunk(chunk, decoder)
 		DoProcess(*fJob, sess, coord, curAlgo, dbObj)

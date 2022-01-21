@@ -6,8 +6,8 @@ import (
 )
 
 type RingBufferLoader interface {
-	LoadRingBufferContent(cid int) []byte
-	HasMore() bool
+	LoadRingBufferContent(cid int, ringbufferIdx int) []byte
+	GetRingBufferCount() int
 }
 
 type InfoReceiver interface {

@@ -105,11 +105,11 @@ func NewPbComplex(name string) (
 	return
 }
 
-func (pb PbComplex) HasMore() bool {
-	return pb.ringbufferContentIdx < 1
+func (pb PbComplex) GetRingBufferCount() int {
+	return 1
 }
 
-func (pb *PbComplex) LoadRingBufferContent(cid int) []byte {
+func (pb PbComplex) LoadRingBufferContent(cid int, idx int) []byte {
 	if cid < 0 || cid >= len(pb.pbObj.Dtu.Data.TimestampVec) {
 		log.Printf("invalid cid: %v", cid)
 		return nil

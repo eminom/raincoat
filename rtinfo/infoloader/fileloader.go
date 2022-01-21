@@ -301,7 +301,6 @@ func (d metaFileLoader) LoadExecScope(execUuid uint64) *metadata.ExecScope {
 
 type bufferLoader struct {
 	rawfilenames []string
-	idx          int
 }
 
 func NewContentBufferLoader(rawfilenames ...string) *bufferLoader {
@@ -310,13 +309,12 @@ func NewContentBufferLoader(rawfilenames ...string) *bufferLoader {
 	return &bufferLoader{rawfilenames: files}
 }
 
-func (bl bufferLoader) HasMore() bool {
-	return bl.idx < len(bl.rawfilenames)
+func (bl bufferLoader) GetRingBufferCount() int {
+	return len(bl.rawfilenames)
 }
 
-func (bl *bufferLoader) LoadRingBufferContent(cid int) []byte {
-	name := bl.rawfilenames[bl.idx]
-	bl.idx++
+func (bl bufferLoader) LoadRingBufferContent(cid int, rbIdx int) []byte {
+	name := bl.rawfilenames[rbIdx]
 	chunk, err := os.ReadFile(name)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error reading %v\n", name)
