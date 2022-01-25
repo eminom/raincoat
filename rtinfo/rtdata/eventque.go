@@ -34,6 +34,7 @@ type EventFilter interface {
 	TestIfMatch(codec.DpfEvent, codec.DpfEvent) bool
 	GetEngineTypes() []codec.EngineTypeCode
 	PurgePreviousEvents() bool
+	IsTerminator(codec.DpfEvent) bool
 }
 
 func NewOpEventQueue(act ActCollector,
@@ -56,6 +57,12 @@ func (q *EventQueue) DispatchEvent(este codec.DpfEvent) error {
 		este.MasterIdValue(),
 		este.Context,
 	)
+
+	if q.evtFilter.IsTerminator(este) {
+		q.distr[index].PurgeContent()
+		return nil
+	}
+
 	isStart, isEnd := q.evtFilter.IsStarterMark(este)
 	if isStart {
 		q.distr[index].AppendAtFront(este)

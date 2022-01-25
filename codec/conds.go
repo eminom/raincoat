@@ -35,6 +35,10 @@ func isFwInterested(event int) bool {
 	return false
 }
 
+func (FwPktDetector) IsTerminator(evt DpfEvent) bool {
+	return false
+}
+
 func (FwPktDetector) IsStarterMark(evt DpfEvent) (bool, bool) {
 	return isFwInterested(evt.Event),
 		(evt.Event&1) == 0 && isFwInterested(evt.Event+1)
@@ -65,6 +69,10 @@ func (DbgPktDetector) GetEngineTypes() []EngineTypeCode {
 	}
 }
 
+func (DbgPktDetector) IsTerminator(evt DpfEvent) bool {
+	return evt.Event == CqmEventDebugPacketStepEnd
+}
+
 func (DbgPktDetector) IsStarterMark(evt DpfEvent) (bool, bool) {
 	return evt.Event == CqmEventOpStart, evt.Event == CqmEventOpEnd
 }
@@ -81,6 +89,10 @@ func (DmaDetector) GetEngineTypes() []EngineTypeCode {
 		EngCat_CDMA,
 		EngCat_SDMA,
 	}
+}
+
+func (DmaDetector) IsTerminator(DpfEvent) bool {
+	return false
 }
 
 // Master Word for CDMA/SDMA

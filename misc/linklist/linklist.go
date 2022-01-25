@@ -23,6 +23,12 @@ func (l *Lnk) AppendAtTail(item interface{}) {
 	l.elCount++
 }
 
+func (l *Lnk) PurgeContent() {
+	l.head.Next = nil
+	l.tail = &l.head
+	l.elCount = 0
+}
+
 func (l *Lnk) AppendAtFront(item interface{}) {
 	oldNext := l.head.Next
 	l.head.Next = &LnkNode{
