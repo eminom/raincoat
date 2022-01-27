@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"git.enflame.cn/hai.bai/dmaster/efintf"
+	"git.enflame.cn/hai.bai/dmaster/efintf/efconst"
 	"git.enflame.cn/hai.bai/dmaster/meta/metadata"
 )
 
@@ -19,6 +20,12 @@ func (e *ExecRaw) LoadMeta(execUuid uint64) bool {
 	if _, ok := e.bundle[execUuid]; ok {
 		return true
 	}
+
+	if efconst.IsWildcardExecuuid(execUuid) {
+		e.LoadWildcard()
+		return true
+	}
+
 	exec := e.loader.LoadExecScope(execUuid)
 	if exec != nil {
 		e.bundle[execUuid] = exec
@@ -84,6 +91,14 @@ func (e ExecRaw) LookForWild(packetId int, inWild bool) (uint64, bool) {
 func (e ExecRaw) DumpInfo() {
 	fmt.Printf("%v exec loaded in all\n", len(e.bundle))
 	fmt.Printf("%v wildcard exec loaded in all\n", len(e.wilds))
+}
+
+func (e ExecRaw) WalkExecScopes(walk func(exec *metadata.ExecScope) bool) {
+	for _, es := range e.wilds {
+		if !walk(es) {
+			break
+		}
+	}
 }
 
 func NewExecRaw(loader efintf.InfoReceiver) *ExecRaw {

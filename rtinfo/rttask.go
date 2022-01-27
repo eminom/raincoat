@@ -10,6 +10,7 @@ import (
 	"git.enflame.cn/hai.bai/dmaster/assert"
 	"git.enflame.cn/hai.bai/dmaster/codec"
 	"git.enflame.cn/hai.bai/dmaster/efintf"
+	"git.enflame.cn/hai.bai/dmaster/efintf/efconst"
 	"git.enflame.cn/hai.bai/dmaster/efintf/sessintf"
 	"git.enflame.cn/hai.bai/dmaster/meta"
 	"git.enflame.cn/hai.bai/dmaster/meta/metadata"
@@ -25,13 +26,18 @@ var (
 )
 
 var (
+	ErrNoWildMatch = errors.New("no packet id found overall")
+)
+
+var (
 	errNoStartTsEvent = errors.New("no start ts event")
 )
 
 type RuntimeTaskManagerBase struct {
-	taskIdToTask map[int]*rtdata.RuntimeTask // Full runtime task info, include cyccled ones and ones without cycles
-	taskIdVec    []int                       // Full task id vec
-	tsHead       *linklist.Lnk
+	taskIdToTask   map[int]*rtdata.RuntimeTask // Full runtime task info, include cyccled ones and ones without cycles
+	taskIdVec      []int                       // Full task id vec
+	tsHead         *linklist.Lnk
+	isOneSolidTask bool
 }
 type RuntimeTaskManager struct {
 	RuntimeTaskManagerBase
@@ -40,10 +46,11 @@ type RuntimeTaskManager struct {
 	fullTaskVector    []rtdata.OrderTask
 }
 
-func NewRuntimeTaskManager() *RuntimeTaskManager {
+func NewRuntimeTaskManager(oneTask bool) *RuntimeTaskManager {
 	return &RuntimeTaskManager{
 		RuntimeTaskManagerBase: RuntimeTaskManagerBase{
-			tsHead: linklist.NewLnkHead(),
+			tsHead:         linklist.NewLnkHead(),
+			isOneSolidTask: oneTask,
 		},
 	}
 }
@@ -96,12 +103,10 @@ func (rtm *RuntimeTaskManagerBase) DispatchEvent(evt codec.DpfEvent) error {
 		}); start != nil {
 			startUn := start.(codec.DpfEvent)
 			taskID := startUn.Payload
-			if task, ok := rtm.taskIdToTask[taskID]; !ok {
+			if task, ok := rtm.GetTaskForId(taskID); !ok {
 				panic(fmt.Errorf("no start for cqm launch exec"))
 			} else {
-				task.StartCycle = startUn.Cycle
-				task.EndCycle = evt.Cycle
-				task.CycleValid = true
+				rtm.updateTaskCycle(task, startUn.Cycle, evt.Cycle)
 			}
 			return nil
 		}
@@ -111,6 +116,24 @@ func (rtm *RuntimeTaskManagerBase) DispatchEvent(evt codec.DpfEvent) error {
 
 	// Do something for the rest of TS events ??
 	return nil
+}
+
+func (rtm *RuntimeTaskManagerBase) updateTaskCycle(task *rtdata.RuntimeTask,
+	startCycle, endCycle uint64) {
+	if !rtm.isOneSolidTask {
+		task.StartCycle = startCycle
+		task.EndCycle = endCycle
+		task.CycleValid = true
+	}
+}
+
+func (rtm *RuntimeTaskManagerBase) GetTaskForId(taskId int) (
+	*rtdata.RuntimeTask, bool) {
+	if rtm.isOneSolidTask {
+		taskId = efconst.SolidTaskID
+	}
+	task, ok := rtm.taskIdToTask[taskId]
+	return task, ok
 }
 
 // For RuntimeTaskManager
@@ -204,6 +227,10 @@ func (r *RuntimeTaskManager) LookupOpIdByPacketID(
 	if r.execKnowledge == nil {
 		return metadata.DtuOp{}, ErrNoExecMeta
 	}
+	// Interception
+	if efconst.IsWildcardExecuuid(execUuid) {
+		return r.LookupOpOverall(packetId)
+	}
 	exec, ok := r.execKnowledge.FindExecScope(execUuid)
 	if !ok {
 		log.Printf("exec %016x is not loaded", exec)
@@ -212,9 +239,32 @@ func (r *RuntimeTaskManager) LookupOpIdByPacketID(
 	return exec.FindOp(packetId)
 }
 
+func (r *RuntimeTaskManager) LookupOpOverall(packetId int) (metadata.DtuOp, error) {
+	var targetOp metadata.DtuOp
+	var found = false
+	r.execKnowledge.WalkExecScopes(func(es *metadata.ExecScope) bool {
+		op, err := es.FindOp(packetId)
+		if err == nil {
+			found = true
+			targetOp = op
+			return false
+		}
+		return true
+	})
+	var err1 error
+	if !found {
+		err1 = ErrNoWildMatch
+	}
+	return targetOp, err1
+}
+
 func (r *RuntimeTaskManager) LookupDma(execUuid uint64, packetId int) (metadata.DmaOp, error) {
 	if r.execKnowledge == nil {
 		return metadata.DmaOp{}, ErrNoExecMeta
+	}
+	// Interception
+	if efconst.IsWildcardExecuuid(execUuid) {
+		return r.LookupDmaOverall(packetId)
 	}
 	exec, ok := r.execKnowledge.FindExecScope(execUuid)
 	if !ok {
@@ -222,6 +272,24 @@ func (r *RuntimeTaskManager) LookupDma(execUuid uint64, packetId int) (metadata.
 		return metadata.DmaOp{}, ErrNoExecMeta
 	}
 	return exec.FindDma(packetId)
+}
+
+func (r RuntimeTaskManager) LookupDmaOverall(packetId int) (metadata.DmaOp, error) {
+	var targetDmaMeta metadata.DmaOp
+	var found = false
+	r.execKnowledge.WalkExecScopes(func(es *metadata.ExecScope) bool {
+		if dmaMeta, err := es.FindDma(packetId); err == nil {
+			found = true
+			targetDmaMeta = dmaMeta
+			return false
+		}
+		return true
+	})
+	var err1 error
+	if !found {
+		err1 = ErrNoWildMatch
+	}
+	return targetDmaMeta, err1
 }
 
 func (r RuntimeTaskManager) lowerBoundForTaskVec(cycle uint64) int {

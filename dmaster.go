@@ -57,10 +57,11 @@ func init() {
 func DoProcess(jobCount int, sess *sess.SessBroadcaster,
 	algo vgrule.ActMatchAlgo,
 	seqId int,
+	oneTask bool,
 ) PostProcessor {
 	loader := sess.GetLoader()
 
-	processer := NewPostProcesser(loader, algo, *fEnableExTime, seqId)
+	processer := NewPostProcesser(loader, algo, *fEnableExTime, seqId, oneTask)
 
 	startTime := time.Now()
 	log.Printf("Starting dispatch events at %v", startTime.Format(time.RFC3339))
@@ -98,9 +99,17 @@ func main() {
 	var loader efintf.InfoReceiver
 	var contentLoader efintf.RingBufferLoader
 
+	var oneTask = (func() bool {
+		switch *fArch {
+		case "pavo":
+			return true
+		}
+		return false
+	})()
+
 	if len(flag.Args()) >= 1 {
 		if *fPbMode {
-			pbLoader, err := topsdev.NewPbComplex(flag.Args()[0])
+			pbLoader, err := topsdev.NewPbComplex(flag.Args()[0], oneTask)
 			if err != nil {
 				log.Fatalf("error load in pbmode: %v", err)
 			}
@@ -109,7 +118,7 @@ func main() {
 			contentLoader = &pbLoader
 		} else {
 			metaStartup := *fMetaStartup
-			loader = infoloader.NewMetaFileLoader(metaStartup)
+			loader = infoloader.NewMetaFileLoader(metaStartup, oneTask)
 			contentLoader = infoloader.NewContentBufferLoader(flag.Args()...)
 		}
 	}
@@ -139,7 +148,7 @@ func main() {
 		chunk := contentLoader.LoadRingBufferContent(cidToDecode, fileIdx)
 		sess := sess.NewSessBroadcaster(loader)
 		sess.DecodeChunk(chunk, decoder)
-		outputChan <- DoProcess(*fJob, sess, curAlgo, fileIdx)
+		outputChan <- DoProcess(*fJob, sess, curAlgo, fileIdx, oneTask)
 	}
 	for i := 0; i < rbCount; i++ {
 		wg.Add(1)

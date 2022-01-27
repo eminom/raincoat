@@ -6,6 +6,7 @@ import (
 
 	"git.enflame.cn/hai.bai/dmaster/assert"
 	"git.enflame.cn/hai.bai/dmaster/codec"
+	"git.enflame.cn/hai.bai/dmaster/efintf/efconst"
 	"git.enflame.cn/hai.bai/dmaster/meta/metadata"
 	"git.enflame.cn/hai.bai/dmaster/vgrule"
 )
@@ -50,11 +51,17 @@ func (ot OrderTask) GetExecUuid() uint64 {
 }
 
 func (ot OrderTask) AbleToMatchCqm(cqm OpActivity, a vgrule.EngineOrder) bool {
+	if efconst.IsAllZeroPgMask(ot.refToTask.PgMask) {
+		return true
+	}
 	return ot.refToTask.MatchCqm(a.GetEngineOrder(cqm.Start))
 }
 
 func (ot OrderTask) MatchXDMA(dma DmaActivity, a vgrule.EngineOrder) bool {
 	pgMask := ot.refToTask.PgMask
+	if efconst.IsAllZeroPgMask(pgMask) {
+		return true
+	}
 	if dma.IsOfEngine(codec.EngCat_CDMA) {
 		return a.MapPgMaskBitsToCdmaEngineMask(pgMask)&
 			(1<<a.GetCdmaPgBitOrder(dma.Start)) != 0

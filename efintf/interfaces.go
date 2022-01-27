@@ -10,8 +10,12 @@ type RingBufferLoader interface {
 	GetRingBufferCount() int
 }
 
-type InfoReceiver interface {
+type TaskLoader interface {
 	LoadTask() (map[int]*rtdata.RuntimeTask, []int, bool)
+}
+
+type InfoReceiver interface {
+	TaskLoader
 	LoadTimepoints() ([]rtdata.HostTimeEntry, bool)
 	LoadExecScope(execUuid uint64) *metadata.ExecScope
 	LoadWildcards(checkExist func(str string) bool, notifyNew func(uint64, *metadata.ExecScope))

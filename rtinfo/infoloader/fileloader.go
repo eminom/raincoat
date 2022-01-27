@@ -11,22 +11,63 @@ import (
 	"strconv"
 	"strings"
 
+	"git.enflame.cn/hai.bai/dmaster/efintf"
+	"git.enflame.cn/hai.bai/dmaster/efintf/efconst"
 	"git.enflame.cn/hai.bai/dmaster/meta/metadata"
 	"git.enflame.cn/hai.bai/dmaster/rtinfo/rtdata"
 )
 
-type metaFileLoader struct {
+type oneSolidTaskLoader struct{}
+
+func (oneSolidTaskLoader) LoadTask() (dc map[int]*rtdata.RuntimeTask,
+	taskSequentials []int,
+	ok bool,
+) {
+	const theTaskID = efconst.SolidTaskID
+	dc = make(map[int]*rtdata.RuntimeTask)
+	dc[theTaskID] = &rtdata.RuntimeTask{
+		TaskID:         theTaskID,
+		ExecutableUUID: 0,
+		PgMask:         0,
+		StartCycle:     0,
+		EndCycle:       1 << 63,
+		CycleValid:     true,
+	}
+	taskSequentials = []int{theTaskID}
+	ok = true
+	return
+}
+
+type taskFileLoader struct {
 	startupPath string
 }
 
-func NewMetaFileLoader(startup string) *metaFileLoader {
-	return &metaFileLoader{
-		startupPath: startup,
-	}
+func (d taskFileLoader) GetRuntimeTaskPath() string {
+	return filepath.Join(d.startupPath, "runtime_task.txt")
 }
 
-func (d metaFileLoader) GetRuntimeTaskPath() string {
-	return filepath.Join(d.startupPath, "runtime_task.txt")
+func (d taskFileLoader) LoadTask() (dc map[int]*rtdata.RuntimeTask,
+	taskSequentials []int,
+	ok bool,
+) {
+	return loadTaskFromFile(d.GetRuntimeTaskPath())
+}
+
+type metaFileLoader struct {
+	efintf.TaskLoader
+	startupPath string
+}
+
+func NewMetaFileLoader(startup string, oneTaskMode bool) *metaFileLoader {
+	return &metaFileLoader{
+		TaskLoader: (func() efintf.TaskLoader {
+			if oneTaskMode {
+				return oneSolidTaskLoader{}
+			}
+			return taskFileLoader{startupPath: startup}
+		})(),
+		startupPath: startup,
+	}
 }
 
 func (d metaFileLoader) GetMetaStartupPath() string {
@@ -37,12 +78,11 @@ func (d metaFileLoader) GetTimepointsPath() string {
 	return filepath.Join(d.startupPath, "timepoints.txt")
 }
 
-func (d metaFileLoader) LoadTask() (
+func loadTaskFromFile(filename string) (
 	dc map[int]*rtdata.RuntimeTask,
 	taskSequentials []int,
 	ok bool,
 ) {
-	filename := d.GetRuntimeTaskPath()
 	fin, err := os.Open(filename)
 	if err != nil {
 		log.Printf("error load runtime info from \"%v\":%v\n", filename, err)

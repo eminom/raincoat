@@ -31,8 +31,9 @@ func NewPostProcesser(loader efintf.InfoReceiver,
 	curAlgo vgrule.ActMatchAlgo,
 	enableExtendedTimeline bool,
 	seqIdx int,
+	oneTask bool,
 ) PostProcessor {
-	rtDict := rtinfo.NewRuntimeTaskManager()
+	rtDict := rtinfo.NewRuntimeTaskManager(oneTask)
 	rtDict.LoadRuntimeTask(loader)
 
 	qm := rtdata.NewOpEventQueue(rtdata.NewOpActCollector(curAlgo),

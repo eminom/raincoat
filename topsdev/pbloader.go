@@ -93,7 +93,8 @@ type PbComplex struct {
 	ringbufferContentIdx int
 }
 
-func NewPbComplex(name string) (
+// For now one-task-mode is ignored
+func NewPbComplex(name string, oneTaskMode bool) (
 	pbCom PbComplex,
 	err error,
 ) {
