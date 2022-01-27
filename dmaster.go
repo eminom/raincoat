@@ -177,8 +177,8 @@ func main() {
 		DeviceID: 0,
 	}
 	for i := 0; i < rbCount; i++ {
-		coord.DeviceID++
 		ps[i].DumpToDb(coord, dbObj)
+		coord.DeviceID++
 	}
 
 	fmt.Printf("dumped to %v\n", outputVpd)
