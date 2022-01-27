@@ -6,23 +6,24 @@ import (
 	"strings"
 
 	"git.enflame.cn/hai.bai/dmaster/efintf"
-	"git.enflame.cn/hai.bai/dmaster/efintf/efconst"
 	"git.enflame.cn/hai.bai/dmaster/meta/metadata"
 )
+
+type PktToOpMap struct {
+	pktToOp map[int]int
+}
 
 type ExecRaw struct {
 	loader efintf.InfoReceiver
 	bundle map[uint64]*metadata.ExecScope
 	wilds  map[uint64]*metadata.ExecScope
+
+	//~ Overall
+	pkOpMap PktToOpMap
 }
 
 func (e *ExecRaw) LoadMeta(execUuid uint64) bool {
 	if _, ok := e.bundle[execUuid]; ok {
-		return true
-	}
-
-	if efconst.IsWildcardExecuuid(execUuid) {
-		e.LoadWildcard()
 		return true
 	}
 
@@ -65,6 +66,8 @@ func (e *ExecRaw) LoadWildcard() {
 			// For debug
 			// printWithin(fmt.Sprintf("0x%016x", execUuid))
 		})
+
+	e.buildPktOpMap()
 }
 
 func (e ExecRaw) FindExecScope(execUuid uint64) (metadata.ExecScope, bool) {
@@ -99,6 +102,22 @@ func (e ExecRaw) WalkExecScopes(walk func(exec *metadata.ExecScope) bool) {
 			break
 		}
 	}
+}
+
+func (e *ExecRaw) buildPktOpMap() {
+	pktToOp := make(map[int]int)
+	e.WalkExecScopes(func(es *metadata.ExecScope) bool {
+		es.IteratePktToOp(func(pktId, opId int) {
+			pktToOp[pktId] = opId
+		})
+		return true
+	})
+	e.pkOpMap.pktToOp = pktToOp
+}
+
+func (e ExecRaw) GetOpIdForPacketId(packetId int) (int, bool) {
+	rv, ok := e.pkOpMap.pktToOp[packetId]
+	return rv, ok
 }
 
 func NewExecRaw(loader efintf.InfoReceiver) *ExecRaw {

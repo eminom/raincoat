@@ -52,5 +52,5 @@ func (dos *DtuOpSession) AddDtuOp(
 		DtuOpRowName, fmt.Sprintf("%v:%v:%v:%v:%v",
 			nodeID, devID, ctxID, clusterID, DtuOpRowName,
 		))
-	assert.Assert(err == nil, "Must be nil to carry on")
+	assert.Assert(err == nil, "Must be nil to carry on:%v", err)
 }

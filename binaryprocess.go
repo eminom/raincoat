@@ -20,6 +20,6 @@ func BinaryProcess(inputfile string, decoder *codec.DecodeMaster) {
 		DecodeFull:   *fDecodeFull,
 		EngineFilter: *fEng,
 	})
-	sess.DecodeChunk(chunk, decoder)
+	sess.DecodeChunk(chunk, decoder, false)
 	sess.PrintItems(*fRaw)
 }

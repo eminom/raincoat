@@ -30,8 +30,9 @@ func (oneSolidTaskLoader) LoadTask() (dc map[int]*rtdata.RuntimeTask,
 		ExecutableUUID: 0,
 		PgMask:         0,
 		StartCycle:     0,
-		EndCycle:       1 << 63,
+		EndCycle:       1 << 63, //
 		CycleValid:     true,
+		MetaValid:      true,
 	}
 	taskSequentials = []int{theTaskID}
 	ok = true

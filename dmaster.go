@@ -147,7 +147,7 @@ func main() {
 		cidToDecode := 0
 		chunk := contentLoader.LoadRingBufferContent(cidToDecode, fileIdx)
 		sess := sess.NewSessBroadcaster(loader)
-		sess.DecodeChunk(chunk, decoder)
+		sess.DecodeChunk(chunk, decoder, oneTask)
 		outputChan <- DoProcess(*fJob, sess, curAlgo, fileIdx, oneTask)
 	}
 	for i := 0; i < rbCount; i++ {

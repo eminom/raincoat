@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"git.enflame.cn/hai.bai/dmaster/assert"
 	"git.enflame.cn/hai.bai/dmaster/codec"
 	"git.enflame.cn/hai.bai/dmaster/efintf"
 	"git.enflame.cn/hai.bai/dmaster/efintf/sessintf"
@@ -37,8 +38,38 @@ func NewSession(sessOpt SessionOpt) Session {
 	return Session{sessOpt: sessOpt}
 }
 
-func (sess *Session) AppendItem(newItem codec.DpfEvent) {
+func (sess *Session) appendItem(newItem codec.DpfEvent) {
 	sess.items = append(sess.items, newItem)
+}
+
+func getLow32(a uint64) uint32 {
+	return uint32(a & ((1 << 32) - 1))
+}
+
+func getHigh32(a uint64) uint32 {
+	return uint32(a >> 32)
+}
+
+func (sess *Session) FakeStepEnd(decoder *codec.DecodeMaster) {
+	lz := len(sess.items)
+	if lz > 0 {
+		last := sess.items[lz-1]
+		lastCy := last.Cycle
+
+		// [005d3f90: 00094616 00000012 96e0fe20 00000000]
+		// [005d3fa0: 00094814 00000012 96e0ff3e 00000000]
+		lastCy++
+		raw0 := []uint32{0x00094616, 0x00000012, getLow32(lastCy), getHigh32(lastCy)}
+		stepDoneStart, err := decoder.NewDpfEvent(raw0, 0)
+		assert.Assert(err == nil, "must be nil")
+		sess.appendItem(stepDoneStart)
+
+		lastCy++
+		raw1 := []uint32{0x00094814, 0x00000012, getLow32(lastCy), getHigh32(lastCy)}
+		stepDoneEnd, err := decoder.NewDpfEvent(raw1, 0)
+		assert.Assert(err == nil, "must be nil")
+		sess.appendItem(stepDoneEnd)
+	}
 }
 
 // Process master text, no cache
@@ -116,7 +147,7 @@ func (sess *Session) ProcessItems(vs []uint32,
 		toAdd = false
 	}
 	if toAdd {
-		sess.AppendItem(item)
+		sess.appendItem(item)
 	}
 	return true, nil
 }
@@ -164,6 +195,7 @@ func (sess *Session) DecodeFromTextStream(
 func (sess *Session) DecodeChunk(
 	chunk []byte,
 	decoder *codec.DecodeMaster,
+	oneTask bool,
 ) {
 	// realpath, e2 := os.Readlink(filename)
 	// if nil == e2 {
@@ -185,6 +217,11 @@ func (sess *Session) DecodeChunk(
 		} else {
 			errWatcher.TickSuccess()
 		}
+	}
+	if oneTask && decoder.Arch == "pavo" {
+		// BAIHAI: if one task, need to fake an Step End
+		// And the decoder must be of Pavo
+		sess.FakeStepEnd(decoder)
 	}
 	if sess.sessOpt.Sort {
 		sort.Sort(codec.DpfItems(sess.items))

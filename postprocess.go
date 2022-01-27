@@ -35,8 +35,16 @@ func NewPostProcesser(loader efintf.InfoReceiver,
 ) PostProcessor {
 	rtDict := rtinfo.NewRuntimeTaskManager(oneTask)
 	rtDict.LoadRuntimeTask(loader)
+	if oneTask {
+		// Preload
+		rtDict.LoadMeta(loader)
+	}
 
-	qm := rtdata.NewOpEventQueue(rtdata.NewOpActCollector(curAlgo),
+	qm := rtdata.NewOpEventQueue(rtdata.NewOpActCollector(curAlgo,
+		rtdata.OpActCollectorOpt{
+			OpIdMapper:    rtDict.GetExecRaw(),
+			CacheAndMerge: oneTask,
+		}),
 		codec.DbgPktDetector{},
 	)
 	fwVec := rtdata.NewOpEventQueue(rtdata.NewFwActCollector(curAlgo),

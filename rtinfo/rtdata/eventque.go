@@ -10,7 +10,12 @@ import (
 	"git.enflame.cn/hai.bai/dmaster/vgrule"
 )
 
+type OpMergeCollector interface {
+	DoMergeOpAct()
+}
+
 type ActCollector interface {
+	OpMergeCollector
 	AddAct(start, end codec.DpfEvent)
 	GetAlgo() vgrule.ActMatchAlgo
 	DumpInfo()
@@ -60,6 +65,7 @@ func (q *EventQueue) DispatchEvent(este codec.DpfEvent) error {
 
 	if q.evtFilter.IsTerminator(este) {
 		q.distr[index].PurgeContent()
+		q.DoMergeOpAct()
 		return nil
 	}
 

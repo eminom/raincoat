@@ -55,3 +55,5 @@ func (fwa FwActCollector) DoSort() {
 	sort.Sort(fwa.acts)
 	fmt.Printf("sort %v fw acts in %v\n", len(fwa.acts), time.Since(startTs))
 }
+
+func (fwa FwActCollector) DoMergeOpAct() {}

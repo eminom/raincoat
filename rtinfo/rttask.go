@@ -201,6 +201,10 @@ func (r RuntimeTaskManager) createTaskSeq(
 func (r *RuntimeTaskManager) LoadMeta(
 	loader efintf.InfoReceiver,
 ) {
+	if r.execKnowledge != nil {
+		fmt.Printf("# warning: meta loaded already!!!!\n!!\n")
+		return
+	}
 	execKm := meta.NewExecRaw(loader)
 	for _, taskId := range r.taskIdVec {
 		if r.taskIdToTask[taskId].CycleValid || true {
