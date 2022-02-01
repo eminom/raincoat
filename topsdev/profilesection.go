@@ -13,6 +13,7 @@ typedef struct ProfileSection {
   uint64_t thunk_num;
   uint64_t hlo_module_num;
   uint64_t memcpy_num;
+  uint64_t string_id_num;
   uint64_t str_len;
   uint8_t data[0];
 } ProfileSection;
@@ -82,6 +83,10 @@ typedef struct ModuleSec {
   uint32_t data;
 } ModuleSec;
 
+typedef struct StringIdSec {
+  uint32_t str;
+  int32_t string_id;
+} StringIdSec;
 
 typedef struct StringSec {
   uint64_t size;
@@ -105,6 +110,9 @@ size_t GetOpMetaSecSize() {
 }
 size_t GetModuleSecSize() {
 	return sizeof(ModuleSec);
+}
+size_t GetStringIdSecSize() {
+	return sizeof(StringIdSec);
 }
 */
 import "C"
@@ -149,6 +157,10 @@ func GetPbMemcpySecSize() uintptr {
 	return uintptr(C.GetPbMemcpySecSize())
 }
 
+func GetStringIdSecSize() uintptr {
+	return uintptr(C.GetStringIdSecSize())
+}
+
 func dumpProfSec(sec C.ProfileSection) {
 	fmt.Printf("flag: %v\n", sec.flag)
 	fmt.Printf("reserved0: %x\n", sec.reserved_0)
@@ -185,6 +197,7 @@ func (ps *ProfileSecPipBoy) initStringPool() {
 			ps.opMetaSecSize()+
 			ps.moduleSecSize()+
 			ps.memcpySecSize()+
+			ps.stringIdSecSize()+
 			int(GetStringSecSize()):]
 		ps.stringPool = stringPool
 	}
@@ -220,6 +233,10 @@ func (ps ProfileSecPipBoy) moduleSecSize() int {
 
 func (ps ProfileSecPipBoy) memcpySecSize() int {
 	return int(ps.sec.memcpy_num) * int(GetPbMemcpySecSize())
+}
+
+func (ps ProfileSecPipBoy) stringIdSecSize() int {
+	return int(ps.sec.string_id_num) * int(GetStringIdSecSize())
 }
 
 func (ps ProfileSecPipBoy) HeaderSize() int {
@@ -300,6 +317,7 @@ func ParseProfileSection(
 	// OpMeta
 	// Module
 	// MemcpyMeta
+	// StringIdSec  (Feb.2022)
 	// StringSec
 	pkt2OpDict := make(map[int]int)
 
@@ -318,6 +336,7 @@ func ParseProfileSection(
 	fmt.Fprintf(debugStdout, "# %v pkt to op entries added", len(pkt2OpDict))
 	fmt.Fprintf(debugStdout, "\n")
 
+	// Now we skip to op-meta start
 	dataStart = getDataChunk(newPb.pkt2OpSecSize())
 	opInformationMap := make(map[int]metadata.DtuOp)
 	addOpInfo := func(opId int, name string) {
@@ -339,7 +358,9 @@ func ParseProfileSection(
 	fmt.Fprintf(debugStdout, "%v op info entries added", len(opInformationMap))
 	fmt.Fprintf(debugStdout, "\n")
 
+	// skip meta chunk, now we reach module section
 	getDataChunk(newPb.opMetaSecSize())
+	// skip module section, now we reach dma section
 	dataStart = getDataChunk(newPb.moduleSecSize())
 	dmaInfoMap := make(map[int]metadata.DmaOp)
 	addDmaInfo := func(packetId int, dc map[string]string) {
@@ -398,5 +419,9 @@ func doAssertOnProfileSection() {
 	var secPbMemcpySec C.PbMemcpySec
 	if GetPbMemcpySecSize() != unsafe.Sizeof(secPbMemcpySec) {
 		panic(errors.New("pb-memcpysec size mismatched"))
+	}
+	var secPbStringIdSec C.StringIdSec
+	if GetStringIdSecSize() != unsafe.Sizeof(secPbStringIdSec) {
+		panic(errors.New("stringid-sec size mismatched"))
 	}
 }

@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	sampleInput = "/home/hai.bai/data18/new6a/20211230141724.16847.topspti.data"
+	sampleInput = "/home/hai.bai/data22/151010_26463.topspti.rawdata.data"
 )
 
 func TestBasicTopsdev(t *testing.T) {
