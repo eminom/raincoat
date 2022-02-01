@@ -280,7 +280,7 @@ func (ps ProfileSecPipBoy) ExtractArgsAt(offset int, args int) map[string]string
 
 func (ps ProfileSecPipBoy) verifySize() bool {
 	totSize := ps.HeaderSize() + ps.pkt2OpSecSize() +
-		ps.opMetaSecSize() + ps.moduleSecSize() + ps.memcpySecSize()
+		ps.opMetaSecSize() + ps.moduleSecSize() + ps.memcpySecSize() + ps.stringIdSecSize()
 	if ps.sec.str_len > 0 {
 		uVal := reflect.ValueOf(ps.rawData[totSize:]).Pointer()
 		strSec := *(*C.StringSec)(unsafe.Pointer(uVal))
