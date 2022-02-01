@@ -113,6 +113,12 @@ func main() {
 			if err != nil {
 				log.Fatalf("error load in pbmode: %v", err)
 			}
+
+			if *fDump {
+				pbLoader.DumpMeta()
+				return
+			}
+
 			// Cast into content-loader
 			loader = pbLoader
 			contentLoader = &pbLoader

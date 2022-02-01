@@ -83,6 +83,15 @@ func (pb pbLoader) LoadExecScope(execUuid uint64) *metadata.ExecScope {
 	return nil
 }
 
+func (pb pbLoader) DumpMeta() {
+	for _, seri := range pb.pbObj.Dtu.Meta.ExecutableProfileSerialize {
+		execMeta := ParseProfileSection(seri, DummyStdout{})
+		execMeta.DumpDtuOpToFile()
+		execMeta.DumpDmaToFile()
+		execMeta.DumpPktOpMapToFile()
+	}
+}
+
 func (pb pbLoader) LoadWildcards(checkExist func(str string) bool,
 	notifyNew func(uint64, *metadata.ExecScope)) {
 
