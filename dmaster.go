@@ -39,6 +39,9 @@ var (
 	fEnableExTime = flag.Bool("extimeline", false, "enable extended timeline")
 	fDiableDma    = flag.Bool("disabledma", false, "disable dma event dispatching")
 	fJob          = flag.Int("job", 7, "jobs to go concurrent")
+
+	// if PbMode is enabled:
+	fDumpmeta = flag.Bool("dumpmeta", false, "dump meta in pbmode")
 )
 
 func init() {
@@ -114,7 +117,7 @@ func main() {
 				log.Fatalf("error load in pbmode: %v", err)
 			}
 
-			if *fDump {
+			if *fDumpmeta {
 				pbLoader.DumpMeta()
 				return
 			}
@@ -138,7 +141,20 @@ func main() {
 	}
 
 	if *fDump {
-		BinaryProcess(flag.Args()[0], decoder)
+		if *fPbMode {
+			// only decode the very first one
+			cidToDecode := 0
+			chunk := contentLoader.LoadRingBufferContent(cidToDecode, 0)
+			BinaryProcess(chunk, decoder)
+		} else {
+			// single raw file
+			filename := flag.Args()[0]
+			if chunk, err := os.ReadFile(filename); err == nil {
+				BinaryProcess(chunk, decoder)
+			} else {
+				panic(fmt.Errorf("could not read %v: %v", filename, err))
+			}
+		}
 		return
 	}
 

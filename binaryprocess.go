@@ -1,18 +1,11 @@
 package main
 
 import (
-	"os"
-
 	"git.enflame.cn/hai.bai/dmaster/codec"
 	"git.enflame.cn/hai.bai/dmaster/sess"
 )
 
-func BinaryProcess(inputfile string, decoder *codec.DecodeMaster) {
-
-	chunk, err := os.ReadFile(inputfile)
-	if err != nil {
-		panic(err)
-	}
+func BinaryProcess(chunk []byte, decoder *codec.DecodeMaster) {
 
 	sess := sess.NewSession(sess.SessionOpt{
 		Debug:        *fDebug,
