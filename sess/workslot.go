@@ -9,8 +9,8 @@ import (
 
 type WorkSlot struct {
 	subscribers map[codec.EngineTypeCode][]sessintf.ConcurEventSinker
-	prevChan    chan<- codec.DpfEvent
-	thisChan    <-chan codec.DpfEvent
+	prevChan    chan<- []codec.DpfEvent
+	thisChan    <-chan []codec.DpfEvent
 	nameI       int
 
 	unprocVec []codec.DpfEvent
@@ -51,27 +51,23 @@ func (ws *WorkSlot) processSync() {
 	// No default: Wait for the final close
 	// default:
 	processedCount := 0
-	for evt := range ws.thisChan {
-		processedCount++
-		needPropagate := false
-		for _, prevSinker := range ws.subscribers[evt.EngineTypeCode] {
-			if err := prevSinker.DispatchEvent(evt); err != nil {
-				needPropagate = true
-				// Do not break
+	for evtVec := range ws.thisChan {
+		for _, evt := range evtVec {
+			needPropagate := false
+			for _, prevSinker := range ws.subscribers[evt.EngineTypeCode] {
+				if err := prevSinker.DispatchEvent(evt); err != nil {
+					needPropagate = true
+					// Do not break
+				}
+			}
+			if needPropagate {
+				ws.CacheToUnprocessed(evt)
 			}
 		}
-		if needPropagate {
-			ws.CacheToUnprocessed(evt)
-		}
+		processedCount += len(evtVec)
 	}
 	fmt.Printf("%v has processed %v events from chan\n", ws.ToString(),
 		processedCount)
-}
-
-func (ws *WorkSlot) PropagateToNext(evt codec.DpfEvent) {
-	if ws.prevChan != nil {
-		ws.prevChan <- evt
-	}
 }
 
 func (ws *WorkSlot) CacheToUnprocessed(evt codec.DpfEvent) {
@@ -82,9 +78,15 @@ func (ws *WorkSlot) FinalizeSlot() {
 	ws.processSync()
 	// propagate to previous instance
 	if ws.prevChan != nil {
-		for _, evt := range ws.unprocVec {
-			ws.prevChan <- evt
-		}
+		fmt.Printf("%v: push %v unprocessed event(s) to previous chan\n",
+			ws.ToString(),
+			len(ws.unprocVec),
+		)
+		// Unnecessary to propagate one by one
+		// for _, evt := range ws.unprocVec {
+		// 	ws.prevChan <- evt
+		// }
+		ws.prevChan <- ws.unprocVec
 		// fmt.Printf("worker{%v} is closing previous chan\n", ws.ToString())
 		close(ws.prevChan)
 	}

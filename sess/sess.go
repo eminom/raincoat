@@ -309,10 +309,10 @@ func (sess SessBroadcaster) emitEventsToSubscribersEx(
 	}
 
 	// Create working channels
-	channels := make([]chan codec.DpfEvent, workerItemCount)
-	const BUFSIZ = 16
+	channels := make([]chan []codec.DpfEvent, workerItemCount)
+	const BUFSIZ = 1
 	for i := 0; i < workerItemCount; i++ {
-		channels[i] = make(chan codec.DpfEvent, BUFSIZ)
+		channels[i] = make(chan []codec.DpfEvent, BUFSIZ)
 	}
 	for i := 0; i < workerItemCount; i++ {
 		if i > 0 {
@@ -327,6 +327,7 @@ func (sess SessBroadcaster) emitEventsToSubscribersEx(
 	var wg sync.WaitGroup
 	workerFunc := func(eventSlice []codec.DpfEvent, wSlot *WorkSlot, nameI int) {
 		defer wg.Done()
+		startTs := time.Now()
 		fmt.Printf("%v working on %v item(s), evntTypesCount(%v),\n",
 			wSlot.ToString(),
 			len(eventSlice),
@@ -346,7 +347,10 @@ func (sess SessBroadcaster) emitEventsToSubscribersEx(
 			}
 		}
 		wSlot.FinalizeSlot()
-		fmt.Printf("%v is quitting\n", wSlot.ToString())
+		fmt.Printf("%v is quitting. %v consumed\n",
+			wSlot.ToString(),
+			time.Since(startTs),
+		)
 	}
 
 	// Now start it
