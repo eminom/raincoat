@@ -1,0 +1,143 @@
+package topsdev
+
+/*
+#include <stdint.h>
+
+// Insetion from developer manually
+typedef uint64_t u64;
+
+// Copy from source definitions
+struct SectionHeader {
+  u64 sh_type;
+  u64 sh_offset;
+  u64 sh_size;
+};
+
+// Manually
+typedef struct SectionHeader SectionHeader;
+
+struct ExecutableHeader {
+  u64 tag;
+  u64 crc64;
+  u64 version;
+  u64 device;
+  u64 shnum;
+  u64 reserve[16];
+  // reserve[0]: As a flag of prefetch of sip code
+  // reserve[1]: As executable uuid
+  SectionHeader shlist[0];
+};
+
+typedef struct ExecutableHeader ExecutableHeader;
+
+
+size_t SizeOfExecHeader() {
+	return sizeof(ExecutableHeader);
+}
+
+size_t SizeOfShSectionHeader() {
+	return sizeof(SectionHeader);
+}
+
+*/
+import "C"
+import (
+	"bytes"
+	"fmt"
+	"log"
+	"os"
+	"reflect"
+	"unsafe"
+)
+
+// Remove :u64
+const (
+	SHT_NULL_ = 0 + iota
+	SHT_HEADER
+	SHT_RESOURCE
+	SHT_INPUT
+	SHT_OUT
+	SHT_CONSTANT
+	SHT_SIPCODE
+	SHT_SIP_FUNC_PARAM
+	SHT_SIP_FUNC_PARAM_UPDATE
+	SHT_STREAM
+	SHT_PACKET
+	SHT_PACKET_UPDATE
+	SHT_CLUSTER
+	SHT_JITBINARY
+	SHT_CPU_FUNC_PARAM
+	SHT_CPU_FUNC_DATA
+	SHT_CPU_FUNCTION
+	SHT_PROFILE //17
+	SHT_HOST_CONST
+	SHT_TASK
+	SHT_SIP_CALLBACK //20
+	SHT_TARGET_RESOURCE
+	SHT_TENSOR_TABLE
+	SHT_KERN_ASSERT_INFO //23
+	SHT_RAND_STATE
+	SHT_USER4
+	SHT_USER5
+	SHT_USER6
+	SHT_USER7
+	SHT_USER8
+	SHT_USER9
+)
+
+func SizeOfExecHeader() int {
+	return int(C.SizeOfExecHeader())
+}
+
+func SizeOfShSectionHeader() int {
+	return int(C.SizeOfShSectionHeader())
+}
+
+type ExecRawData struct {
+	ExecUuid  uint64
+	DataChunk []byte
+}
+
+func LoadProfSectionDataFromExecutable(filename string) []ExecRawData {
+	chunk, err := os.ReadFile(filename)
+	if err != nil {
+		log.Fatalf("error open %v: %v", filename, err)
+	}
+
+	var profileVec []ExecRawData
+	uVal := reflect.ValueOf(chunk).Pointer()
+	sec := *(*C.ExecutableHeader)(unsafe.Pointer(uVal))
+
+	sectionStart := chunk[SizeOfExecHeader():]
+	for i := 0; i < int(sec.shnum); i++ {
+		piece := sectionStart[i*SizeOfShSectionHeader() : (i+1)*SizeOfShSectionHeader()]
+		uVal1 := reflect.ValueOf(piece).Pointer()
+		shSec := *(*C.SectionHeader)(unsafe.Pointer(uVal1))
+		if shSec.sh_type == SHT_PROFILE {
+			log.Printf("%v(SHT_PROFILE) detected", SHT_PROFILE)
+			offset := int(shSec.sh_offset)
+			chunkSize := int(shSec.sh_size)
+			sli := chunk[offset : offset+chunkSize]
+			profileVec = append(profileVec, ExecRawData{
+				DataChunk: bytes.Repeat(sli, 1),
+				ExecUuid:  uint64(sec.crc64),
+			})
+		} else {
+			fmt.Printf("sec type %v\n", shSec)
+		}
+	}
+	return profileVec
+}
+
+func DumpProfileSectionFromExecutable(filename string) {
+	chunkVec := LoadProfSectionDataFromExecutable(filename)
+	for _, execRaw := range chunkVec {
+		execScope := ParseProfileSectionFromData(execRaw.DataChunk,
+			execRaw.ExecUuid,
+			os.Stdout,
+		)
+		execScope.DumpDtuOpToFile()
+		execScope.DumpDmaToFile()
+		execScope.DumpPktOpMapToFile()
+	}
+}

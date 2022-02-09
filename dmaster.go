@@ -42,6 +42,7 @@ var (
 
 	// if PbMode is enabled:
 	fDumpmeta = flag.Bool("dumpmeta", false, "dump meta in pbmode")
+	fExec     = flag.Bool("exec", false, "dump from executable")
 )
 
 func init() {
@@ -111,6 +112,11 @@ func main() {
 	})()
 
 	if len(flag.Args()) >= 1 {
+		if *fExec {
+			topsdev.DumpProfileSectionFromExecutable(flag.Args()[0])
+			return
+		}
+
 		if *fPbMode {
 			pbLoader, err := topsdev.NewPbComplex(flag.Args()[0], oneTask)
 			if err != nil {

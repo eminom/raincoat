@@ -299,6 +299,14 @@ func ParseProfileSection(
 	debugStdout io.Writer,
 ) *metadata.ExecScope {
 	data := pb.GetData()
+	return ParseProfileSectionFromData(data, pb.GetExecUuid(), debugStdout)
+}
+
+func ParseProfileSectionFromData(
+	data []byte,
+	execUuid uint64,
+	debugStdout io.Writer,
+) *metadata.ExecScope {
 
 	newPb := NewProfileSecPipBoy(data)
 	newPb.verifySize()
@@ -385,7 +393,7 @@ func ParseProfileSection(
 		addDmaInfo(int(memcpyMetaSec.pkt), dc)
 	}
 
-	return metadata.NewExecScope(pb.GetExecUuid(),
+	return metadata.NewExecScope(execUuid,
 		pkt2OpDict,
 		opInformationMap,
 		metadata.DmaInfoMap{
