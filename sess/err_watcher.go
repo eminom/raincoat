@@ -6,13 +6,18 @@ import (
 )
 
 type ErrorWatcher struct {
-	errCount   int
-	okCount    int
-	printQuota int
+	errCount    int
+	okCount     int
+	ignoreCount int
+	printQuota  int
 }
 
 func (e *ErrorWatcher) TickSuccess() {
 	e.okCount++
+}
+
+func (e *ErrorWatcher) TickIgnore() {
+	e.ignoreCount++
 }
 
 func (e *ErrorWatcher) ReceiveError(vals []uint32, lineno int) {

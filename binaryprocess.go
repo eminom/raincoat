@@ -5,7 +5,7 @@ import (
 	"git.enflame.cn/hai.bai/dmaster/sess"
 )
 
-func BinaryProcess(chunk []byte, decoder *codec.DecodeMaster) {
+func BinaryProcess(chunk []byte, decoder *codec.DecodeMaster, decodeGr int) {
 
 	sess := sess.NewSession(sess.SessionOpt{
 		Debug:        *fDebug,
@@ -13,6 +13,6 @@ func BinaryProcess(chunk []byte, decoder *codec.DecodeMaster) {
 		DecodeFull:   *fDecodeFull,
 		EngineFilter: *fEng,
 	})
-	sess.DecodeChunk(chunk, decoder, false)
+	sess.DecodeChunk(chunk, decoder, false, decodeGr)
 	sess.PrintItems(*fRaw)
 }

@@ -43,6 +43,9 @@ var (
 	// if PbMode is enabled:
 	fDumpmeta = flag.Bool("dumpmeta", false, "dump meta in pbmode")
 	fExec     = flag.Bool("exec", false, "dump from executable")
+
+	//decode go routine count
+	fDecodeRoutineCount = flag.Int("subr", 7, "sub process count")
 )
 
 func init() {
@@ -151,12 +154,12 @@ func main() {
 			// only decode the very first one
 			cidToDecode := 0
 			chunk := contentLoader.LoadRingBufferContent(cidToDecode, 0)
-			BinaryProcess(chunk, decoder)
+			BinaryProcess(chunk, decoder, *fDecodeRoutineCount)
 		} else {
 			// single raw file
 			filename := flag.Args()[0]
 			if chunk, err := os.ReadFile(filename); err == nil {
-				BinaryProcess(chunk, decoder)
+				BinaryProcess(chunk, decoder, *fDecodeRoutineCount)
 			} else {
 				panic(fmt.Errorf("could not read %v: %v", filename, err))
 			}
@@ -175,7 +178,7 @@ func main() {
 		cidToDecode := 0
 		chunk := contentLoader.LoadRingBufferContent(cidToDecode, fileIdx)
 		sess := sess.NewSessBroadcaster(loader)
-		sess.DecodeChunk(chunk, decoder, oneTask)
+		sess.DecodeChunk(chunk, decoder, oneTask, *fDecodeRoutineCount)
 		outputChan <- DoProcess(*fJob, sess, curAlgo, fileIdx, oneTask)
 	}
 	for i := 0; i < rbCount; i++ {

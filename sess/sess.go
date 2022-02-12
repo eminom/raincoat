@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"sort"
 	"strconv"
@@ -34,12 +35,25 @@ type Session struct {
 	sessOpt SessionOpt
 }
 
+type DpfEventArray struct {
+	array      []codec.DpfEvent
+	errWatcher ErrorWatcher
+}
+
+func (d *DpfEventArray) AppendItem(item codec.DpfEvent) {
+	d.array = append(d.array, item)
+}
+
 func NewSession(sessOpt SessionOpt) Session {
 	return Session{sessOpt: sessOpt}
 }
 
 func (sess *Session) appendItem(newItem codec.DpfEvent) {
 	sess.items = append(sess.items, newItem)
+}
+
+func (sess *Session) appendItemVector(newItemVec []codec.DpfEvent) {
+	sess.items = append(sess.items, newItemVec...)
 }
 
 func getLow32(a uint64) uint32 {
@@ -124,21 +138,24 @@ func toItems(vs []string) []uint32 {
 func (sess *Session) ProcessFullItem(
 	text string, offsetIdx int,
 	decoder *codec.DecodeMaster,
+	eventArray *DpfEventArray,
 ) (bool, error) {
 	vs := toItems(strings.Split(text, " "))
 	if len(vs) != 4 {
 		return true, errInputValue
 	}
-	return sess.ProcessItems(vs, offsetIdx, decoder)
+	return sess.ProcessItems(vs, offsetIdx, decoder, eventArray)
 }
 
 // Process one item, always append
-func (sess *Session) ProcessItems(vs []uint32,
+func (sess Session) ProcessItems(vs []uint32,
 	offsetIdx int,
 	decoder *codec.DecodeMaster,
+	eventArray *DpfEventArray,
 ) (bool, error) {
 	item, err := decoder.NewDpfEvent(vs, offsetIdx)
 	if err != nil {
+		eventArray.errWatcher.ReceiveError(vs, offsetIdx)
 		return true, err
 	}
 	var toAdd = true
@@ -147,7 +164,10 @@ func (sess *Session) ProcessItems(vs []uint32,
 		toAdd = false
 	}
 	if toAdd {
-		sess.appendItem(item)
+		eventArray.errWatcher.TickSuccess()
+		eventArray.AppendItem(item)
+	} else {
+		eventArray.errWatcher.TickIgnore()
 	}
 	return true, nil
 }
@@ -157,7 +177,8 @@ func (sess *Session) DecodeFromTextStream(
 	decoder *codec.DecodeMaster,
 ) {
 	reader := bufio.NewReader(inHandle)
-	var errWatcher = ErrorWatcher{printQuota: 10}
+	var eventArr DpfEventArray
+	eventArr.errWatcher = ErrorWatcher{printQuota: 10}
 	for lineno := 0; ; lineno++ {
 		// fmt.Print("-> ")
 		text, err := reader.ReadString('\n')
@@ -169,12 +190,7 @@ func (sess *Session) DecodeFromTextStream(
 		}
 		text = strings.TrimSuffix(text, "\n")
 		if sess.sessOpt.DecodeFull {
-			shallCont, err := sess.ProcessFullItem(text, lineno, decoder)
-			if nil != err {
-				errWatcher.ReceiveErr(err)
-			} else {
-				errWatcher.TickSuccess()
-			}
+			shallCont, _ := sess.ProcessFullItem(text, lineno, decoder, &eventArr)
 			if !shallCont {
 				break
 			}
@@ -185,39 +201,95 @@ func (sess *Session) DecodeFromTextStream(
 		}
 	}
 
+	sess.appendItemVector(eventArr.array)
 	if sess.sessOpt.Sort {
 		sort.Sort(codec.DpfItems(sess.items))
 	}
-
-	errWatcher.SumUp()
+	eventArr.errWatcher.SumUp()
 }
 
 func (sess *Session) DecodeChunk(
 	chunk []byte,
 	decoder *codec.DecodeMaster,
 	oneTask bool,
+	sugguestJobCount int,
 ) {
-	// realpath, e2 := os.Readlink(filename)
-	// if nil == e2 {
-	// 	filename = realpath
-	// }
-	itemSize := len(chunk) / 16 * 16
-	var errWatcher = ErrorWatcher{printQuota: 10}
-	for i := 0; i < itemSize; i += 16 {
-		offsetIdx := i >> 4
-		var u32vals = [4]uint32{
-			binary.LittleEndian.Uint32(chunk[i:]),
-			binary.LittleEndian.Uint32(chunk[i+4:]),
-			binary.LittleEndian.Uint32(chunk[i+8:]),
-			binary.LittleEndian.Uint32(chunk[i+12:]),
-		}
-		_, err := sess.ProcessItems(u32vals[:], offsetIdx, decoder)
-		if err != nil {
-			errWatcher.ReceiveError(u32vals[:], offsetIdx)
-		} else {
-			errWatcher.TickSuccess()
-		}
+	decodeChunkStartTs := time.Now()
+	log.Printf("starting decoding dpf raw data")
+
+	if len(chunk)%16 != 0 {
+		log.Printf("warning: dpf buffer length not xx divide by 16")
 	}
+	itemCount := len(chunk) / 16
+	var jobCount = sugguestJobCount
+	if jobCount <= 0 {
+		jobCount = 1
+	}
+	segItemCount := (itemCount + (jobCount - 1)) / jobCount
+	if segItemCount < 1000 {
+		segItemCount = 1000
+	}
+	jobCount = (itemCount + (segItemCount - 1)) / segItemCount
+	log.Printf("itemCount is [%v], jobCount [%v], segmentItemCount [%v]",
+		itemCount,
+		jobCount,
+		segItemCount)
+	eventResult := make([]DpfEventArray, jobCount)
+	for p := 0; p < jobCount; p++ {
+		eventResult[p].errWatcher = ErrorWatcher{printQuota: 10}
+	}
+	var waitGroup sync.WaitGroup
+	subDecodeProcess := func(subChunk []byte,
+		eventItemArray *DpfEventArray,
+		baseIdx int) {
+		defer waitGroup.Done()
+		var errWatcher = &eventItemArray.errWatcher
+		subItemsCount := len(subChunk) / 16
+		for i := 0; i < subItemsCount; i++ {
+			offsetIdx := i << 4
+			var u32vals = [4]uint32{
+				binary.LittleEndian.Uint32(subChunk[offsetIdx:]),
+				binary.LittleEndian.Uint32(subChunk[offsetIdx+4:]),
+				binary.LittleEndian.Uint32(subChunk[offsetIdx+8:]),
+				binary.LittleEndian.Uint32(subChunk[offsetIdx+12:]),
+			}
+			sess.ProcessItems(u32vals[:],
+				(offsetIdx+baseIdx)>>4,
+				decoder,
+				eventItemArray)
+		}
+		errWatcher.SumUp()
+	}
+	for p := 0; p < jobCount; p++ {
+		waitGroup.Add(1)
+		startItemIdx, endItemIdx := p*segItemCount, (p+1)*segItemCount
+		if endItemIdx > itemCount {
+			endItemIdx = itemCount
+		}
+		log.Printf("event processing [%v] - [%v]", startItemIdx, endItemIdx)
+		go subDecodeProcess(
+			chunk[16*startItemIdx:16*endItemIdx],
+			&eventResult[p],
+			startItemIdx*16)
+	}
+	waitGroup.Wait()
+	log.Printf("done forking %v", time.Since(decodeChunkStartTs))
+	// Reduce
+	errCountInAll, ignoreInAll, okInAll := 0, 0, 0
+	for _, result := range eventResult {
+		sess.appendItemVector(result.array)
+		errCountInAll += result.errWatcher.errCount
+		ignoreInAll += result.errWatcher.ignoreCount
+		okInAll += result.errWatcher.okCount
+	}
+	log.Printf("error in all: %v", errCountInAll)
+	log.Printf("ignore in all: %v", ignoreInAll)
+	log.Printf("success in all: %v", okInAll)
+	assert.Assert(len(sess.items)+errCountInAll+ignoreInAll == itemCount, "must be the same for %v:%v",
+		len(sess.items), itemCount)
+	log.Printf("done decoding in %v", time.Since(decodeChunkStartTs))
+	// after all items are in place.
+
 	if oneTask && decoder.Arch == "pavo" {
 		// BAIHAI: if one task, need to fake an Step End
 		// And the decoder must be of Pavo
@@ -226,7 +298,6 @@ func (sess *Session) DecodeChunk(
 	if sess.sessOpt.Sort {
 		sort.Sort(codec.DpfItems(sess.items))
 	}
-	errWatcher.SumUp()
 }
 
 func (sess Session) PrintItems(printRaw bool) {
