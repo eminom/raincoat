@@ -33,3 +33,9 @@ else
   echo SUCCESS the same hash ${H1}
 fi
 
+if [[ x${H1} == xb1518745f9e485f9f48c06136b2d24d9c713c7c076b2f126361798402103c8c3 ]]; then
+  echo SUCCESS MATCHED
+else
+  echo ERROR MISMATCHED
+fi
+
