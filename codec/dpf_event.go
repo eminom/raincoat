@@ -63,10 +63,9 @@ func (d DpfEvent) ToString() string {
 	if d.Flag == 0 {
 		switch d.EngineTypeCode {
 		case EngCat_PCIE:
-			return fmt.Sprintf("%-10v 0x%x %-10v ts=%v",
+			return fmt.Sprintf("%-10v %-10v ts=%v",
 				d.EngineTy,
-				d.DpfSyncProcId(),
-				d.DpfSyncIndexMasked(),
+				d.DpfSyncIndex(),
 				d.Cycle)
 		}
 		return fmt.Sprintf("%-10v %-2v %-2v %-2v event=%-4v pid=%v ts=%-14d",
