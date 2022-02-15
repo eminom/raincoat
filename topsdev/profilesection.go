@@ -3,19 +3,26 @@ package topsdev
 /*
 #include <stdint.h>
 // Make sure all these structures' sizes are multiple of 8 bytes
+
+typedef struct ProfileSectionSub {
+  uint64_t section_type;
+  uint64_t size;
+  uint64_t element_size;
+  uint64_t count;
+  uint64_t offset;
+} ProfileSectionSub;
+
 typedef struct ProfileSection {
   uint64_t size;
+  uint64_t profile_section_header_size;
+  uint64_t sub_section_count;
   uint64_t flag;
   uint64_t reserved_0;
   uint64_t reserved_1;
   uint64_t reserved_2;
-  uint64_t map_num;
-  uint64_t thunk_num;
-  uint64_t hlo_module_num;
-  uint64_t memcpy_num;
-  uint64_t string_id_num;
-  uint64_t str_len;
-  uint8_t data[0];
+  // New fields are added after reserved_2
+  // prof_sub_section = ProfileSection base + profile_section_header_size
+  ProfileSectionSub prof_sub_section[0];
 } ProfileSection;
 
 
@@ -96,6 +103,7 @@ typedef struct StringSec {
 size_t GetProfileSectionSize() {
 	return sizeof(ProfileSection);
 }
+
 size_t GetStringSecSize() {
 	return sizeof(StringSec);
 }
@@ -114,19 +122,42 @@ size_t GetModuleSecSize() {
 size_t GetStringIdSecSize() {
 	return sizeof(StringIdSec);
 }
+size_t GetProfileSubSectionSize() {
+	return sizeof(ProfileSectionSub);
+}
 */
 import "C"
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"reflect"
 	"unsafe"
 
+	"git.enflame.cn/hai.bai/dmaster/assert"
 	"git.enflame.cn/hai.bai/dmaster/meta/metadata"
 	"git.enflame.cn/hai.bai/dmaster/topsdev/proto/pbdef/topspb"
+)
+
+/*
+
+#define PROFSEC_TYPE_PKT2OPMAP 0x10
+#define PROFSEC_TYPE_OPTHUNK 0x11
+#define PROFSEC_TYPE_MODULETHUNK 0x12
+#define PROFSEC_TYPE_MEMCPY_THUNK 0x13
+#define PROFSEC_TYPE_STRINGID_THUNK 0x14
+#define PROFSEC_TYPE_STRINGPOOL 0x51
+*/
+
+const (
+	PROFSEC_TYPE_PKT2OPMAP      = 0x10
+	PROFSEC_TYPE_OPTHUNK        = 0x11
+	PROFSEC_TYPE_MODULETHUNK    = 0x12
+	PROFSEC_TYPE_MEMCPY_THUNK   = 0x13
+	PROFSEC_TYPE_STRINGID_THUNK = 0x14
+	PROFSEC_TYPE_STRINGPOOL     = 0x51
 )
 
 var (
@@ -163,84 +194,115 @@ func GetStringIdSecSize() uintptr {
 
 func dumpProfSec(sec C.ProfileSection) {
 	fmt.Printf("flag: %v\n", sec.flag)
+	fmt.Printf("header_size: %v\n", sec.profile_section_header_size)
 	fmt.Printf("reserved0: %x\n", sec.reserved_0)
 	fmt.Printf("reserved0: %x\n", sec.reserved_1)
 	fmt.Printf("reserved0: %x\n", sec.reserved_2)
-	fmt.Printf("packet-id to op-id count: %v\n", sec.map_num)
-	fmt.Printf("op-items: %v\n", sec.thunk_num)
-	fmt.Printf("memcpy count: %v\n", sec.memcpy_num)
-	fmt.Printf("string length: %v\n", sec.str_len)
+	fmt.Printf("sub_sections: %v\n", sec.sub_section_count)
+}
+
+type SubInfo struct {
+	count       int
+	elementSize int
+	rawChunk    []byte
 }
 
 type ProfileSecPipBoy struct {
-	rawData    []byte
-	sec        C.ProfileSection
+	sec C.ProfileSection
+
 	stringPool []byte
+
+	// Cached
+	pkt2opRec SubInfo
+	opMetaRec SubInfo
+	memcpyRec SubInfo
+	stringRec SubInfo
+}
+
+type RawDataSet struct {
+	subInfo C.ProfileSectionSub
+	rawCopy []byte
 }
 
 func NewProfileSecPipBoy(rawData []byte) ProfileSecPipBoy {
 	uVal := reflect.ValueOf(rawData).Pointer()
 	sec := *(*C.ProfileSection)(unsafe.Pointer(uVal))
 	dumpProfSec(sec)
-	rv := ProfileSecPipBoy{
-		sec:     sec,
-		rawData: rawData, //bytes.Repeat(rawData, 1),
+
+	profileSectionSize := int(sec.profile_section_header_size)
+	perSubSecSize := int(C.GetProfileSubSectionSize())
+	subSectionOffset := profileSectionSize
+
+	var subSecDc = make(map[int]RawDataSet)
+	for i := 0; i < int(sec.sub_section_count); i++ {
+		subChunk :=
+			rawData[subSectionOffset+i*perSubSecSize : subSectionOffset+(i+1)*perSubSecSize]
+		uValue := reflect.ValueOf(subChunk).Pointer()
+		subSec := *(*C.ProfileSectionSub)(unsafe.Pointer(uValue))
+
+		typeCode := int(subSec.section_type)
+		if _, ok := subSecDc[typeCode]; ok {
+			panic(fmt.Errorf("duplicate sub section type %v", typeCode))
+		}
+		dataOffset := int(subSec.offset)
+		dataSize := int(subSec.size)
+		subSecDc[typeCode] = RawDataSet{
+			subSec,
+			bytes.Repeat(rawData[dataOffset:dataOffset+dataSize], 1),
+		}
 	}
+
+	//
+	// dataOffset := int(sec.profile_section_header_size) +
+	// 	int(sec.sub_section_count)*perSubSecSize
+	rv := ProfileSecPipBoy{
+		sec: sec,
+	}
+	assert.Assert(len(rawData) == int(sec.size), "must be length verified")
+
+	retrieveFor := func(typeCode int) SubInfo {
+		if sub, ok := subSecDc[typeCode]; ok {
+			return SubInfo{
+				int(sub.subInfo.count),
+				int(sub.subInfo.element_size),
+				sub.rawCopy,
+			}
+		}
+		panic(fmt.Errorf("no section of type(%v)", typeCode))
+	}
+	rv.pkt2opRec = retrieveFor(PROFSEC_TYPE_PKT2OPMAP)
+	rv.opMetaRec = retrieveFor(PROFSEC_TYPE_OPTHUNK)
+	rv.memcpyRec = retrieveFor(PROFSEC_TYPE_MEMCPY_THUNK)
+	rv.stringRec = retrieveFor(PROFSEC_TYPE_STRINGPOOL)
+	//
 	rv.initStringPool()
 	return rv
 }
 
 func (ps *ProfileSecPipBoy) initStringPool() {
-	if ps.sec.str_len > 0 {
-		stringPool := ps.rawData[ps.HeaderSize()+
-			ps.pkt2OpSecSize()+
-			ps.opMetaSecSize()+
-			ps.moduleSecSize()+
-			ps.memcpySecSize()+
-			ps.stringIdSecSize()+
-			int(GetStringSecSize()):]
-		ps.stringPool = stringPool
-	}
+	stringSecChunk := ps.stringRec.rawChunk
+	uVal := reflect.ValueOf(stringSecChunk).Pointer()
+	stringSec := *(*C.StringSec)(unsafe.Pointer(uVal))
+	stringRaw := stringSecChunk[GetStringSecSize():]
+	assert.Assert(int(stringSec.size) == len(stringSecChunk),
+		"%v == %v, string chunk size", int(stringSec.size), len(stringSecChunk))
+	ps.stringPool = stringRaw
 }
 
 func (ps ProfileSecPipBoy) Pkt2OpCount() int {
-	return int(ps.sec.map_num)
+	return ps.pkt2opRec.count
 }
 
 func (ps ProfileSecPipBoy) OpMetaCount() int {
-	return int(ps.sec.thunk_num)
-}
-
-func (ps ProfileSecPipBoy) ModuleCount() int {
-	return int(ps.sec.hlo_module_num)
+	return ps.opMetaRec.count
 }
 
 func (ps ProfileSecPipBoy) MemcpyCount() int {
-	return int(ps.sec.memcpy_num)
-}
-
-func (ps ProfileSecPipBoy) pkt2OpSecSize() int {
-	return int(ps.sec.map_num) * int(GetPkt2OpSecSize())
-}
-
-func (ps ProfileSecPipBoy) opMetaSecSize() int {
-	return int(ps.sec.thunk_num) * int(GetOpMetaSecSize())
-}
-
-func (ps ProfileSecPipBoy) moduleSecSize() int {
-	return int(ps.sec.hlo_module_num) * int(GetModuleSecSize())
-}
-
-func (ps ProfileSecPipBoy) memcpySecSize() int {
-	return int(ps.sec.memcpy_num) * int(GetPbMemcpySecSize())
-}
-
-func (ps ProfileSecPipBoy) stringIdSecSize() int {
-	return int(ps.sec.string_id_num) * int(GetStringIdSecSize())
+	return ps.memcpyRec.count
 }
 
 func (ps ProfileSecPipBoy) HeaderSize() int {
-	return int(GetProfileSectionSize())
+	return int(ps.sec.profile_section_header_size)
 }
 
 func (ps ProfileSecPipBoy) ExtractStringAt(offset int) string {
@@ -275,23 +337,6 @@ func (ps ProfileSecPipBoy) ExtractArgsAt(offset int, args int) map[string]string
 		dc[key] = val
 	}
 	return dc
-
-}
-
-func (ps ProfileSecPipBoy) verifySize() bool {
-	totSize := ps.HeaderSize() + ps.pkt2OpSecSize() +
-		ps.opMetaSecSize() + ps.moduleSecSize() + ps.memcpySecSize() + ps.stringIdSecSize()
-	if ps.sec.str_len > 0 {
-		uVal := reflect.ValueOf(ps.rawData[totSize:]).Pointer()
-		strSec := *(*C.StringSec)(unsafe.Pointer(uVal))
-		totSize += int(strSec.size)
-	}
-	if int(ps.sec.size) != totSize {
-		log.Printf("whole size: %v", ps.sec.size)
-		log.Printf("the add-up: %v", totSize)
-		panic(errors.New("error whole section size mismatched"))
-	}
-	return true
 }
 
 func ParseProfileSection(
@@ -309,17 +354,9 @@ func ParseProfileSectionFromData(
 ) *metadata.ExecScope {
 
 	newPb := NewProfileSecPipBoy(data)
-	newPb.verifySize()
 
-	curDataOffset := 0
-
-	getDataChunk := func(walkOver int) []byte {
-		curDataOffset += walkOver
-		return data[curDataOffset:]
-	}
-
-	dataStart := getDataChunk(newPb.HeaderSize())
-
+	var rawChunk []byte
+	var elementSize int
 	// Please follow the business order listed below
 	// Pkt2Op
 	// OpMeta
@@ -328,16 +365,16 @@ func ParseProfileSectionFromData(
 	// StringIdSec  (Feb.2022)
 	// StringSec
 	pkt2OpDict := make(map[int]int)
-
 	addPkt2Op := func(pktId, opId int) {
 		if _, ok := pkt2OpDict[pktId]; ok {
 			panic(errors.New("duplicate packet id entry"))
 		}
 		pkt2OpDict[pktId] = opId
 	}
-
+	rawChunk = newPb.pkt2opRec.rawChunk
+	elementSize = newPb.pkt2opRec.elementSize
 	for i := 0; i < newPb.Pkt2OpCount(); i++ {
-		uVal := reflect.ValueOf(dataStart[i*int(GetPkt2OpSecSize()):]).Pointer()
+		uVal := reflect.ValueOf(rawChunk[i*elementSize:]).Pointer()
 		pkt2opSec := *(*C.Pkt2OpSec)(unsafe.Pointer(uVal))
 		addPkt2Op(int(pkt2opSec.pkt), int(pkt2opSec.op))
 	}
@@ -345,7 +382,6 @@ func ParseProfileSectionFromData(
 	fmt.Fprintf(debugStdout, "\n")
 
 	// Now we skip to op-meta start
-	dataStart = getDataChunk(newPb.pkt2OpSecSize())
 	opInformationMap := make(map[int]metadata.DtuOp)
 	addOpInfo := func(opId int, name string) {
 		if _, ok := opInformationMap[opId]; ok {
@@ -358,18 +394,17 @@ func ParseProfileSectionFromData(
 			OpName: name,
 		}
 	}
+	rawChunk = newPb.opMetaRec.rawChunk
+	elementSize = newPb.opMetaRec.elementSize
 	for i := 0; i < newPb.OpMetaCount(); i++ {
-		uVal := reflect.ValueOf(dataStart[i*int(GetOpMetaSecSize()):]).Pointer()
+		uVal := reflect.ValueOf(rawChunk[i*elementSize:]).Pointer()
 		opMetaSec := *(*C.OpMetaSec)(unsafe.Pointer(uVal))
 		addOpInfo(int(opMetaSec.id), newPb.ExtractStringAt(int(opMetaSec.name)))
 	}
 	fmt.Fprintf(debugStdout, "%v op info entries added", len(opInformationMap))
 	fmt.Fprintf(debugStdout, "\n")
 
-	// skip meta chunk, now we reach module section
-	getDataChunk(newPb.opMetaSecSize())
-	// skip module section, now we reach dma section
-	dataStart = getDataChunk(newPb.moduleSecSize())
+	// Memcpy
 	dmaInfoMap := make(map[int]metadata.DmaOp)
 	addDmaInfo := func(packetId int, dc map[string]string) {
 		if _, ok := dmaInfoMap[packetId]; ok {
@@ -385,8 +420,10 @@ func ParseProfileSectionFromData(
 			Attrs:       dc,
 		}
 	}
+	rawChunk = newPb.memcpyRec.rawChunk
+	elementSize = newPb.memcpyRec.elementSize
 	for i := 0; i < newPb.MemcpyCount(); i++ {
-		slice := dataStart[i*int(GetPbMemcpySecSize()):]
+		slice := rawChunk[i*elementSize:]
 		uVal := reflect.ValueOf(slice).Pointer()
 		memcpyMetaSec := *(*C.PbMemcpySec)(unsafe.Pointer(uVal))
 		dc := newPb.ExtractArgsAt(int(memcpyMetaSec.args), int(memcpyMetaSec.args_count))

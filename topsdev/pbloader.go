@@ -3,7 +3,6 @@ package topsdev
 import (
 	"bytes"
 	"encoding/binary"
-	"errors"
 	"log"
 	"sort"
 
@@ -42,7 +41,9 @@ func (pb pbLoader) LoadTask() (taskMap map[int]*rtdata.RuntimeTask, taskIdOrder 
 		execUuid := task.GetExecUuid()
 		pgMask := int(task.GetPgMask())
 		if _, ok := taskMap[taskId]; ok {
-			panic(errors.New("duplicate task id"))
+			// panic(errors.New("duplicate task id"))
+			log.Printf("duplicated task id %v\n", taskId)
+			continue // do not add again
 		}
 		taskMap[taskId] = &rtdata.RuntimeTask{
 			TaskID:         taskId,
