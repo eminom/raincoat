@@ -12,14 +12,28 @@ import (
 	"git.enflame.cn/hai.bai/dmaster/rtinfo/rtdata"
 )
 
+const (
+	DPFSYNC_INDEX_MONO_ONLY = 810020030
+)
+
 type TimeLineManagerOpt struct {
 	EnableExtendedTimeline bool
+}
+
+type TimelineLinear struct {
+	hostStart        uint64
+	deviceCycleStart uint64
+}
+
+func (tll TimelineLinear) MapToHost(devCy uint64) uint64 {
+	return devCy + tll.hostStart - tll.deviceCycleStart
 }
 
 type TimelineManager struct {
 	cycles     []rtdata.DevCycleTime
 	hosttp     []rtdata.HostTimeEntry
 	alignedVec []rtdata.DevCycleAligned
+	tll        TimelineLinear
 	opts       TimeLineManagerOpt
 }
 
@@ -31,8 +45,12 @@ func ratioMapTo(a, b uint64, c uint64) uint64 {
 	return uint64(float64(a) / float64(b) * float64(c))
 }
 
+func (tm TimelineManager) MapToHosttime(targetCycle uint64) (uint64, bool) {
+	return tm.tll.MapToHost(targetCycle), true
+}
+
 // helper for find the legal span for cycle to belong to
-func (tm *TimelineManager) MapToHosttime(targetCycle uint64) (uint64, bool) {
+func (tm *TimelineManager) MapToHosttimeV0(targetCycle uint64) (uint64, bool) {
 	alignedVec := tm.alignedVec
 	lz := len(alignedVec)
 	lo, hi := 0, lz
@@ -90,21 +108,23 @@ func (tm TimelineManager) MergeTo(lhs interface{}) bool {
 }
 
 func (tm *TimelineManager) AlignToHostTimeline() {
-	tm.trimHostWrapped()
-	tm.trimWrappedSyncIndex()
+	// tm.trimHostWrapped()
+	// tm.trimWrappedSyncIndex()
 	// if the host-timeline is in mono ascending
 
 	timeMap := make(map[int]rtdata.HostTimeEntry)
 	for _, v := range tm.hosttp {
-		timeMap[v.DpfSyncIndex] = v
+		// Skip speical dpf sync index
+		if v.DpfSyncIndex != DPFSYNC_INDEX_MONO_ONLY {
+			timeMap[v.DpfSyncIndex] = v
+		}
 	}
 
 	var alignedVec []rtdata.DevCycleAligned
-
 	// tm.cycles are already in the right order
+	timeInfoValid := false
 	for _, v := range tm.cycles {
 		if host, ok := timeMap[v.DpfSyncIndex]; ok {
-			_ = host
 			alignedVec = append(
 				alignedVec,
 				rtdata.DevCycleAligned{
@@ -116,11 +136,17 @@ func (tm *TimelineManager) AlignToHostTimeline() {
 					Hosttime: host.Hosttime,
 				},
 			)
+			timeInfoValid = true
+			tm.tll = TimelineLinear{
+				host.Hosttime,
+				v.DevCycle,
+			}
 		}
 	}
 
 	log.Printf("time sync %v poinst are established", len(alignedVec))
 	tm.alignedVec = alignedVec
+	assert.Assert(timeInfoValid, "Must be true")
 }
 
 func (tm *TimelineManager) trimHostWrapped() {
