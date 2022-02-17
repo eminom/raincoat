@@ -234,6 +234,7 @@ func NewProfileSecPipBoy(rawData []byte) ProfileSecPipBoy {
 	subSectionOffset := profileSectionSize
 
 	var subSecDc = make(map[int]RawDataSet)
+	var totDataSize = 0
 	for i := 0; i < int(sec.sub_section_count); i++ {
 		subChunk :=
 			rawData[subSectionOffset+i*perSubSecSize : subSectionOffset+(i+1)*perSubSecSize]
@@ -250,6 +251,7 @@ func NewProfileSecPipBoy(rawData []byte) ProfileSecPipBoy {
 			subSec,
 			bytes.Repeat(rawData[dataOffset:dataOffset+dataSize], 1),
 		}
+		totDataSize += dataSize
 	}
 
 	//
@@ -274,6 +276,11 @@ func NewProfileSecPipBoy(rawData []byte) ProfileSecPipBoy {
 	rv.opMetaRec = retrieveFor(PROFSEC_TYPE_OPTHUNK)
 	rv.memcpyRec = retrieveFor(PROFSEC_TYPE_MEMCPY_THUNK)
 	rv.stringRec = retrieveFor(PROFSEC_TYPE_STRINGPOOL)
+
+	assert.Assert(len(rawData) == profileSectionSize+
+		int(sec.sub_section_count)*perSubSecSize+
+		totDataSize,
+		"must be length verified, with all sub sections: ")
 	//
 	rv.initStringPool()
 	return rv
