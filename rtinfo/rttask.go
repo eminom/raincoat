@@ -104,7 +104,7 @@ func (rtm *RuntimeTaskManagerBase) DispatchEvent(evt codec.DpfEvent) error {
 			startUn := start.(codec.DpfEvent)
 			taskID := startUn.Payload
 			if task, ok := rtm.GetTaskForId(taskID); !ok {
-				panic(fmt.Errorf("no start for cqm launch exec"))
+				panic(fmt.Errorf("no start for cqm launch exec: task id(%v)", taskID))
 			} else {
 				rtm.updateTaskCycle(task, startUn.Cycle, evt.Cycle)
 			}
