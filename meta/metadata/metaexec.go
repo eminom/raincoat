@@ -67,7 +67,13 @@ func (es ExecScope) DumpDtuopToOstream(fout *os.File) {
 	sort.Ints(opIdVec)
 	for _, opId := range opIdVec {
 		dtuOp := es.opMap[opId]
-		fmt.Fprintf(fout, "%v %v\n", opId, dtuOp.OpName)
+		fmt.Fprintf(fout, "%v %v kind=(%v), fusion_kind=(%v), mod_name=(%v)\n",
+			opId, dtuOp.OpName,
+			dtuOp.Kind,
+			dtuOp.FusionKind,
+			dtuOp.ModuleName,
+		)
+		fmt.Fprintf(fout, "##\n%v\n", dtuOp.MetaString)
 	}
 }
 

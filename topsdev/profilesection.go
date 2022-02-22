@@ -390,15 +390,25 @@ func ParseProfileSectionFromData(
 
 	// Now we skip to op-meta start
 	opInformationMap := make(map[int]metadata.DtuOp)
-	addOpInfo := func(opId int, name string) {
+	addOpInfo := func(opId int, name string,
+		moduleId int,
+		moduleName string,
+		kind string,
+		fusionKind string,
+		meta string) {
 		if _, ok := opInformationMap[opId]; ok {
 			panic(errors.New("duplicate op-id"))
 		}
 		fmt.Fprintf(debugStdout, "op: <%v>", name)
 		fmt.Fprintf(debugStdout, "\n")
 		opInformationMap[opId] = metadata.DtuOp{
-			OpId:   opId,
-			OpName: name,
+			OpId:       opId,
+			OpName:     name,
+			ModuleId:   moduleId,
+			ModuleName: moduleName,
+			Kind:       kind,
+			FusionKind: fusionKind,
+			MetaString: meta,
 		}
 	}
 	rawChunk = newPb.opMetaRec.rawChunk
@@ -406,7 +416,14 @@ func ParseProfileSectionFromData(
 	for i := 0; i < newPb.OpMetaCount(); i++ {
 		uVal := reflect.ValueOf(rawChunk[i*elementSize:]).Pointer()
 		opMetaSec := *(*C.OpMetaSec)(unsafe.Pointer(uVal))
-		addOpInfo(int(opMetaSec.id), newPb.ExtractStringAt(int(opMetaSec.name)))
+		addOpInfo(int(opMetaSec.id),
+			newPb.ExtractStringAt(int(opMetaSec.name)),
+			int(opMetaSec.module_id),
+			newPb.ExtractStringAt(int(opMetaSec.module_name)),
+			newPb.ExtractStringAt(int(opMetaSec.kind)),
+			newPb.ExtractStringAt(int(opMetaSec.fusion_kind)),
+			newPb.ExtractStringAt(int(opMetaSec.meta)),
+		)
 	}
 	fmt.Fprintf(debugStdout, "%v op info entries added", len(opInformationMap))
 	fmt.Fprintf(debugStdout, "\n")
