@@ -108,9 +108,10 @@ func (pb pbLoader) dumpTimepoints(inputNameHint string) {
 	}
 	defer fout.Close()
 	for _, tp := range pb.pbObj.Dtu.Device.SyncPoint {
-		fmt.Fprintf(fout, "%v %v %v\n", int(tp.GetId()),
+		fmt.Fprintf(fout, "%v %v %v %v\n", int(tp.GetId()),
 			uint64(tp.GetTimestamp()),
 			int(tp.GetDeviceCycle()),
+			uint64(tp.GetClockTimestamp()),
 		)
 	}
 }
