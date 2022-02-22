@@ -44,7 +44,7 @@ func (t TraceEvents) Less(i, j int) bool {
 }
 
 func toMs(hosttime uint64) float64 {
-	return float64(hosttime) / (1000 * 1000)
+	return float64(hosttime) / (1000)
 }
 
 func NewTraceEventBegin(
