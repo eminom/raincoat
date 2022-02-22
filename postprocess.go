@@ -173,7 +173,7 @@ func (p PostProcessor) DoPostProcessing() {
 		dumpFullCycles(p.qm.OpActivity())
 
 		tr.DumpToEventTrace(p.qm.OpActivity(), p.tm,
-			normalDumper{},
+			NewNormalDumper(),
 			true,
 		)
 		wildInDumper0 := wildInDumper{}

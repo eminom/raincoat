@@ -49,6 +49,7 @@ func toMs(hosttime uint64) float64 {
 
 func NewTraceEventBegin(
 	pid string,
+	tid string,
 	name string,
 	ts uint64,
 ) TraceEvent {
@@ -56,13 +57,14 @@ func NewTraceEventBegin(
 		Ph:   "B",
 		Ts:   toMs(ts),
 		Pid:  pid,
-		Tid:  name,
+		Tid:  tid,
 		Name: name,
 	}
 }
 
 func NewTraceEventEnd(
 	pid string,
+	tid string,
 	name string,
 	ts uint64,
 ) TraceEvent {
@@ -70,7 +72,7 @@ func NewTraceEventEnd(
 		Ph:   "E",
 		Ts:   toMs(ts),
 		Pid:  pid,
-		Tid:  name,
+		Tid:  tid,
 		Name: name,
 	}
 }
@@ -110,7 +112,7 @@ func (tr *TraceEventSession) appendEvt(evt TraceEvent) {
 }
 
 type EventTraceItemGen interface {
-	GetPidAndName(rtdata.OpActivity) (bool, string, string)
+	GetPidAndName(rtdata.OpActivity) (bool, string, string, string)
 }
 
 func (tr *TraceEventSession) DumpToEventTrace(
@@ -126,19 +128,20 @@ func (tr *TraceEventSession) DumpToEventTrace(
 
 	subSampleCount := 0
 	for _, act := range bundle {
-		///act.IsOpRefValid()
-		if okToShow, pid, name := evtG.GetPidAndName(act); okToShow {
+		if okToShow, pid, tid, name := evtG.GetPidAndName(act); okToShow {
 			dtuOpCount++
 			startHostTime, startOK := tm.MapToHosttime(act.StartCycle())
 			endHostTime, endOK := tm.MapToHosttime(act.EndCycle())
 			if startOK && endOK {
 				tr.appendEvt(NewTraceEventBegin(
 					pid,
+					tid,
 					name,
 					startHostTime,
 				))
 				tr.appendEvt(NewTraceEventEnd(
 					pid,
+					tid,
 					name,
 					endHostTime,
 				))

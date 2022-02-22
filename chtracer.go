@@ -6,42 +6,72 @@ import (
 	"git.enflame.cn/hai.bai/dmaster/rtinfo/rtdata"
 )
 
-type normalDumper struct{}
+type normalDumper struct {
+	taskToNameMap map[int]map[string]int
+}
 
-func (normalDumper) GetPidAndName(act rtdata.OpActivity) (bool, string, string) {
-	if act.IsOpRefValid() {
-		opMeta := act.GetOp()
-		opName := fmt.Sprintf("%v.%v", opMeta.OpName, opMeta.OpId)
-		return true,
-			act.GetTask().ToShortString(),
-			opName
+func NewNormalDumper() *normalDumper {
+	return &normalDumper{
+		taskToNameMap: make(map[int]map[string]int),
 	}
-	return false, "Unknown Task", "Unk"
+}
+
+func (d *normalDumper) GetPidAndName(act rtdata.OpActivity) (bool, string, string, string) {
+	if act.IsOpRefValid() {
+
+		taskId := act.GetTask().TaskID
+		var nameMap map[string]int
+		if nm, ok := d.taskToNameMap[taskId]; ok {
+			nameMap = nm
+		} else {
+			nameMap = make(map[string]int)
+			d.taskToNameMap[taskId] = nameMap
+		}
+
+		opMeta := act.GetOp()
+		opNameWithOpId := fmt.Sprintf("%v.%v", opMeta.OpName, opMeta.OpId)
+		uniqueOpName := opNameWithOpId
+		var subSeq int
+		var ok bool
+		if subSeq, ok = nameMap[opNameWithOpId]; ok {
+			subSeq++
+			uniqueOpName += fmt.Sprintf(".%v", subSeq)
+		}
+		nameMap[opNameWithOpId] = subSeq
+		return true,
+			act.GetTask().ToShortString(), // Process name
+			opMeta.OpName, // Thread name
+			uniqueOpName // Thread name with op id
+	}
+	return false, "Unknown Task", "Unk", "Unk"
 }
 
 type wildInDumper struct {
 	notWildInCount int
 }
 
-func (w *wildInDumper) GetPidAndName(act rtdata.OpActivity) (bool, string, string) {
+func (w *wildInDumper) GetPidAndName(act rtdata.OpActivity) (bool, string, string, string) {
 	//+ act.GetTask().ToShortString(),
 	if act.IsOpRefValid() {
+		rawOpName := act.GetOp().OpName
+		opId := act.GetOp().OpId
 		return true, "Wild In",
-			act.GetOp().OpName
+			rawOpName,
+			fmt.Sprintf("%v.%v", rawOpName, opId)
 	}
 	w.notWildInCount++
-	return false, "", ""
+	return false, "", "", ""
 }
 
 type wildOutDumper struct {
 	subSampleCc int
 }
 
-func (w *wildOutDumper) GetPidAndName(act rtdata.OpActivity) (bool, string, string) {
+func (w *wildOutDumper) GetPidAndName(act rtdata.OpActivity) (bool, string, string, string) {
 	//+ act.GetTask().ToShortString(),
 	w.subSampleCc++
 	if w.subSampleCc%17 == 0 {
-		return true, "Wild Out", "some op"
+		return true, "Wild Out", "some op", "some op"
 	}
-	return false, "", ""
+	return false, "", "", ""
 }
