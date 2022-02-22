@@ -109,10 +109,14 @@ func (tr *TraceEventSession) appendEvt(evt TraceEvent) {
 	tr.eventVec = append(tr.eventVec, evt)
 }
 
+type EventTraceItemGen interface {
+	GetPidAndName(rtdata.OpActivity) (bool, string, string)
+}
+
 func (tr *TraceEventSession) DumpToEventTrace(
 	bundle []rtdata.OpActivity,
 	tm *rtinfo.TimelineManager,
-	getPidAndName func(rtdata.OpActivity) (bool, string, string),
+	evtG EventTraceItemGen,
 	dumpWild bool,
 ) {
 	rtdata.CheckTimespanOverlapping(bundle)
@@ -123,7 +127,7 @@ func (tr *TraceEventSession) DumpToEventTrace(
 	subSampleCount := 0
 	for _, act := range bundle {
 		///act.IsOpRefValid()
-		if okToShow, pid, name := getPidAndName(act); okToShow {
+		if okToShow, pid, name := evtG.GetPidAndName(act); okToShow {
 			dtuOpCount++
 			startHostTime, startOK := tm.MapToHosttime(act.StartCycle())
 			endHostTime, endOK := tm.MapToHosttime(act.EndCycle())

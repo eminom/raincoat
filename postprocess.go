@@ -173,44 +173,20 @@ func (p PostProcessor) DoPostProcessing() {
 		dumpFullCycles(p.qm.OpActivity())
 
 		tr.DumpToEventTrace(p.qm.OpActivity(), p.tm,
-			func(act rtdata.OpActivity) (bool, string, string) {
-				if act.IsOpRefValid() {
-					opMeta := act.GetOp()
-					opName := fmt.Sprintf("%v.%v", opMeta.OpName, opMeta.OpId)
-					return true,
-						act.GetTask().ToShortString(),
-						opName
-				}
-				return false, "Unknown Task", "Unk"
-			},
+			normalDumper{},
 			true,
 		)
-		notWildInCount := 0
+		wildInDumper0 := wildInDumper{}
 		tr.DumpToEventTrace(unProcessed, p.tm,
-			func(act rtdata.OpActivity) (bool, string, string) {
-				//+ act.GetTask().ToShortString(),
-				if act.IsOpRefValid() {
-					return true, "Wild In",
-						act.GetOp().OpName
-				}
-				notWildInCount++
-				return false, "", ""
-			},
+			&wildInDumper0,
 			false,
 		)
-		subSampleCc := 0
+		wildOutDumper0 := wildOutDumper{}
 		tr.DumpToEventTrace(wildProcess, p.tm,
-			func(act rtdata.OpActivity) (bool, string, string) {
-				//+ act.GetTask().ToShortString(),
-				subSampleCc++
-				if subSampleCc%17 == 0 {
-					return true, "Wild Out", "some op"
-				}
-				return false, "", ""
-			},
+			&wildOutDumper0,
 			false,
 		)
-		fmt.Printf("# notWildInCount: %v\n", notWildInCount)
+		fmt.Printf("# notWildInCount: %v\n", wildInDumper0.notWildInCount)
 		fmt.Printf("# uncertained (could not detmerined at all): %v\n",
 			len(wildProcess))
 		tr.DumpToFile("dtuop_trace.json")
