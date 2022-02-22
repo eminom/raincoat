@@ -175,9 +175,11 @@ func (p PostProcessor) DoPostProcessing() {
 		tr.DumpToEventTrace(p.qm.OpActivity(), p.tm,
 			func(act rtdata.OpActivity) (bool, string, string) {
 				if act.IsOpRefValid() {
+					opMeta := act.GetOp()
+					opName := fmt.Sprintf("%v.%v", opMeta.OpName, opMeta.OpId)
 					return true,
 						act.GetTask().ToShortString(),
-						act.GetOp().OpName
+						opName
 				}
 				return false, "Unknown Task", "Unk"
 			},
