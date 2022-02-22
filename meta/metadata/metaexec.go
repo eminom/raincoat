@@ -59,7 +59,7 @@ func (es ExecScope) DumpPktOpMapToFile() {
 	es.DumpPktOpMapToOstream(fout)
 }
 
-func (es ExecScope) DumpDtuopToOstream(fout *os.File) {
+func (es ExecScope) DumpDtuopToOstream(fout *os.File, brief bool) {
 	var opIdVec []int
 	for opId := range es.opMap {
 		opIdVec = append(opIdVec, opId)
@@ -67,24 +67,35 @@ func (es ExecScope) DumpDtuopToOstream(fout *os.File) {
 	sort.Ints(opIdVec)
 	for _, opId := range opIdVec {
 		dtuOp := es.opMap[opId]
-		fmt.Fprintf(fout, "%v %v kind=(%v), fusion_kind=(%v), mod_name=(%v)\n",
-			opId, dtuOp.OpName,
-			dtuOp.Kind,
-			dtuOp.FusionKind,
-			dtuOp.ModuleName,
-		)
-		fmt.Fprintf(fout, "##\n%v\n", dtuOp.MetaString)
+		if brief {
+			fmt.Fprintf(fout, "%v %v\n", opId, dtuOp.OpName)
+		} else {
+			fmt.Fprintf(fout, "%v %v kind=(%v), fusion_kind=(%v), mod_name=(%v)\n",
+				opId, dtuOp.OpName,
+				dtuOp.Kind,
+				dtuOp.FusionKind,
+				dtuOp.ModuleName,
+			)
+			fmt.Fprintf(fout, "##\n%v\n", dtuOp.MetaString)
+		}
 	}
 }
 
 func (es ExecScope) DumpDtuOpToFile() {
 	filename := es.getDumpFileName("opmeta")
-	fout, err := os.Create(filename)
-	if err != nil {
+	if fout, err := os.Create(filename); err == nil {
+		defer fout.Close()
+		es.DumpDtuopToOstream(fout, false)
+	} else {
 		panic(fmt.Errorf("could not open %v for: %v", filename, err))
 	}
-	defer fout.Close()
-	es.DumpDtuopToOstream(fout)
+	filename = es.getDumpFileName("opmetaseq")
+	if fout, err := os.Create(filename); err == nil {
+		defer fout.Close()
+		es.DumpDtuopToOstream(fout, true)
+	} else {
+		panic(fmt.Errorf("could not open %v for: %v", filename, err))
+	}
 }
 
 func (es ExecScope) DumpDmaToFile() {
