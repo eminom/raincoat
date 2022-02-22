@@ -3,7 +3,9 @@ package topsdev
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"log"
+	"os"
 	"sort"
 
 	"git.enflame.cn/hai.bai/dmaster/meta/metadata"
@@ -90,6 +92,42 @@ func (pb pbLoader) DumpMeta() {
 		execMeta.DumpDtuOpToFile()
 		execMeta.DumpDmaToFile()
 		execMeta.DumpPktOpMapToFile()
+	}
+}
+
+func (pb pbLoader) DumpRuntimeInformation(inputNameHint string) {
+	pb.dumpTimepoints(inputNameHint)
+	pb.dumpRuntimeTasks(inputNameHint)
+}
+
+func (pb pbLoader) dumpTimepoints(inputNameHint string) {
+	outName := fmt.Sprintf("%v.timeinfo", inputNameHint)
+	fout, err := os.Create(outName)
+	if err != nil {
+		panic(fmt.Errorf("could not open %v: %v", outName, err))
+	}
+	defer fout.Close()
+	for _, tp := range pb.pbObj.Dtu.Device.SyncPoint {
+		fmt.Fprintf(fout, "%v %v %v\n", int(tp.GetId()),
+			uint64(tp.GetTimestamp()),
+			int(tp.GetDeviceCycle()),
+		)
+	}
+}
+
+func (pb pbLoader) dumpRuntimeTasks(inputNameHint string) {
+	outName := fmt.Sprintf("%v.tasks", inputNameHint)
+	fout, err := os.Create(outName)
+	if err != nil {
+		panic(fmt.Errorf("could not open %v: %v", outName, err))
+	}
+	defer fout.Close()
+	for _, task := range pb.pbObj.Dtu.Runtime.Task.TaskData {
+		fmt.Fprintf(fout, "%v 0x%016x %v\n",
+			task.GetTaskId(),
+			task.GetExecUuid(),
+			task.GetPgMask(),
+		)
 	}
 }
 

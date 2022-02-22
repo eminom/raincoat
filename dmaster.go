@@ -121,13 +121,15 @@ func main() {
 		}
 
 		if *fPbMode {
-			pbLoader, err := topsdev.NewPbComplex(flag.Args()[0], oneTask)
+			inputName := flag.Args()[0]
+			pbLoader, err := topsdev.NewPbComplex(inputName, oneTask)
 			if err != nil {
 				log.Fatalf("error load in pbmode: %v", err)
 			}
 
 			if *fDumpmeta {
 				pbLoader.DumpMeta()
+				pbLoader.DumpRuntimeInformation(inputName)
 				return
 			}
 
