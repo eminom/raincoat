@@ -28,7 +28,13 @@ func TestBasicTopsdev(t *testing.T) {
 	dumpTimepoints(pb)
 	dumpDpfringbuffer(pb)
 	dumpExecRaw(pb)
-	for _, seri := range pb.Dtu.Meta.ExecutableProfileSerialize {
+
+	if len(pb.Dtu.Meta.GetExecutableProfileSerialize()) == 0 {
+		t.Logf("expecting at least one serialization")
+		t.FailNow()
+	}
+
+	for _, seri := range pb.Dtu.Meta.GetExecutableProfileSerialize() {
 		ParseProfileSection(seri, os.Stdout)
 	}
 	t.Logf("done parse profile section")

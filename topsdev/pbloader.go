@@ -78,7 +78,7 @@ func (DummyStdout) Write(buf []byte) (int, error) {
 }
 
 func (pb pbLoader) LoadExecScope(execUuid uint64) *metadata.ExecScope {
-	for _, seri := range pb.pbObj.Dtu.Meta.ExecutableProfileSerialize {
+	for _, seri := range pb.pbObj.Dtu.Meta.GetExecutableProfileSerialize() {
 		if seri.GetExecUuid() == execUuid {
 			return ParseProfileSection(seri, DummyStdout{})
 		}
@@ -87,7 +87,10 @@ func (pb pbLoader) LoadExecScope(execUuid uint64) *metadata.ExecScope {
 }
 
 func (pb pbLoader) DumpMeta() {
-	for _, seri := range pb.pbObj.Dtu.Meta.ExecutableProfileSerialize {
+	// Meta .Dtu.Meta may be nil
+	// if access to ExecutableProfileSerialize directly
+	// it may crash
+	for _, seri := range pb.pbObj.Dtu.Meta.GetExecutableProfileSerialize() {
 		execMeta := ParseProfileSection(seri, DummyStdout{})
 		execMeta.DumpDtuOpToFile()
 		execMeta.DumpDmaToFile()

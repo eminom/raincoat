@@ -57,7 +57,7 @@ func dumpDpfringbuffer(pb *topspb.ProfileData) {
 }
 
 func dumpExecRaw(pb *topspb.ProfileData) {
-	for _, seri := range pb.Dtu.Meta.ExecutableProfileSerialize {
+	for _, seri := range pb.Dtu.Meta.GetExecutableProfileSerialize() {
 		fmt.Printf("executable 0x%016x \"%v\"\n",
 			seri.GetExecUuid(), seri.GetName(),
 		)
