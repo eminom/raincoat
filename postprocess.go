@@ -16,11 +16,12 @@ import (
 )
 
 type PostProcessor struct {
-	rtDict *rtinfo.RuntimeTaskManager
-	qm     *rtdata.EventQueue
-	fwVec  *rtdata.EventQueue
-	dmaVec *rtdata.EventQueue
-	tm     *rtinfo.TimelineManager
+	rtDict    *rtinfo.RuntimeTaskManager
+	qm        *rtdata.EventQueue
+	fwVec     *rtdata.EventQueue
+	dmaVec    *rtdata.EventQueue
+	kernelVec *rtdata.EventQueue
+	tm        *rtinfo.TimelineManager
 
 	curAlgo vgrule.ActMatchAlgo
 	loader  efintf.InfoReceiver
@@ -53,20 +54,24 @@ func NewPostProcesser(loader efintf.InfoReceiver,
 	dmaVec := rtdata.NewOpEventQueue(rtdata.NewDmaCollector(curAlgo),
 		codec.DmaDetector{},
 	)
+	kernelVec := rtdata.NewOpEventQueue(rtdata.NewKernelActCollector(curAlgo),
+		codec.SipDetector{},
+	)
 	tm := rtinfo.NewTimelineManager(
 		rtinfo.TimeLineManagerOpt{
 			EnableExtendedTimeline: enableExtendedTimeline,
 		})
 	tm.LoadTimepoints(loader)
 	return PostProcessor{
-		loader:  loader,
-		curAlgo: curAlgo,
-		rtDict:  rtDict,
-		qm:      qm,
-		fwVec:   fwVec,
-		dmaVec:  dmaVec,
-		tm:      tm,
-		seqIdx:  seqIdx,
+		loader:    loader,
+		curAlgo:   curAlgo,
+		rtDict:    rtDict,
+		qm:        qm,
+		fwVec:     fwVec,
+		dmaVec:    dmaVec,
+		kernelVec: kernelVec,
+		tm:        tm,
+		seqIdx:    seqIdx,
 	}
 }
 
@@ -76,6 +81,7 @@ func (p PostProcessor) GetSinkers(disableDma bool) []sessintf.EventSinker {
 		p.qm,
 		p.fwVec,
 		p.tm,
+		p.kernelVec,
 	}
 	if !disableDma {
 		rv = append(rv, p.dmaVec)
@@ -90,6 +96,7 @@ func (p PostProcessor) GetConcurSinkers() []sessintf.ConcurEventSinker {
 		p.fwVec,
 		p.tm,
 		p.dmaVec,
+		p.kernelVec,
 	}
 	return rv
 }
@@ -109,6 +116,11 @@ type DbDumper interface {
 	DumpDmaActs(
 		coords rtdata.Coords,
 		bundle []rtdata.DmaActivity,
+		tm *rtinfo.TimelineManager,
+	)
+	DumpKernelActs(
+		coords rtdata.Coords,
+		bundle []rtdata.KernelActivity,
 		tm *rtinfo.TimelineManager,
 	)
 }
@@ -134,6 +146,10 @@ func (p PostProcessor) DumpToDb(coord rtdata.Coords, dbe DbDumper) {
 	dbe.DumpDmaActs(
 		coord,
 		p.dmaVec.DmaActivity(), p.tm,
+	)
+	dbe.DumpKernelActs(
+		coord,
+		p.kernelVec.KernelActivity(), p.tm,
 	)
 
 }

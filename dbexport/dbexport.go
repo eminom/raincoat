@@ -40,9 +40,10 @@ type DbSession struct {
 	dbObject   *sql.DB
 	idx        int
 
-	dtuOpCount int
-	fwOpCount  int
-	dmaOpCount int
+	dtuOpCount    int
+	fwOpCount     int
+	dmaOpCount    int
+	kernelOpCount int
 }
 
 func ifFileExist(file string) bool {
@@ -82,6 +83,8 @@ func (dbs *DbSession) Close() {
 		TableCategory_DTUFwActivity, dbs.fwOpCount, "ns")
 	hs.AddHeader("memcpy", "1.0",
 		TableCategory_DTUMemcpyActivity, dbs.dmaOpCount, "ns")
+	hs.AddHeader("kernel", "1.0",
+		TableCategory_DTUKernelActivity, dbs.kernelOpCount, "ns")
 	hs.Close()
 	// And finally , close DB handle
 	dbs.dbObject.Close()
@@ -241,6 +244,39 @@ func (dbs *DbSession) DumpDmaActs(
 	}
 	log.Printf("%v DMA ACT record(s) have been traced into %v",
 		dmaActCount,
+		dbs.targetName,
+	)
+
+}
+
+func (dbs *DbSession) DumpKernelActs(
+	coords rtdata.Coords,
+	bundle []rtdata.KernelActivity,
+	tm *rtinfo.TimelineManager,
+) {
+	dmaS := NewKernelSession(dbs.dbObject)
+	defer dmaS.Close()
+	nodeID, deviceID := coords.NodeID, coords.DeviceID
+	for _, act := range bundle {
+		startHostTime, startOK := tm.MapToHosttime(act.StartCycle())
+		endHostTime, endOK := tm.MapToHosttime(act.EndCycle())
+		if startOK && endOK {
+			packetID, contextID := act.Start.PacketID, act.Start.Context
+			name := "SIP BUSY"
+			dmaS.AddKernelTrace(
+				dbs.idx, nodeID, deviceID, act.Start.ClusterID,
+				contextID, name,
+				startHostTime, endHostTime, endHostTime-startHostTime,
+				act.StartCycle(), act.EndCycle(), uint64(act.Duration()),
+				packetID, act.Start.EngineTy,
+				act.GetEngineIndex(),
+			)
+			dbs.kernelOpCount++
+			dbs.idx++
+		}
+	}
+	log.Printf("%v SIP ACT record(s) have been traced into %v",
+		len(bundle),
 		dbs.targetName,
 	)
 

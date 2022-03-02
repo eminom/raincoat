@@ -12,6 +12,7 @@ func isDebugOpPacket(evt DpfEvent) bool {
 type FwPktDetector struct{}
 type DbgPktDetector struct{}
 type DmaDetector struct{}
+type SipDetector struct{}
 
 // Implementations
 
@@ -127,3 +128,30 @@ func (DmaDetector) TestIfMatch(former, latter DpfEvent) bool {
 }
 
 func (DmaDetector) PurgePreviousEvents() bool { return true }
+
+func (SipDetector) GetEngineTypes() []EngineTypeCode {
+	return []EngineTypeCode{
+		EngCat_SIP,
+	}
+}
+
+func (SipDetector) IsTerminator(DpfEvent) bool {
+	return false
+}
+
+// Only two events
+//
+func (SipDetector) IsStarterMark(evt DpfEvent) (bool, bool) {
+	return evt.Event == 1, evt.Event == 0
+}
+
+// ALL SIP, Engine Type must be the same
+// 		former.EngineTypeCode == latter.EngineTypeCode
+// Packet id is now all zero for SIP events
+//   	former.PacketID == latter.PacketID &&
+func (SipDetector) TestIfMatch(former, latter DpfEvent) bool {
+	// Always match the closest begin
+	return true
+}
+
+func (SipDetector) PurgePreviousEvents() bool { return false }

@@ -40,15 +40,26 @@ const (
 )
 
 const (
+	createKernelTable = `
+	CREATE TABLE kernel(idx INT,name TEXT,node_id INT,description TEXT,context_id INT,
+		start_timestamp INT,end_timestamp INT,duration_timestamp INT,
+		start_cycle INT,end_cycle INT,duration_cycle INT,packet_id INT,
+		device_id INT,cluster_id INT,engine_id INT,engine_type TEXT,
+		op_id INT,op_name TEXT,vp_id INT,row_name TEXT,tid TEXT);`
+)
+
+const (
 	TableCategory_DTUOpActivity     = "DTUOpActivity"
 	TableCategory_DTUFwActivity     = "DTUFwActivity"
 	TableCategory_DTUMemcpyActivity = "DTUMemcpyActivity"
+	TableCategory_DTUKernelActivity = "DTUKernelActivity"
 )
 
 func getDbInitSchema() string {
 	return createHeaderTable + "\n" +
 		createDtuOpTable + "\n" +
 		createFwTable + "\n" +
+		createKernelTable + "\n" +
 		createMemcpyTable + `
 	delete from dtu_op;
 	`
