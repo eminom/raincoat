@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"os"
 
 	"git.enflame.cn/hai.bai/dmaster/codec"
 	"git.enflame.cn/hai.bai/dmaster/rtinfo/rtdata"
@@ -15,6 +16,8 @@ func dumpFullCycles(bundle []rtdata.OpActivity) {
 	// master-id to last cycle value
 	prevCycleEnds := make(map[int]uint64)
 	prevLastPid := make(map[int]int)
+
+	var maxDelta uint64 = 0
 
 	var errs []error
 
@@ -32,15 +35,23 @@ func dumpFullCycles(bundle []rtdata.OpActivity) {
 		}
 		if lastEndCycle, ok := prevCycleEnds[combinedCtx]; ok {
 			if act.StartCycle() <= lastEndCycle {
+				delta := lastEndCycle - act.StartCycle()
+				if maxDelta < delta {
+					maxDelta = delta
+				}
 				errs = append(errs,
-					fmt.Errorf("error crossed for master-id:%v, context: %v, pktid: %v, op-id: %v\nlast cycle: %v, last packet-id: %v",
+					fmt.Errorf(
+						"error crossed for master-id:%v, context: %v, pktid: %v, op-id: %v\nlast cycle: %v, this cycle:%v, last packet-id: %v\ndelta %v",
 						act.Start.MasterIdValue(),
 						act.Start.Context,
 						act.Start.PacketID,
 						opId,
 						lastEndCycle,
+						act.StartCycle(),
 						prevLastPid[combinedCtx],
+						delta,
 					))
+
 			}
 		}
 		// update the last one
@@ -49,13 +60,13 @@ func dumpFullCycles(bundle []rtdata.OpActivity) {
 	}
 
 	if len(errs) > 0 {
-		fmt.Printf("#########################################\n")
-		fmt.Printf("##### Start end crossed for op act  #####\n")
-		fmt.Printf("#########################################\n")
-
+		fmt.Fprintf(os.Stderr, "#########################################\n")
+		fmt.Fprintf(os.Stderr, "##### Start end crossed for op act  #####\n")
+		fmt.Fprintf(os.Stderr, "#########################################\n")
 		for _, err := range errs {
-			fmt.Printf("%v\n", err)
+			fmt.Fprintf(os.Stderr, "%v\n", err)
 		}
+		fmt.Fprintf(os.Stderr, "# Max delta is %v\n", maxDelta)
 		fmt.Println()
 	}
 

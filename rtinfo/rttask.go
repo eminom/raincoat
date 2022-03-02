@@ -104,7 +104,13 @@ func (rtm *RuntimeTaskManagerBase) DispatchEvent(evt codec.DpfEvent) error {
 			startUn := start.(codec.DpfEvent)
 			taskID := startUn.Payload
 			if task, ok := rtm.GetTaskForId(taskID); !ok {
-				panic(fmt.Errorf("no start for cqm launch exec: task id(%v)", taskID))
+				// panic(fmt.Errorf("no start for cqm launch exec: task id(%v)", taskID))
+				// make all these task invalid
+				// The consequence is that
+				// The task holds no executable information
+				//  for there is no record on host site
+				fmt.Fprintf(os.Stderr,
+					"no start for cqm launch exec: task id(%v)\n", taskID)
 			} else {
 				rtm.updateTaskCycle(task, startUn.Cycle, evt.Cycle)
 			}
