@@ -37,11 +37,11 @@ func (kernS *KernelSession) AddKernelTrace(idx, nodeID, devID, clusterID, ctxID 
 	startTS, endTS, durTS uint64,
 	startCy, endCy, durCy uint64,
 	packetId int, engineType string,
-	engineID int) {
+	engineID int,
+	rowName string) {
 	//0:0:-1:2:ENGINE_SIP:0:SIP BUSY
 	// And SIP BUSY only so far.
 	// row_name as name
-	rowName := name
 	_, err := kernS.stmt.Exec(idx, nodeID, devID, clusterID, ctxID, name,
 		startTS, endTS, durTS,
 		startCy, endCy, durCy,
@@ -49,7 +49,7 @@ func (kernS *KernelSession) AddKernelTrace(idx, nodeID, devID, clusterID, ctxID 
 		GetNextVpId(), rowName,
 		engineID,
 		fmt.Sprintf("%v:%v:%v:%v:%v:%v:%v",
-			nodeID, devID, ctxID, clusterID, engineType, engineID, name),
+			nodeID, devID, ctxID, clusterID, engineType, engineID, rowName),
 	)
 	assert.Assert(err == nil, "Must be nil error: %v", err)
 }

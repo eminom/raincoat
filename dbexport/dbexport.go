@@ -98,6 +98,7 @@ func (dbs *DbSession) DumpDtuOps(
 ) {
 	dos := NewDtuOpSession(dbs.dbObject)
 	defer dos.Close()
+	nc := NewNameConverter()
 	dtuOpCount, convertToHostError := 0, 0
 	nodeID, deviceID := coords.NodeID, coords.DeviceID
 	const clusterID = -1
@@ -107,10 +108,12 @@ func (dbs *DbSession) DumpDtuOps(
 			startHostTime, startOK := tm.MapToHosttime(act.StartCycle())
 			endHostTime, endOK := tm.MapToHosttime(act.EndCycle())
 			if startOK && endOK {
-				dos.AddDtuOp(dbs.idx, nodeID, deviceID, clusterID, act.Start.Context, name,
+				name1 := nc.GetIndexedName(0, act.Start.Context,
+					name)
+				dos.AddDtuOp(dbs.idx, nodeID, deviceID, clusterID, act.Start.Context, name1,
 					startHostTime, endHostTime, endHostTime-startHostTime,
 					act.StartCycle(), act.EndCycle(), act.EndCycle()-act.StartCycle(),
-					act.GetOp().OpId, act.GetOp().OpName,
+					act.GetOp().OpId, name,
 				)
 				dbs.dtuOpCount++
 				dbs.idx++
@@ -136,6 +139,8 @@ func (dbs *DbSession) DumpFwActs(
 	fw := NewFwSession(dbs.dbObject)
 	defer fw.Close()
 
+	nc := NewNameConverter()
+
 	fwActCount, convertToHostError := 0, 0
 	nodeID, deviceID := coords.NodeID, coords.DeviceID
 	for _, act := range bundle {
@@ -151,7 +156,10 @@ func (dbs *DbSession) DumpFwActs(
 			}
 			return fmt.Sprintf("Engine(%v)", act.Start.EngineTy)
 		}
-		name := getName(act)
+		rowName := getName(act)
+		name := nc.GetIndexedName(
+			act.Start.MasterIdValue(), act.Start.Context,
+			rowName)
 
 		fwActCount++
 		startHostTime, startOK := tm.MapToHosttime(act.StartCycle())
@@ -167,7 +175,7 @@ func (dbs *DbSession) DumpFwActs(
 				startHostTime, endHostTime, endHostTime-startHostTime,
 				act.StartCycle(), act.EndCycle(), act.EndCycle()-act.StartCycle(),
 				packetID, act.Start.EngineTy,
-				act.Start.EngineIndex,
+				act.Start.EngineIndex, rowName,
 			)
 			dbs.fwOpCount++
 			dbs.idx++
@@ -256,20 +264,23 @@ func (dbs *DbSession) DumpKernelActs(
 ) {
 	dmaS := NewKernelSession(dbs.dbObject)
 	defer dmaS.Close()
+	nc := NewNameConverter()
 	nodeID, deviceID := coords.NodeID, coords.DeviceID
 	for _, act := range bundle {
 		startHostTime, startOK := tm.MapToHosttime(act.StartCycle())
 		endHostTime, endOK := tm.MapToHosttime(act.EndCycle())
 		if startOK && endOK {
 			packetID, contextID := act.Start.PacketID, act.Start.Context
-			name := "SIP BUSY"
+			rowName := "SIP BUSY"
+			name := nc.GetIndexedName(act.Start.MasterIdValue(), act.Start.Context,
+				rowName)
 			dmaS.AddKernelTrace(
 				dbs.idx, nodeID, deviceID, act.Start.ClusterID,
 				contextID, name,
 				startHostTime, endHostTime, endHostTime-startHostTime,
 				act.StartCycle(), act.EndCycle(), uint64(act.Duration()),
 				packetID, act.Start.EngineTy,
-				act.GetEngineIndex(),
+				act.GetEngineIndex(), rowName,
 			)
 			dbs.kernelOpCount++
 			dbs.idx++

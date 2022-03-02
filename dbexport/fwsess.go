@@ -35,7 +35,7 @@ func (fw *FwSession) AddFwTrace(idx, nodeID, devID, clusterID, ctxID int, name s
 	startTS, endTS, durTS uint64,
 	startCy, endCy, durCy uint64,
 	packetId int, engineType string,
-	engineID int,
+	engineID int, rowName string,
 ) {
 	//0:0:-1:2:ENGINE_TS:0:CQM Executable Launch0
 	// row_name as name
@@ -43,10 +43,10 @@ func (fw *FwSession) AddFwTrace(idx, nodeID, devID, clusterID, ctxID int, name s
 		startTS, endTS, durTS,
 		startCy, endCy, durCy,
 		packetId, engineType,
-		GetNextVpId(), name,
+		GetNextVpId(), rowName,
 		engineID,
 		fmt.Sprintf("%v:%v:%v:%v:%v:%v:%v",
-			nodeID, devID, ctxID, clusterID, engineType, engineID, name),
+			nodeID, devID, ctxID, clusterID, engineType, engineID, rowName),
 	)
 	assert.Assert(err == nil, "Must be nil error: %v", err)
 }
