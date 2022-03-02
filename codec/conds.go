@@ -10,7 +10,9 @@ func isDebugOpPacket(evt DpfEvent) bool {
 }
 
 type FwPktDetector struct{}
-type DbgPktDetector struct{}
+type DbgPktDetector struct {
+	PurgeOnStepEnd bool
+}
 type DmaDetector struct{}
 type SipDetector struct{}
 
@@ -70,8 +72,8 @@ func (DbgPktDetector) GetEngineTypes() []EngineTypeCode {
 	}
 }
 
-func (DbgPktDetector) IsTerminator(evt DpfEvent) bool {
-	return evt.Event == CqmEventDebugPacketStepEnd
+func (dbgD DbgPktDetector) IsTerminator(evt DpfEvent) bool {
+	return dbgD.PurgeOnStepEnd && evt.Event == CqmEventDebugPacketStepEnd
 }
 
 func (DbgPktDetector) IsStarterMark(evt DpfEvent) (bool, bool) {
