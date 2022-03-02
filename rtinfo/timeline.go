@@ -146,6 +146,18 @@ func (tm *TimelineManager) AlignToHostTimeline() {
 
 	log.Printf("time sync %v poinst are established", len(alignedVec))
 	tm.alignedVec = alignedVec
+	if !timeInfoValid {
+		// Error, try to dump more information
+		fmt.Println()
+		dpfSyncDict := make(map[int]bool)
+		for _, item := range tm.hosttp {
+			dpfSyncDict[item.DpfSyncIndex] = true
+		}
+		fmt.Fprintf(os.Stderr, "unique dpf sync index on host site: %+v\n",
+			dpfSyncDict)
+		fmt.Fprintf(os.Stderr, "cycles from dpf buffer: %+v\n",
+			tm.cycles)
+	}
 	assert.Assert(timeInfoValid, "Must be true")
 }
 
