@@ -27,7 +27,9 @@ type PostProcessor struct {
 	loader  efintf.InfoReceiver
 	seqIdx  int
 
+	// Results
 	dtuOps []rtdata.OpActivity
+	subOps []rtdata.KernelActivity
 }
 
 func NewPostProcesser(loader efintf.InfoReceiver,
@@ -113,7 +115,6 @@ type DbDumper interface {
 		coords rtdata.Coords,
 		bundle []rtdata.OpActivity,
 		tm *rtinfo.TimelineManager,
-		extractor dbexport.ExtractOpInfo,
 	)
 	DumpFwActs(
 		coords rtdata.Coords,
@@ -129,6 +130,7 @@ type DbDumper interface {
 		coords rtdata.Coords,
 		bundle []rtdata.KernelActivity,
 		tm *rtinfo.TimelineManager,
+		rowName string,
 	)
 }
 
@@ -136,14 +138,6 @@ func (p PostProcessor) DumpToDb(coord rtdata.Coords, dbe DbDumper) {
 	dbe.DumpDtuOps(
 		coord,
 		p.dtuOps, p.tm,
-		func(act rtdata.OpActivity) (bool, string, string) {
-			if act.IsOpRefValid() {
-				return true,
-					act.GetTask().ToShortString(),
-					act.GetOp().OpName
-			}
-			return false, "Unknown Task", "Unk"
-		},
 	)
 
 	dbe.DumpFwActs(
@@ -156,7 +150,13 @@ func (p PostProcessor) DumpToDb(coord rtdata.Coords, dbe DbDumper) {
 	)
 	dbe.DumpKernelActs(
 		coord,
+		p.subOps, p.tm,
+		"Sub Ops",
+	)
+	dbe.DumpKernelActs(
+		coord,
 		p.kernelVec.KernelActivity(), p.tm,
+		"SIP BUSY",
 	)
 
 }
@@ -183,9 +183,16 @@ func (p *PostProcessor) DoPostProcessing() {
 
 		var tr dbexport.TraceEventSession
 
+		// Generate op runtime info
 		dtuOps, unProcessed := p.rtDict.GenerateDtuOps(p.qm.OpActivity(),
 			p.curAlgo)
+		// Process kernel activities(SIPs)
+		subOps := p.rtDict.GenerateKernelActs(p.kernelVec.KernelActivity(),
+			dtuOps,
+			p.curAlgo)
+
 		p.dtuOps = dtuOps
+		p.subOps = subOps
 		var wildProcess []rtdata.OpActivity
 		if false {
 			p.rtDict.OvercookCqm(unProcessed, p.curAlgo)

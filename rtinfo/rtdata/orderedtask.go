@@ -57,6 +57,13 @@ func (ot OrderTask) AbleToMatchCqm(cqm OpActivity, a vgrule.EngineOrder) bool {
 	return ot.refToTask.MatchCqm(a.GetEngineOrder(cqm.Start))
 }
 
+func (ot OrderTask) AbleToMatchSip(sip KernelActivity, a vgrule.EngineOrder) bool {
+	if efconst.IsAllZeroPgMask(ot.refToTask.PgMask) {
+		return true
+	}
+	return ot.refToTask.MatchSip(a.GetSipEngineOrder(sip.Start))
+}
+
 func (ot OrderTask) MatchXDMA(dma DmaActivity, a vgrule.EngineOrder) bool {
 	pgMask := ot.refToTask.PgMask
 	if efconst.IsAllZeroPgMask(pgMask) {

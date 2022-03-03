@@ -403,6 +403,47 @@ func (rtm *RuntimeTaskManager) GenerateDtuOps(
 	return opState.FinalizeOps(), unprocessedVec
 }
 
+func (rtm *RuntimeTaskManager) GenerateKernelActs(
+	kernelActs []rtdata.KernelActivity,
+	opBundles []rtdata.OpActivity,
+	rule vgrule.EngineOrder) []rtdata.KernelActivity {
+	vec := rtm.orderedTaskVector
+	for i := 0; i < len(vec); i++ {
+		vec[i].CreateNewState()
+	}
+
+	// TODO: refactor this
+	// Retrieve Task Id Only
+	var sipTaskBingoCount = 0
+	for i, kernAct := range kernelActs {
+		start := kernAct.StartCycle()
+		idxStart := rtm.upperBoundForTaskVec(start)
+		// backtrace for no more than MAX_BACKTRACE_TASK_COUNT
+		found := false
+		for j := idxStart - 1; j > idxStart-1-MAX_BACKTRACE_TASK_COUNT; j-- {
+			if j < 0 || j >= len(vec) {
+				continue
+			}
+			taskInOrder := vec[j]
+			if !taskInOrder.IsValid() {
+				continue
+			}
+			if taskInOrder.AbleToMatchSip(kernAct, rule) {
+				kernelActs[i].RtInfo.TaskId = taskInOrder.GetTaskID()
+				found = true
+				break
+			}
+		}
+		if found {
+			sipTaskBingoCount++
+		}
+	}
+	fmt.Printf("SIP task bingo %v out of %v\n", sipTaskBingoCount,
+		len(kernelActs),
+	)
+	return GenerateKerenlActSeq(kernelActs, opBundles)
+}
+
 // Start from the first recorded task
 func (r *RuntimeTaskManager) CookCqmEverSince(
 	opActVec []rtdata.OpActivity,

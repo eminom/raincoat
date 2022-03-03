@@ -1,7 +1,26 @@
 package rtdata
 
+import "fmt"
+
+type RuntimeInfo struct {
+	TaskId int
+	SubIdx int
+	Name   string
+	OpId   int
+}
+
 type KernelActivity struct {
 	DpfAct
+	RtInfo RuntimeInfo
+}
+
+func (kAct KernelActivity) GetName() (string, bool) {
+	if len(kAct.RtInfo.Name) > 0 {
+		return fmt.Sprintf("%v.%v.%v", kAct.RtInfo.Name,
+			kAct.RtInfo.OpId,
+			kAct.RtInfo.SubIdx), true
+	}
+	return "", false
 }
 
 func (kAct KernelActivity) GetEngineIndex() int {

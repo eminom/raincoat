@@ -9,6 +9,7 @@ import (
 
 type EngineOrder interface {
 	GetEngineOrder(dpf codec.DpfEvent) int
+	GetSipEngineOrder(codec.DpfEvent) int
 	GetCdmaPgBitOrder(codec.DpfEvent) int
 	GetSdmaPgBitOrder(codec.DpfEvent) int
 	MapPgMaskBitsToCdmaEngineMask(pgMask int) int
@@ -62,6 +63,15 @@ func (a doradoRule) GetEngineOrder(dpf codec.DpfEvent) int {
 
 func (a doradoRule) GetCdmaPgBitOrder(dpf codec.DpfEvent) int {
 	return a.GetEngineOrder(dpf)
+}
+
+/*
+  SIP 0~3  pgbit    1   ---> into 0
+  SIP 4~7  pgbit   10   ---> into 1
+  SIP 8~11 pgbit  100   ---> into 2
+*/
+func (a doradoRule) GetSipEngineOrder(dpf codec.DpfEvent) int {
+	return dpf.EngineIndex/4 + 3*dpf.ClusterID
 }
 
 /*

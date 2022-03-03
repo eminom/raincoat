@@ -94,7 +94,6 @@ func (dbs *DbSession) DumpDtuOps(
 	coords rtdata.Coords,
 	bundle []rtdata.OpActivity,
 	tm *rtinfo.TimelineManager,
-	extractor ExtractOpInfo,
 ) {
 	dos := NewDtuOpSession(dbs.dbObject)
 	defer dos.Close()
@@ -102,6 +101,17 @@ func (dbs *DbSession) DumpDtuOps(
 	dtuOpCount, convertToHostError := 0, 0
 	nodeID, deviceID := coords.NodeID, coords.DeviceID
 	const clusterID = -1
+
+	extractor := func(act rtdata.OpActivity) (bool, string, string) {
+		if act.IsOpRefValid() {
+			dtuOpMeta := act.GetOp()
+			return true,
+				act.GetTask().ToShortString(),
+				fmt.Sprintf("%v.%v", dtuOpMeta.OpName, dtuOpMeta.OpId)
+		}
+		return false, "Unknown Task", "Unk"
+	}
+
 	for _, act := range bundle {
 		if okToShow, _, name := extractor(act); okToShow {
 			dtuOpCount++
@@ -261,6 +271,7 @@ func (dbs *DbSession) DumpKernelActs(
 	coords rtdata.Coords,
 	bundle []rtdata.KernelActivity,
 	tm *rtinfo.TimelineManager,
+	rowName string,
 ) {
 	dmaS := NewKernelSession(dbs.dbObject)
 	defer dmaS.Close()
@@ -271,9 +282,12 @@ func (dbs *DbSession) DumpKernelActs(
 		endHostTime, endOK := tm.MapToHosttime(act.EndCycle())
 		if startOK && endOK {
 			packetID, contextID := act.Start.PacketID, act.Start.Context
-			rowName := "SIP BUSY"
-			name := nc.GetIndexedName(act.Start.MasterIdValue(), act.Start.Context,
-				rowName)
+			name, nameOK := act.GetName()
+			if !nameOK {
+				name = nc.GetIndexedName(act.Start.MasterIdValue(),
+					act.ContextId(),
+					"SIP Act")
+			}
 			dmaS.AddKernelTrace(
 				dbs.idx, nodeID, deviceID, act.Start.ClusterID,
 				contextID, name,

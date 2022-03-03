@@ -46,3 +46,7 @@ func matchIntLowest(v int, idx int) bool {
 func (r RuntimeTask) MatchCqm(cqmIdx int) bool {
 	return matchIntLowest(r.PgMask, cqmIdx)
 }
+
+func (r RuntimeTask) MatchSip(sipOrder int) bool {
+	return r.PgMask&(1<<sipOrder) != 0
+}

@@ -17,6 +17,10 @@ func (q DpfAct) EndCycle() uint64 {
 	return q.End.Cycle
 }
 
+func (q DpfAct) ContextId() int {
+	return q.Start.Context
+}
+
 func (q DpfAct) Duration() int64 {
 	return int64(q.EndCycle()) - int64(q.StartCycle())
 }
