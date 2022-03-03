@@ -24,3 +24,15 @@ func (q DpfAct) Duration() int64 {
 func (q DpfAct) IsOfEngine(engineTypeCode codec.EngineTypeCode) bool {
 	return q.Start.EngineTypeCode == engineTypeCode
 }
+
+// Combine,
+// the earlier start
+// the latter end
+func (dpfAct *DpfAct) CombineCycle(rhs DpfAct) {
+	if dpfAct.Start.Cycle > rhs.Start.Cycle {
+		dpfAct.Start.Cycle = rhs.Start.Cycle
+	}
+	if dpfAct.End.Cycle < rhs.End.Cycle {
+		dpfAct.End.Cycle = rhs.End.Cycle
+	}
+}

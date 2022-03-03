@@ -332,11 +332,12 @@ func (r RuntimeTaskManager) upperBoundForTaskVec(cycle uint64) int {
 	return lo
 }
 
-// CookCqm:  find dtu-op meta information for the Cqm Act
-func (rtm *RuntimeTaskManager) CookCqm(
+// GenerateDtuOps:  find dtu-op meta information for the Cqm Act
+// Some ops (Cqm acts are combined into one)
+func (rtm *RuntimeTaskManager) GenerateDtuOps(
 	opActVec []rtdata.OpActivity,
 	rule vgrule.EngineOrder,
-) []rtdata.OpActivity {
+) ([]rtdata.OpActivity, []rtdata.OpActivity) {
 	// Each time we start processing a new session
 	// We create a new object to do the math
 	vec := rtm.orderedTaskVector
@@ -346,6 +347,8 @@ func (rtm *RuntimeTaskManager) CookCqm(
 
 	bingoCount := 0
 	unprocessedVec := []rtdata.OpActivity{}
+
+	opState := NewOpXState()
 	for i := 0; i < len(opActVec); i++ {
 		curAct := &opActVec[i]
 		start := curAct.StartCycle()
@@ -369,7 +372,13 @@ func (rtm *RuntimeTaskManager) CookCqm(
 					// and there is always a task
 					taskInOrder.SuccessMatchDtuop(curAct.Start.PacketID)
 					taskInOrder.SuccessMatchDtuop(curAct.End.PacketID)
-					curAct.SetOpRef(rtdata.NewOpRef(&opInfo, taskInOrder.GetRefToTask()))
+
+					// Copy this result into op x-state
+					cloneAct := *curAct
+					cloneAct.SetOpRef(rtdata.NewOpRef(&opInfo,
+						taskInOrder.GetRefToTask()))
+					opState.AddOp(cloneAct)
+					// curAct.SetOpRef(rtdata.NewOpRef(&opInfo, taskInOrder.GetRefToTask()))
 					found = true
 					break
 				} else {
@@ -391,7 +400,7 @@ func (rtm *RuntimeTaskManager) CookCqm(
 	)
 
 	// OrderTasks(rtm.orderedTaskVector).DumpInfos(rtm)
-	return unprocessedVec
+	return opState.FinalizeOps(), unprocessedVec
 }
 
 // Start from the first recorded task

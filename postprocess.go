@@ -26,6 +26,8 @@ type PostProcessor struct {
 	curAlgo vgrule.ActMatchAlgo
 	loader  efintf.InfoReceiver
 	seqIdx  int
+
+	dtuOps []rtdata.OpActivity
 }
 
 func NewPostProcesser(loader efintf.InfoReceiver,
@@ -133,7 +135,7 @@ type DbDumper interface {
 func (p PostProcessor) DumpToDb(coord rtdata.Coords, dbe DbDumper) {
 	dbe.DumpDtuOps(
 		coord,
-		p.qm.OpActivity(), p.tm,
+		p.dtuOps, p.tm,
 		func(act rtdata.OpActivity) (bool, string, string) {
 			if act.IsOpRefValid() {
 				return true,
@@ -159,7 +161,7 @@ func (p PostProcessor) DumpToDb(coord rtdata.Coords, dbe DbDumper) {
 
 }
 
-func (p PostProcessor) DoPostProcessing() {
+func (p *PostProcessor) DoPostProcessing() {
 	log.Printf("# fwVec count: %v", p.fwVec.ActCount())
 	log.Printf("# dmaVec count: %v", p.dmaVec.ActCount())
 
@@ -181,8 +183,9 @@ func (p PostProcessor) DoPostProcessing() {
 
 		var tr dbexport.TraceEventSession
 
-		unProcessed := p.rtDict.CookCqm(p.qm.OpActivity(),
+		dtuOps, unProcessed := p.rtDict.GenerateDtuOps(p.qm.OpActivity(),
 			p.curAlgo)
+		p.dtuOps = dtuOps
 		var wildProcess []rtdata.OpActivity
 		if false {
 			p.rtDict.OvercookCqm(unProcessed, p.curAlgo)
@@ -191,9 +194,9 @@ func (p PostProcessor) DoPostProcessing() {
 			p.rtDict.CookCqmEverSince(unProcessed, p.curAlgo)
 		}
 
-		dumpFullCycles(p.qm.OpActivity())
+		dumpFullCycles(dtuOps)
 
-		tr.DumpToEventTrace(p.qm.OpActivity(), p.tm,
+		tr.DumpToEventTrace(dtuOps, p.tm,
 			NewNormalDumper(),
 			true,
 		)

@@ -9,6 +9,14 @@ type OpRef struct {
 	refToTask *RuntimeTask
 }
 
+// Same task, same op
+func (opRef OpRef) Eq(rhs OpRef) bool {
+	return opRef.dtuOp != nil && rhs.dtuOp != nil &&
+		opRef.dtuOp.OpId == rhs.dtuOp.OpId &&
+		opRef.refToTask != nil && rhs.refToTask != nil &&
+		opRef.refToTask.TaskID == rhs.refToTask.TaskID
+}
+
 func NewOpRef(dtuOp *metadata.DtuOp, refToTask *RuntimeTask) OpRef {
 	return OpRef{
 		dtuOp,
@@ -31,6 +39,10 @@ func (q OpActivity) GetOp() metadata.DtuOp {
 
 func (q OpActivity) GetTask() RuntimeTask {
 	return *q.opRef.refToTask
+}
+
+func (opAct OpActivity) Eq(rhs OpActivity) bool {
+	return opAct.opRef.Eq(rhs.opRef)
 }
 
 func (q *OpActivity) SetOpRef(opRef OpRef) {

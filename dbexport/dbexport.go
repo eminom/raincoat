@@ -125,7 +125,7 @@ func (dbs *DbSession) DumpDtuOps(
 	if convertToHostError > 0 {
 		fmt.Printf("error: DTU-Op convert-time error: %v\n", convertToHostError)
 	}
-	log.Printf("%v DTU-OPs have been traced into %v",
+	log.Printf("# %v DTU-OP(s) have been traced into %v",
 		dtuOpCount,
 		dbs.targetName,
 	)
@@ -187,7 +187,7 @@ func (dbs *DbSession) DumpFwActs(
 	if convertToHostError > 0 {
 		fmt.Printf("error: FW ACT convert-time error: %v\n", convertToHostError)
 	}
-	log.Printf("%v FW record(s) have been traced into %v",
+	log.Printf("# %v FW record(s) have been traced into %v",
 		fwActCount,
 		dbs.targetName,
 	)
@@ -250,7 +250,7 @@ func (dbs *DbSession) DumpDmaActs(
 	if convertToHostError > 0 {
 		fmt.Printf("error: DMA ACT convert-time error: %v\n", convertToHostError)
 	}
-	log.Printf("%v DMA ACT record(s) have been traced into %v",
+	log.Printf("# %v DMA ACT record(s) have been traced into %v",
 		dmaActCount,
 		dbs.targetName,
 	)
@@ -286,7 +286,7 @@ func (dbs *DbSession) DumpKernelActs(
 			dbs.idx++
 		}
 	}
-	log.Printf("%v SIP ACT record(s) have been traced into %v",
+	log.Printf("# %v SIP ACT record(s) have been traced into %v",
 		len(bundle),
 		dbs.targetName,
 	)
