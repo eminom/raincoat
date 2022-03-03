@@ -37,6 +37,36 @@ func (tte *TaskToEngines) AddTrace(
 	trace.seq = append(trace.seq, &cloned)
 }
 
+type SubOpState struct {
+	states map[int]map[int]int
+}
+
+func NewSubOpState() SubOpState {
+	return SubOpState{
+		states: make(map[int]map[int]int),
+	}
+}
+
+func (subS *SubOpState) AddTaskDict(taskId int) {
+	if _, ok := subS.states[taskId]; !ok {
+		subS.states[taskId] = make(map[int]int)
+	}
+}
+
+func (subS *SubOpState) GetNextSubId(task int, masterId int, opId int) int {
+	var targetState map[int]int
+	var existed bool
+	if targetState, existed = subS.states[task]; !existed {
+		return -1
+	}
+	// sub index is distributed in per engine style
+	// master value is 10-bit width
+	key := masterId + (opId << 10)
+	newSeqIdValue := targetState[key] // 0 for non-exist
+	targetState[key]++
+	return newSeqIdValue
+}
+
 // Return value is a copy
 func GenerateKerenlActSeq(
 	kernelActs []rtdata.KernelActivity,
@@ -44,22 +74,7 @@ func GenerateKerenlActSeq(
 ) []rtdata.KernelActivity {
 
 	// divided by task id, to engineval-opid s
-	subOpState := make(map[int]map[int]int)
-
-	getNextSubId := func(task int, masterId int, opId int) int {
-		var targetState map[int]int
-		var existed bool
-		if targetState, existed = subOpState[task]; !existed {
-			return -1
-		}
-		// sub index is distributed in per engine style
-		// master value is 10-bit width
-		key := masterId + (opId << 10)
-		newSeqIdValue := targetState[key] // 0 for non-exist
-		targetState[key]++
-		return newSeqIdValue
-	}
-
+	subOpState := NewSubOpState()
 	chans := make(map[int][]rtdata.OpActivity)
 	kernelTask := make(map[int]TaskToEngines)
 	for _, op := range ops {
@@ -67,9 +82,7 @@ func GenerateKerenlActSeq(
 		if _, ok := kernelTask[taskId]; !ok {
 			kernelTask[taskId] = NewTaskToEngines()
 		}
-		if _, ok := subOpState[taskId]; !ok {
-			subOpState[taskId] = make(map[int]int)
-		}
+		subOpState.AddTaskDict(taskId)
 		chans[taskId] = append(chans[taskId], op)
 	}
 
@@ -119,7 +132,7 @@ func GenerateKerenlActSeq(
 				if idx < len(opSeq) && idx >= 0 {
 					//
 					dtuOpMeta := opSeq[idx].GetOp()
-					subIdx := getNextSubId(taskId,
+					subIdx := subOpState.GetNextSubId(taskId,
 						act.Start.MasterIdValue(),
 						dtuOpMeta.OpId)
 					act.RtInfo.SubIdx = subIdx
