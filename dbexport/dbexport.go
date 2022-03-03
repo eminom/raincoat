@@ -282,7 +282,7 @@ func (dbs *DbSession) DumpKernelActs(
 		endHostTime, endOK := tm.MapToHosttime(act.EndCycle())
 		if startOK && endOK {
 			packetID, contextID := act.Start.PacketID, act.Start.Context
-			name, nameOK := act.GetName()
+			name, nameOK := act.GetSipOpName()
 			if !nameOK {
 				name = nc.GetIndexedName(act.Start.MasterIdValue(),
 					act.ContextId(),

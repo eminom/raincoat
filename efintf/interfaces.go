@@ -20,3 +20,7 @@ type InfoReceiver interface {
 	LoadExecScope(execUuid uint64) *metadata.ExecScope
 	LoadWildcards(checkExist func(str string) bool, notifyNew func(uint64, *metadata.ExecScope))
 }
+
+type QuerySubOp interface {
+	QuerySubOpName(taskId int, opId int, entityId int, subIdx int) (string, bool)
+}

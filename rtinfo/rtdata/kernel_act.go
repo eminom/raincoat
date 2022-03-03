@@ -1,12 +1,16 @@
 package rtdata
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 type RuntimeInfo struct {
-	TaskId int
-	SubIdx int
-	Name   string
-	OpId   int
+	TaskId   int
+	SubIdx   int
+	Name     string
+	OpId     int
+	SubValid bool
 }
 
 type KernelActivity struct {
@@ -14,13 +18,14 @@ type KernelActivity struct {
 	RtInfo RuntimeInfo
 }
 
-func (kAct KernelActivity) GetName() (string, bool) {
-	if len(kAct.RtInfo.Name) > 0 {
-		return fmt.Sprintf("%v.%v.%v", kAct.RtInfo.Name,
-			kAct.RtInfo.OpId,
-			kAct.RtInfo.SubIdx), true
+func (kAct KernelActivity) GetSipOpName() (string, bool) {
+
+	if kAct.RtInfo.SubValid {
+		return stripDoubleColm(kAct.RtInfo.Name), true
 	}
-	return "", false
+	return fmt.Sprintf("%v.[%v.%v]", kAct.RtInfo.Name,
+		kAct.RtInfo.OpId,
+		kAct.RtInfo.SubIdx), true
 }
 
 func (kAct KernelActivity) GetEngineIndex() int {
@@ -39,4 +44,11 @@ func (kActVec KernelActivityVec) Less(i, j int) bool {
 
 func (kActVec KernelActivityVec) Swap(i, j int) {
 	kActVec[i], kActVec[j] = kActVec[j], kActVec[i]
+}
+
+func stripDoubleColm(a string) string {
+	if pos := strings.LastIndex(a, "::"); pos >= 0 && len(a)-pos-2 > 0 {
+		return a[pos+2:]
+	}
+	return a
 }

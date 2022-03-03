@@ -44,6 +44,12 @@ type RuntimeTaskManager struct {
 	execKnowledge     *meta.ExecRaw
 	orderedTaskVector []rtdata.OrderTask
 	fullTaskVector    []rtdata.OrderTask
+
+	tempInternal RuntimeTaskManInternal
+}
+
+type RuntimeTaskManInternal struct {
+	subOpInformation map[string]map[string][]string
 }
 
 func NewRuntimeTaskManager(oneTask bool) *RuntimeTaskManager {
@@ -441,7 +447,37 @@ func (rtm *RuntimeTaskManager) GenerateKernelActs(
 	fmt.Printf("SIP task bingo %v out of %v\n", sipTaskBingoCount,
 		len(kernelActs),
 	)
-	return GenerateKerenlActSeq(kernelActs, opBundles)
+	return GenerateKerenlActSeq(kernelActs, opBundles, rtm)
+}
+
+func (rtm *RuntimeTaskManager) QuerySubOpName(
+	taskId int,
+	opId int,
+	entityId int,
+	subIdx int,
+) (string, bool) {
+	if _, ok := rtm.taskIdToTask[taskId]; ok {
+		// execUuid := task.ExecutableUUID
+		// TODO: find sub op thru execKnowledge
+		// if rtm.execKnowledge == nil {
+		// 	return "", false
+		// }
+		if rtm.tempInternal.subOpInformation == nil {
+			rtm.tempInternal.subOpInformation = metadata.JsonLoader{}.LoadInfo("subops.json")
+		}
+
+		if rtm.tempInternal.subOpInformation != nil {
+			that := rtm.tempInternal.subOpInformation[fmt.Sprintf("%v", opId)]
+			if that != nil {
+				entity := fmt.Sprintf("%v", entityId)
+				subVec := that[entity]
+				if subIdx >= 0 && subIdx < len(subVec) {
+					return subVec[subIdx], true
+				}
+			}
+		}
+	}
+	return "", false
 }
 
 // Start from the first recorded task

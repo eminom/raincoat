@@ -5,6 +5,7 @@ import (
 	"os"
 	"sort"
 
+	"git.enflame.cn/hai.bai/dmaster/efintf"
 	"git.enflame.cn/hai.bai/dmaster/rtinfo/rtdata"
 )
 
@@ -71,6 +72,7 @@ func (subS *SubOpState) GetNextSubId(task int, masterId int, opId int) int {
 func GenerateKerenlActSeq(
 	kernelActs []rtdata.KernelActivity,
 	ops []rtdata.OpActivity,
+	subOpQuerier efintf.QuerySubOp,
 ) []rtdata.KernelActivity {
 
 	// divided by task id, to engineval-opid s
@@ -138,6 +140,16 @@ func GenerateKerenlActSeq(
 					act.RtInfo.SubIdx = subIdx
 					act.RtInfo.Name = dtuOpMeta.OpName
 					act.RtInfo.OpId = dtuOpMeta.OpId
+
+					realSubOpName, realSubOk := subOpQuerier.QuerySubOpName(
+						act.RtInfo.TaskId,
+						dtuOpMeta.OpId,
+						act.Start.EngineIndex, // entity id
+						subIdx)
+					if realSubOk {
+						act.RtInfo.SubValid = true
+						act.RtInfo.Name = realSubOpName
+					}
 
 					// append to result collection
 					newSipBusies = append(newSipBusies, *act)
