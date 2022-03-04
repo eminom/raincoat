@@ -50,11 +50,7 @@ func NewPostProcesser(loader efintf.InfoReceiver,
 		purgeOnStepEnd = true
 	}
 
-	qm := rtdata.NewOpEventQueue(rtdata.NewOpActCollector(curAlgo,
-		rtdata.OpActCollectorOpt{
-			OpIdMapper:    rtDict.GetExecRaw(),
-			CacheAndMerge: oneTask,
-		}),
+	qm := rtdata.NewOpEventQueue(rtdata.NewOpActCollector(curAlgo),
 		codec.DbgPktDetector{PurgeOnStepEnd: purgeOnStepEnd},
 	)
 	fwVec := rtdata.NewOpEventQueue(rtdata.NewFwActCollector(curAlgo),

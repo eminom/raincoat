@@ -77,5 +77,3 @@ func (dmaVec DmaActCollector) DoSort() {
 	sort.Sort(dmaVec.acts)
 	fmt.Printf("sort %v dma ops in %v\n", len(dmaVec.acts), time.Since(startTs))
 }
-
-func (dmaVec DmaActCollector) DoMergeOpAct() {}

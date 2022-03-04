@@ -354,6 +354,8 @@ func (rtm *RuntimeTaskManager) GenerateDtuOps(
 	bingoCount := 0
 	unprocessedVec := []rtdata.OpActivity{}
 
+	detector := codec.DbgPktDetector{}
+
 	opState := NewOpXState()
 	for i := 0; i < len(opActVec); i++ {
 		curAct := &opActVec[i]
@@ -370,26 +372,35 @@ func (rtm *RuntimeTaskManager) GenerateDtuOps(
 				continue
 			}
 			thisExecUuid := taskInOrder.GetExecUuid()
-			if taskInOrder.AbleToMatchCqm(*curAct, rule) {
-				if opInfo, err := rtm.LookupOpIdByPacketID(
-					thisExecUuid,
-					curAct.Start.PacketID); err == nil {
-					// There is always a dtuop related to dbg op
-					// and there is always a task
-					taskInOrder.SuccessMatchDtuop(curAct.Start.PacketID)
-					taskInOrder.SuccessMatchDtuop(curAct.End.PacketID)
+			if !taskInOrder.AbleToMatchCqm(*curAct, rule) {
+				// not match for pg resource
+				continue
+			}
 
-					// Copy this result into op x-state
-					cloneAct := *curAct
-					cloneAct.SetOpRef(rtdata.NewOpRef(&opInfo,
-						taskInOrder.GetRefToTask()))
-					opState.AddOp(cloneAct)
-					// curAct.SetOpRef(rtdata.NewOpRef(&opInfo, taskInOrder.GetRefToTask()))
-					found = true
-					break
-				} else {
-					// fmt.Printf("error: %v\n", err)
-				}
+			if detector.IsTerminatorMark(curAct.Start) {
+				opState.CombineOps(taskInOrder.GetTaskID(),
+					curAct.ContextId())
+				continue
+			}
+
+			if opInfo, err := rtm.LookupOpIdByPacketID(
+				thisExecUuid,
+				curAct.Start.PacketID); err == nil {
+				// There is always a dtuop related to dbg op
+				// and there is always a task
+				taskInOrder.SuccessMatchDtuop(curAct.Start.PacketID)
+				taskInOrder.SuccessMatchDtuop(curAct.End.PacketID)
+
+				// Copy this result into op x-state
+				cloneAct := *curAct
+				cloneAct.SetOpRef(rtdata.NewOpRef(&opInfo,
+					taskInOrder.GetRefToTask()))
+				opState.AddOp(cloneAct)
+				// curAct.SetOpRef(rtdata.NewOpRef(&opInfo, taskInOrder.GetRefToTask()))
+				found = true
+				break
+			} else {
+				// fmt.Printf("error: %v\n", err)
 			}
 		}
 		if found {

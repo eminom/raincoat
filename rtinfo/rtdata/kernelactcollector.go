@@ -68,5 +68,3 @@ func (q KernelActCollector) DoSort() {
 	sort.Sort(q.acts)
 	fmt.Printf("sort %v dma ops in %v\n", len(q.acts), time.Since(startTs))
 }
-
-func (q KernelActCollector) DoMergeOpAct() {}

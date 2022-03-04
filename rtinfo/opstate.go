@@ -21,7 +21,7 @@ func NewOpXState() *OpXState {
 
 func (xs *OpXState) AddOp(op rtdata.OpActivity) {
 	// And it is guaratee that op carries meta info
-	chanIdx := (op.GetTask().TaskID << 4) | op.Start.Context
+	chanIdx := mapTaskIdContextId(op.GetTask().TaskID, op.ContextId())
 	if arr, ok := xs.opLane[chanIdx]; ok && arr[len(arr)-1].Eq(op) {
 		arr[len(arr)-1].DpfAct.CombineCycle(op.DpfAct)
 	} else {
@@ -46,6 +46,10 @@ func (xs *OpXState) FinalizeOps() []rtdata.OpActivity {
 	return xs.converged
 }
 
+func (xs *OpXState) CombineOps(taskId int, ctxId int) {
+	xs.collectAtChannel(mapTaskIdContextId(taskId, ctxId))
+}
+
 // If step ends is reached
 func (xs *OpXState) collectAtChannel(idVal int) {
 	if ops, ok := xs.opLane[idVal]; ok {
@@ -53,4 +57,8 @@ func (xs *OpXState) collectAtChannel(idVal int) {
 		xs.converged = append(xs.converged, ops...)
 		delete(xs.opLane, idVal) // purge
 	}
+}
+
+func mapTaskIdContextId(taskId, contextId int) int {
+	return (taskId << 4) + contextId
 }

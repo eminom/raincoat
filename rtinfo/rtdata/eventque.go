@@ -10,12 +10,7 @@ import (
 	"git.enflame.cn/hai.bai/dmaster/vgrule"
 )
 
-type OpMergeCollector interface {
-	DoMergeOpAct()
-}
-
 type ActCollector interface {
-	OpMergeCollector
 	AddAct(start, end codec.DpfEvent)
 	GetAlgo() vgrule.ActMatchAlgo
 	DumpInfo()
@@ -35,11 +30,11 @@ type EventQueue struct {
 }
 
 type EventFilter interface {
-	IsStarterMark(codec.DpfEvent) (bool, bool)
+	// Starter, Closer, and the Terminator
+	IsStarterMark(codec.DpfEvent) (bool, bool, bool)
 	TestIfMatch(codec.DpfEvent, codec.DpfEvent) bool
 	GetEngineTypes() []codec.EngineTypeCode
 	PurgePreviousEvents() bool
-	IsTerminator(codec.DpfEvent) bool
 }
 
 func NewOpEventQueue(act ActCollector,
@@ -63,17 +58,33 @@ func (q *EventQueue) DispatchEvent(este codec.DpfEvent) error {
 		este.Context,
 	)
 
-	if q.evtFilter.IsTerminator(este) {
-		q.distr[index].PurgeContent()
-		q.DoMergeOpAct()
-		return nil
-	}
+	// Since este carries a context id
+	// May be the purgation shall only affect to the Context scope only?
+	// Some facts:
+	// Pavo for now:
+	//    1. only holds context id value of ZERO
+	//    2. there are NO multiple Step acts simutaneously
+	//         So purging over all Debug packts events works
 
-	isStart, isEnd := q.evtFilter.IsStarterMark(este)
+	// Terminator use to be an interface method
+	// But to make this problem general we shall not take special steps
+	// if q.evtFilter.IsTerminator(este) {
+	// 	q.distr[index].PurgeContent()
+	// 	q.DoMergeOpAct()
+	// 	return nil
+	// }
+
+	isStart, isEnd, isTerminator := q.evtFilter.IsStarterMark(este)
 	if isStart {
 		q.distr[index].AppendAtFront(este)
 		return nil
 	}
+	// a termiator shall insert into the sequence
+	if isTerminator {
+		q.ActCollector.AddAct(este, este)
+		return nil
+	}
+
 	if !isEnd {
 		// Filter-out
 		return nil
