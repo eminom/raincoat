@@ -40,11 +40,6 @@ func NewPostProcesser(loader efintf.InfoReceiver,
 ) PostProcessor {
 	rtDict := rtinfo.NewRuntimeTaskManager(oneTask)
 	rtDict.LoadRuntimeTask(loader)
-	if oneTask {
-		// Preload
-		rtDict.LoadMeta(loader)
-	}
-
 	purgeOnStepEnd := false
 	if oneTask {
 		purgeOnStepEnd = true

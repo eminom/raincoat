@@ -371,7 +371,7 @@ func (rtm *RuntimeTaskManager) GenerateDtuOps(
 			if !taskInOrder.IsValid() {
 				continue
 			}
-			thisExecUuid := taskInOrder.GetExecUuid()
+
 			if !taskInOrder.AbleToMatchCqm(*curAct, rule) {
 				// not match for pg resource
 				continue
@@ -382,7 +382,7 @@ func (rtm *RuntimeTaskManager) GenerateDtuOps(
 					curAct.ContextId())
 				continue
 			}
-
+			thisExecUuid := taskInOrder.GetExecUuid()
 			if opInfo, err := rtm.LookupOpIdByPacketID(
 				thisExecUuid,
 				curAct.Start.PacketID); err == nil {
