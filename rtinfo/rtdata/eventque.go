@@ -147,6 +147,10 @@ func (q EventQueue) KernelActivity() []KernelActivity {
 	return ([]KernelActivity)(q.GetActivity().(KernelActivityVec))
 }
 
+func (q EventQueue) TaskActivity() []TaskActivity {
+	return ([]TaskActivity)(q.GetActivity().(TaskActivityVec))
+}
+
 func (q EventQueue) AllZero() bool {
 	for _, el := range q.distr {
 		if el.ElementCount() > 0 {

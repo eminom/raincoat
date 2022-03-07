@@ -20,6 +20,7 @@ type PostProcessor struct {
 	qm        *rtdata.EventQueue
 	fwVec     *rtdata.EventQueue
 	dmaVec    *rtdata.EventQueue
+	taskVec   *rtdata.EventQueue
 	kernelVec *rtdata.EventQueue
 	tm        *rtinfo.TimelineManager
 
@@ -40,17 +41,15 @@ func NewPostProcesser(loader efintf.InfoReceiver,
 ) PostProcessor {
 	rtDict := rtinfo.NewRuntimeTaskManager(oneTask)
 	rtDict.LoadRuntimeTask(loader)
-	purgeOnStepEnd := false
-	if oneTask {
-		purgeOnStepEnd = true
-	}
 
 	qm := rtdata.NewOpEventQueue(rtdata.NewOpActCollector(curAlgo),
-		codec.DbgPktDetector{PurgeOnStepEnd: purgeOnStepEnd},
+		codec.DbgPktDetector{},
 	)
 	fwVec := rtdata.NewOpEventQueue(rtdata.NewFwActCollector(curAlgo),
 		codec.FwPktDetector{},
 	)
+	taskVec := rtdata.NewOpEventQueue(rtdata.NewTaskActCollector(curAlgo),
+		codec.TaskDetector{})
 	dmaVec := rtdata.NewOpEventQueue(rtdata.NewDmaCollector(curAlgo),
 		codec.DmaDetector{},
 	)
@@ -69,6 +68,7 @@ func NewPostProcesser(loader efintf.InfoReceiver,
 		qm:        qm,
 		fwVec:     fwVec,
 		dmaVec:    dmaVec,
+		taskVec:   taskVec,
 		kernelVec: kernelVec,
 		tm:        tm,
 		seqIdx:    seqIdx,
@@ -77,7 +77,7 @@ func NewPostProcesser(loader efintf.InfoReceiver,
 
 func (p PostProcessor) GetSinkers(disableDma bool) []sessintf.EventSinker {
 	rv := []sessintf.EventSinker{
-		p.rtDict,
+		p.taskVec,
 		p.qm,
 		p.fwVec,
 		p.tm,
@@ -91,7 +91,7 @@ func (p PostProcessor) GetSinkers(disableDma bool) []sessintf.EventSinker {
 
 func (p PostProcessor) GetConcurSinkers() []sessintf.ConcurEventSinker {
 	rv := []sessintf.ConcurEventSinker{
-		p.rtDict,
+		p.taskVec,
 		p.qm,
 		p.fwVec,
 		p.tm,
@@ -155,6 +155,7 @@ func (p PostProcessor) DumpToDb(coord rtdata.Coords, dbe DbDumper) {
 func (p *PostProcessor) DoPostProcessing() {
 	log.Printf("# fwVec count: %v", p.fwVec.ActCount())
 	log.Printf("# dmaVec count: %v", p.dmaVec.ActCount())
+	log.Printf("# task count: %v", p.taskVec.ActCount())
 
 	p.qm.DumpInfo()
 	p.tm.AlignToHostTimeline()
@@ -167,6 +168,7 @@ func (p *PostProcessor) DoPostProcessing() {
 	p.tm.DumpInfo()
 
 	if p.rtDict != nil {
+		p.rtDict.ProcessTaskActVector(p.taskVec.TaskActivity())
 		p.rtDict.LoadMeta(p.loader)
 		p.rtDict.BuildOrderInfo()
 		p.rtDict.DumpInfo()

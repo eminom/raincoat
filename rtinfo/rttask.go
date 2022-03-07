@@ -11,7 +11,6 @@ import (
 	"git.enflame.cn/hai.bai/dmaster/codec"
 	"git.enflame.cn/hai.bai/dmaster/efintf"
 	"git.enflame.cn/hai.bai/dmaster/efintf/efconst"
-	"git.enflame.cn/hai.bai/dmaster/efintf/sessintf"
 	"git.enflame.cn/hai.bai/dmaster/meta"
 	"git.enflame.cn/hai.bai/dmaster/meta/metadata"
 	"git.enflame.cn/hai.bai/dmaster/misc/linklist"
@@ -29,9 +28,9 @@ var (
 	ErrNoWildMatch = errors.New("no packet id found overall")
 )
 
-var (
-	errNoStartTsEvent = errors.New("no start ts event")
-)
+// var (
+// 	errNoStartTsEvent = errors.New("no start ts event")
+// )
 
 type RuntimeTaskManagerBase struct {
 	taskIdToTask   map[int]*rtdata.RuntimeTask // Full runtime task info, include cyccled ones and ones without cycles
@@ -61,77 +60,17 @@ func NewRuntimeTaskManager(oneTask bool) *RuntimeTaskManager {
 	}
 }
 
-func (rtm *RuntimeTaskManagerBase) SelfClone() sessintf.ConcurEventSinker {
-	assert.Assert(rtm.tsHead.ElementCount() == 0, "Must be empty")
-	clonedTaskDc := make(map[int]*rtdata.RuntimeTask)
-	for taskId, pToTask := range rtm.taskIdToTask {
-		task := *pToTask // Copy
-		clonedTaskDc[taskId] = &task
-	}
-	clonedTaskIdVec := make([]int, len(rtm.taskIdVec))
-	copy(clonedTaskIdVec, rtm.taskIdVec)
-	cloned := &RuntimeTaskManagerBase{
-		taskIdToTask: clonedTaskDc,
-		taskIdVec:    clonedTaskIdVec,
-		tsHead:       linklist.NewLnkHead(),
-	}
-	return cloned
-}
-
-func (cloned *RuntimeTaskManagerBase) MergeTo(lhs interface{}) bool {
-	master := lhs.(*RuntimeTaskManager)
-	for taskId, pToTask := range cloned.taskIdToTask {
-		if pToTask.CycleValid {
-			pThisTask, ok := master.taskIdToTask[taskId]
-			assert.Assert(ok, "must be there")
-			pThisTask.StartCycle = pToTask.StartCycle
-			pThisTask.EndCycle = pToTask.EndCycle
-			pThisTask.CycleValid = true
+func (rtm *RuntimeTaskManagerBase) ProcessTaskActVector(
+	taskActVec rtdata.TaskActivityVec) {
+	for _, taskAct := range taskActVec {
+		taskID := taskAct.Start.Payload
+		if task, ok := rtm.GetTaskForId(taskID); !ok {
+			fmt.Fprintf(os.Stderr,
+				"no host site cqm launch exec info: task id(%v)\n", taskID)
+		} else {
+			rtm.updateTaskCycle(task, taskAct.Start.Cycle, taskAct.End.Cycle)
 		}
 	}
-	return true
-}
-
-func (rtm RuntimeTaskManagerBase) GetEngineTypeCodes() []codec.EngineTypeCode {
-	return []codec.EngineTypeCode{codec.EngCat_TS}
-}
-
-// If there is an error, please propagate this event
-func (rtm *RuntimeTaskManagerBase) DispatchEvent(evt codec.DpfEvent) error {
-	// Ignore format 0
-	if evt.Flag == 0 {
-		return nil
-	}
-	if evt.Event == codec.TsLaunchCqmStart {
-		rtm.tsHead.AppendAtTail(evt)
-		return nil
-	}
-	if evt.Event == codec.TsLaunchCqmEnd {
-		if start := rtm.tsHead.Extract(func(one interface{}) bool {
-			un := one.(codec.DpfEvent)
-			return un.Payload == evt.Payload && un.ClusterID == evt.ClusterID
-		}); start != nil {
-			startUn := start.(codec.DpfEvent)
-			taskID := startUn.Payload
-			if task, ok := rtm.GetTaskForId(taskID); !ok {
-				// panic(fmt.Errorf("no start for cqm launch exec: task id(%v)", taskID))
-				// make all these task invalid
-				// The consequence is that
-				// The task holds no executable information
-				//  for there is no record on host site
-				fmt.Fprintf(os.Stderr,
-					"no start for cqm launch exec: task id(%v)\n", taskID)
-			} else {
-				rtm.updateTaskCycle(task, startUn.Cycle, evt.Cycle)
-			}
-			return nil
-		}
-		// No start is found
-		return errNoStartTsEvent
-	}
-
-	// Do something for the rest of TS events ??
-	return nil
 }
 
 func (rtm *RuntimeTaskManagerBase) updateTaskCycle(task *rtdata.RuntimeTask,

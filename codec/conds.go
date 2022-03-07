@@ -10,11 +10,10 @@ func isDebugOpPacket(evt DpfEvent) bool {
 }
 
 type FwPktDetector struct{}
-type DbgPktDetector struct {
-	PurgeOnStepEnd bool
-}
+type DbgPktDetector struct{}
 type DmaDetector struct{}
 type SipDetector struct{}
+type TaskDetector struct{}
 
 // Implementations
 
@@ -157,3 +156,20 @@ func (SipDetector) TestIfMatch(former, latter DpfEvent) bool {
 }
 
 func (SipDetector) PurgePreviousEvents() bool { return false }
+
+func (TaskDetector) GetEngineTypes() []EngineTypeCode {
+	return []EngineTypeCode{
+		EngCat_TS,
+	}
+}
+func (TaskDetector) IsStarterMark(evt DpfEvent) (bool, bool, bool) {
+	return evt.Event == TsLaunchCqmStart,
+		evt.Event == TsLaunchCqmEnd,
+		false
+}
+
+func (TaskDetector) TestIfMatch(former, latter DpfEvent) bool {
+	return true // always match
+}
+
+func (TaskDetector) PurgePreviousEvents() bool { return false }
