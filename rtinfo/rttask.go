@@ -98,6 +98,10 @@ func (rtm RuntimeTaskManagerBase) GetEngineTypeCodes() []codec.EngineTypeCode {
 
 // If there is an error, please propagate this event
 func (rtm *RuntimeTaskManagerBase) DispatchEvent(evt codec.DpfEvent) error {
+	// Ignore format 0
+	if evt.Flag == 0 {
+		return nil
+	}
 	if evt.Event == codec.TsLaunchCqmStart {
 		rtm.tsHead.AppendAtTail(evt)
 		return nil
