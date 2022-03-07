@@ -89,14 +89,17 @@ func (p PostProcessor) GetSinkers(disableDma bool) []sessintf.EventSinker {
 	return rv
 }
 
-func (p PostProcessor) GetConcurSinkers() []sessintf.ConcurEventSinker {
+func (p PostProcessor) GetConcurSinkers(
+	disableDma bool) []sessintf.ConcurEventSinker {
 	rv := []sessintf.ConcurEventSinker{
 		p.taskVec,
 		p.qm,
 		p.fwVec,
 		p.tm,
-		p.dmaVec,
 		p.kernelVec,
+	}
+	if !disableDma {
+		rv = append(rv, p.dmaVec)
 	}
 	return rv
 }

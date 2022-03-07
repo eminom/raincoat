@@ -81,7 +81,7 @@ func DoProcess(jobCount int, sess *sess.SessBroadcaster,
 	} else {
 		sess.DispatchToConcurSinkers(
 			jobCount,
-			processer.GetConcurSinkers()...,
+			processer.GetConcurSinkers(*fDiableDma)...,
 		)
 	}
 
