@@ -59,6 +59,16 @@ func (d DpfEvent) MasterIdValue() int {
 	return int(d.RawValue[1]) & ((1 << MASTERVALUE_BITCOUNT) - 1)
 }
 
+func toStartEndStr(evtFlag int) string {
+	switch evtFlag {
+	case 0:
+		return "end"
+	case 1:
+		return "start"
+	}
+	return "unk"
+}
+
 func (d DpfEvent) ToString() string {
 	if d.Flag == 0 {
 		switch d.EngineTypeCode {
@@ -67,11 +77,16 @@ func (d DpfEvent) ToString() string {
 				d.EngineTy,
 				d.DpfSyncIndex(),
 				d.Cycle)
+		case EngCat_TS:
+			return fmt.Sprintf("%-6v %-2v %-2v %-2v stream=%v %v pid=%v ts=%-14d",
+				d.EngineTy, d.ClusterID, d.EngineIndex, d.Context,
+				d.Event>>1, toStartEndStr(d.Event&1), d.PacketID, d.Cycle,
+			)
 		}
 		return fmt.Sprintf("%-10v %-2v %-2v %-2v event=%-4v pid=%v ts=%-14d",
 			d.EngineTy, d.ClusterID, d.EngineIndex, d.Context, d.Event, d.PacketID, d.Cycle)
 	}
-	return fmt.Sprintf("%-6v %-2v %-2v event=%v payload=%v ts=%-14d",
+	return fmt.Sprintf("%-6v %-2v %-5v event=%-3v payload=%v ts=%-14d",
 		d.EngineTy, d.ClusterID, d.EngineIndex, d.Event, d.Payload, d.Cycle)
 }
 

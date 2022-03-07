@@ -565,7 +565,9 @@ func (r *RuntimeTaskManager) CookCqmEverSince(
 		if found {
 			bingoCount++
 		} else {
-			assert.Assert(!everSearched || onceValid, "must be valid for once")
+			// assert.Assert(!everSearched || onceValid, "must be valid for once")
+			_ = everSearched
+			_ = onceValid
 			unprocessedVec = append(unprocessedVec, rtdata.OpActivity{
 				DpfAct: curAct.DpfAct,
 			})

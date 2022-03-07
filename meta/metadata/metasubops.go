@@ -13,7 +13,7 @@ type JsonLoader struct{}
 func (JsonLoader) LoadInfo(filename string) map[string]map[string][]string {
 	chunk, err := os.ReadFile(filename)
 	if err != nil {
-		log.Printf("Could not open %v for read", filename)
+		// log.Printf("Could not open %v for read", filename)
 		return nil
 	}
 	var dict map[string]map[string][]string
