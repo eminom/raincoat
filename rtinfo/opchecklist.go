@@ -13,13 +13,20 @@ import (
 func GenerateBriefOpsStat(execLocator func(uint64) metadata.ExecScope, bundle []rtdata.OpActivity) {
 	opGathering := make(map[int][]rtdata.OpActivity)
 	taskToExec := make(map[int]metadata.ExecScope)
+	taskToPgMask := make(map[int]int)
 	var taskVals []int
 	for _, act := range bundle {
 		assert.Assert(act.IsOpRefValid(), "must be valid for op generation")
 		tid := act.GetTaskID()
 		opGathering[tid] = append(opGathering[tid], act)
-		execUuid := act.GetTask().ExecutableUUID
-		taskToExec[tid] = execLocator(execUuid)
+
+		// Gather all, without checking for now
+		// Shall be consistent
+		if _, ok := taskToExec[tid]; !ok {
+			execUuid := act.GetTask().ExecutableUUID
+			taskToExec[tid] = execLocator(execUuid)
+			taskToPgMask[tid] = act.GetTask().PgMask
+		}
 	}
 	for tid := range opGathering {
 		taskVals = append(taskVals, tid)
@@ -28,7 +35,11 @@ func GenerateBriefOpsStat(execLocator func(uint64) metadata.ExecScope, bundle []
 	if fout, err := os.Create("tasklist.txt"); err == nil {
 		defer fout.Close()
 		for _, tid := range taskVals {
-			fmt.Fprintf(fout, "Task %v\n", tid)
+			fmt.Fprintf(fout, "Task %v, Exec 0x%16x, PgMask: %v\n",
+				tid,
+				taskToExec[tid].GetExecUuid(),
+				taskToPgMask[tid],
+			)
 
 			opSeq := opGathering[tid]
 			opIdMap := taskToExec[tid].CopyOpIdMap()
