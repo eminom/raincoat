@@ -163,8 +163,8 @@ func (TaskDetector) GetEngineTypes() []EngineTypeCode {
 	}
 }
 func (TaskDetector) IsStarterMark(evt DpfEvent) (bool, bool, bool) {
-	return evt.Event == TsLaunchCqmStart,
-		evt.Event == TsLaunchCqmEnd,
+	return evt.Flag == 1 && evt.Event == TsLaunchCqmStart,
+		evt.Flag == 1 && evt.Event == TsLaunchCqmEnd,
 		false
 }
 
