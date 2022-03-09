@@ -41,6 +41,10 @@ func (q OpActivity) GetTask() RuntimeTask {
 	return *q.opRef.refToTask
 }
 
+func (q OpActivity) GetTaskID() int {
+	return q.GetTask().TaskID
+}
+
 func (opAct OpActivity) Eq(rhs OpActivity) bool {
 	return opAct.opRef.Eq(rhs.opRef)
 }

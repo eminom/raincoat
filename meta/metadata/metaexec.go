@@ -162,3 +162,11 @@ func (es ExecScope) IteratePktToOp(cb func(int, int)) {
 		cb(pkt, opId)
 	}
 }
+
+func (es ExecScope) CopyOpIdMap() map[int]bool {
+	dc := make(map[int]bool)
+	for opId := range es.opMap {
+		dc[opId] = false
+	}
+	return dc
+}

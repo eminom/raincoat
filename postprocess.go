@@ -204,6 +204,7 @@ func (p *PostProcessor) DoPostProcessing() {
 		}
 
 		dumpFullCycles(dtuOps)
+		rtinfo.GenerateBriefOpsStat(p.rtDict.FindExecFor, dtuOps)
 
 		tr.DumpToEventTrace(dtuOps, p.tm,
 			NewNormalDumper(),
