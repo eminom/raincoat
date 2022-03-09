@@ -151,6 +151,21 @@ func (dbs *DbSession) DumpFwActs(
 	defer fw.Close()
 
 	nc := NewNameConverter()
+	// Collision may happen
+	taskIdHashMap := make(map[uint64]int)
+	for taskId, act := range taskActMap {
+		h := act.GetHashCode()
+		if _, ok := taskIdHashMap[h]; !ok {
+			taskIdHashMap[h] = taskId
+		} else {
+			fmt.Fprintf(os.Stderr, "# Task Id %v hash collision with %v, %v, %v\n",
+				taskId,
+				act.Start.ToString(),
+				act.End.ToString(),
+				h,
+			)
+		}
+	}
 
 	fwActCount, convertToHostError := 0, 0
 	nodeID, deviceID := coords.NodeID, coords.DeviceID
@@ -177,6 +192,15 @@ func (dbs *DbSession) DumpFwActs(
 		endHostTime, endOK := tm.MapToHosttime(act.EndCycle())
 		if startOK && endOK {
 			packetID, contextID := 0, -1
+
+			// Decorate name to task if it is executable event.
+			if act.Start.EngineTypeCode == codec.EngCat_CQM &&
+				act.Start.Event == codec.CqmExecutableStart {
+				if taskId, ok := taskIdHashMap[act.GetHashCode()]; ok {
+					name = fmt.Sprintf("Task.%v", taskId)
+				}
+			}
+
 			switch act.Start.EngineTypeCode {
 			case codec.EngCat_CQM, codec.EngCat_GSYNC:
 				packetID = act.Start.PacketID
@@ -204,30 +228,29 @@ func (dbs *DbSession) DumpFwActs(
 	)
 
 	//
+	// for taskId, act := range taskActMap {
+	// 	startHostTime, startOK := tm.MapToHosttime(act.StartCycle())
+	// 	endHostTime, endOK := tm.MapToHosttime(act.EndCycle())
+	// 	if startOK && endOK {
 
-	for taskId, act := range taskActMap {
-		startHostTime, startOK := tm.MapToHosttime(act.StartCycle())
-		endHostTime, endOK := tm.MapToHosttime(act.EndCycle())
-		if startOK && endOK {
-
-			packetID, contextID := 0, -1
-			switch act.Start.EngineTypeCode {
-			case codec.EngCat_CQM:
-				packetID = act.Start.PacketID
-				contextID = act.Start.Context
-			}
-			rowName := "Task"
-			name := fmt.Sprintf("Task.%v", taskId)
-			fw.AddFwTrace(dbs.idx, nodeID, deviceID, act.Start.ClusterID, contextID, name,
-				startHostTime, endHostTime, endHostTime-startHostTime,
-				act.StartCycle(), act.EndCycle(), act.EndCycle()-act.StartCycle(),
-				packetID, act.Start.EngineTy,
-				act.Start.EngineIndex, rowName,
-			)
-			dbs.fwOpCount++
-			dbs.idx++
-		}
-	}
+	// 		packetID, contextID := 0, -1
+	// 		switch act.Start.EngineTypeCode {
+	// 		case codec.EngCat_CQM:
+	// 			packetID = act.Start.PacketID
+	// 			contextID = act.Start.Context
+	// 		}
+	// 		rowName := "Task"
+	// 		name := fmt.Sprintf("Task.%v", taskId)
+	// 		fw.AddFwTrace(dbs.idx, nodeID, deviceID, act.Start.ClusterID, contextID, name,
+	// 			startHostTime, endHostTime, endHostTime-startHostTime,
+	// 			act.StartCycle(), act.EndCycle(), act.EndCycle()-act.StartCycle(),
+	// 			packetID, act.Start.EngineTy,
+	// 			act.Start.EngineIndex, rowName,
+	// 		)
+	// 		dbs.fwOpCount++
+	// 		dbs.idx++
+	// 	}
+	// }
 }
 
 func (dbs *DbSession) DumpDmaActs(

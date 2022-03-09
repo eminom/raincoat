@@ -1,6 +1,9 @@
 package rtdata
 
 import (
+	"crypto/md5"
+	"encoding/binary"
+
 	"git.enflame.cn/hai.bai/dmaster/codec"
 )
 
@@ -23,6 +26,18 @@ func (q DpfAct) ContextId() int {
 
 func (q DpfAct) Duration() int64 {
 	return int64(q.EndCycle()) - int64(q.StartCycle())
+}
+
+func (q DpfAct) GetHashCode() uint64 {
+	buf := make([]byte, 32)
+	for i := 0; i < 4; i++ {
+		binary.LittleEndian.PutUint32(buf[i*4:], q.Start.RawValue[i])
+		binary.LittleEndian.PutUint32(buf[i*4+8:], q.End.RawValue[i])
+	}
+	hash := md5.New()
+	hash.Write(buf)
+	res := hash.Sum(nil)
+	return binary.LittleEndian.Uint64(res)
 }
 
 // Combine,

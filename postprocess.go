@@ -182,7 +182,7 @@ func (p *PostProcessor) DoPostProcessing() {
 		var tr dbexport.TraceEventSession
 
 		// Generate task timeline
-		taskActMap := p.rtDict.GenerateTaskOps(
+		p.taskActMap = p.rtDict.GenerateTaskOps(
 			p.fwVec.FwActivity(), p.curAlgo)
 
 		// Generate op runtime info
@@ -195,7 +195,6 @@ func (p *PostProcessor) DoPostProcessing() {
 
 		p.dtuOps = dtuOps
 		p.subOps = subOps
-		p.taskActMap = taskActMap
 		var wildProcess []rtdata.OpActivity
 		if false {
 			p.rtDict.OvercookCqm(unProcessed, p.curAlgo)
