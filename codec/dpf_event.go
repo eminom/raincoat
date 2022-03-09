@@ -59,6 +59,10 @@ func (d DpfEvent) MasterIdValue() int {
 	return int(d.RawValue[1]) & ((1 << MASTERVALUE_BITCOUNT) - 1)
 }
 
+func (d DpfEvent) IsOfEngine(engineTypeCode EngineTypeCode) bool {
+	return d.EngineTypeCode == engineTypeCode
+}
+
 func toStartEndStr(evtFlag int) string {
 	switch evtFlag {
 	case 0:

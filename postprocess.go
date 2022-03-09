@@ -29,8 +29,9 @@ type PostProcessor struct {
 	seqIdx  int
 
 	// Results
-	dtuOps []rtdata.OpActivity
-	subOps []rtdata.KernelActivity
+	dtuOps     []rtdata.OpActivity
+	subOps     []rtdata.KernelActivity
+	taskActMap map[int]rtdata.FwActivity
 }
 
 func NewPostProcesser(loader efintf.InfoReceiver,
@@ -113,6 +114,7 @@ type DbDumper interface {
 	DumpFwActs(
 		coords rtdata.Coords,
 		bundle []rtdata.FwActivity,
+		taskActMap map[int]rtdata.FwActivity,
 		tm *rtinfo.TimelineManager,
 	)
 	DumpDmaActs(
@@ -133,10 +135,10 @@ func (p PostProcessor) DumpToDb(coord rtdata.Coords, dbe DbDumper) {
 		coord,
 		p.dtuOps, p.tm,
 	)
-
 	dbe.DumpFwActs(
 		coord,
-		p.fwVec.FwActivity(), p.tm,
+		p.fwVec.FwActivity(),
+		p.taskActMap, p.tm,
 	)
 	dbe.DumpDmaActs(
 		coord,
@@ -179,6 +181,10 @@ func (p *PostProcessor) DoPostProcessing() {
 
 		var tr dbexport.TraceEventSession
 
+		// Generate task timeline
+		taskActMap := p.rtDict.GenerateTaskOps(
+			p.fwVec.FwActivity(), p.curAlgo)
+
 		// Generate op runtime info
 		dtuOps, unProcessed := p.rtDict.GenerateDtuOps(p.qm.OpActivity(),
 			p.curAlgo)
@@ -189,6 +195,7 @@ func (p *PostProcessor) DoPostProcessing() {
 
 		p.dtuOps = dtuOps
 		p.subOps = subOps
+		p.taskActMap = taskActMap
 		var wildProcess []rtdata.OpActivity
 		if false {
 			p.rtDict.OvercookCqm(unProcessed, p.curAlgo)

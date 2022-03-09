@@ -24,6 +24,10 @@ func NewOrderTaskState() OrderTaskState {
 type OrderTask struct {
 	StartCy   uint64
 	refToTask *RuntimeTask
+}
+
+type OrderTaskStated struct {
+	OrderTask
 	taskState OrderTaskState
 }
 
@@ -34,8 +38,11 @@ func NewOrderTask(startCycle uint64, task *RuntimeTask) OrderTask {
 	}
 }
 
-func (ot *OrderTask) CreateNewState() {
-	ot.taskState = NewOrderTaskState()
+func NewOrderTaskStated(origin OrderTask) OrderTaskStated {
+	var rv OrderTaskStated
+	rv.OrderTask = origin
+	rv.taskState = NewOrderTaskState()
+	return rv
 }
 
 func (ot OrderTask) GetRefToTask() *RuntimeTask {
@@ -50,42 +57,42 @@ func (ot OrderTask) GetExecUuid() uint64 {
 	return ot.refToTask.ExecutableUUID
 }
 
-func (ot OrderTask) AbleToMatchCqm(cqm OpActivity, a vgrule.EngineOrder) bool {
+func (ot OrderTask) AbleToMatchCqm(evt codec.DpfEvent, a vgrule.EngineOrder) bool {
 	if efconst.IsAllZeroPgMask(ot.refToTask.PgMask) {
 		return true
 	}
-	return ot.refToTask.MatchCqm(a.GetEngineOrder(cqm.Start))
+	return ot.refToTask.MatchCqm(a.GetEngineOrder(evt))
 }
 
-func (ot OrderTask) AbleToMatchSip(sip KernelActivity, a vgrule.EngineOrder) bool {
+func (ot OrderTask) AbleToMatchSip(evt codec.DpfEvent, a vgrule.EngineOrder) bool {
 	if efconst.IsAllZeroPgMask(ot.refToTask.PgMask) {
 		return true
 	}
-	return ot.refToTask.MatchSip(a.GetSipEngineOrder(sip.Start))
+	return ot.refToTask.MatchSip(a.GetSipEngineOrder(evt))
 }
 
-func (ot OrderTask) MatchXDMA(dma DmaActivity, a vgrule.EngineOrder) bool {
+func (ot OrderTask) AbleToMatchXDMA(dmaEvt codec.DpfEvent, a vgrule.EngineOrder) bool {
 	pgMask := ot.refToTask.PgMask
 	if efconst.IsAllZeroPgMask(pgMask) {
 		return true
 	}
-	if dma.IsOfEngine(codec.EngCat_CDMA) {
+	if dmaEvt.IsOfEngine(codec.EngCat_CDMA) {
 		return a.MapPgMaskBitsToCdmaEngineMask(pgMask)&
-			(1<<a.GetCdmaPgBitOrder(dma.Start)) != 0
-	} else if dma.IsOfEngine(codec.EngCat_SDMA) {
+			(1<<a.GetCdmaPgBitOrder(dmaEvt)) != 0
+	} else if dmaEvt.IsOfEngine(codec.EngCat_SDMA) {
 		return a.MapPgMaskBitsToSdmaEngineMask(pgMask)&
-			(1<<a.GetSdmaPgBitOrder(dma.Start)) != 0
+			(1<<a.GetSdmaPgBitOrder(dmaEvt)) != 0
 	}
 	return false
 }
 
-func (ot *OrderTask) SuccessMatchDtuop(packetId int) {
+func (ot *OrderTaskStated) SuccessMatchDtuop(packetId int) {
 	ot.taskState.matchedPacketIdMap[packetId]++
 }
 
 // A task is an instance of executable
 // So all matched packets must belong to the same executable
-func (ot OrderTask) DumpStatusInfo(exec metadata.ExecScope) {
+func (ot OrderTaskStated) DumpStatusInfo(exec metadata.ExecScope) {
 	assert.Assert(ot.refToTask != nil, "must not be nil, created from start")
 	if !ot.IsValid() {
 		log.Printf("not a valid task")

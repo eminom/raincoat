@@ -47,6 +47,15 @@ type RuntimeTaskManager struct {
 	tempInternal RuntimeTaskManInternal
 }
 
+func newStatedOrderTaskVector(origin []rtdata.OrderTask) []rtdata.OrderTaskStated {
+	lz := len(origin)
+	out := make([]rtdata.OrderTaskStated, lz)
+	for i, v := range origin {
+		out[i] = rtdata.NewOrderTaskStated(v)
+	}
+	return out
+}
+
 type RuntimeTaskManInternal struct {
 	subOpInformation map[string]map[string][]string
 }
@@ -289,38 +298,33 @@ func (rtm *RuntimeTaskManager) GenerateDtuOps(
 ) ([]rtdata.OpActivity, []rtdata.OpActivity) {
 	// Each time we start processing a new session
 	// We create a new object to do the math
-	vec := rtm.orderedTaskVector
-	for i := 0; i < len(vec); i++ {
-		vec[i].CreateNewState()
-	}
-
 	bingoCount := 0
+	terminatorCount := 0
 	unprocessedVec := []rtdata.OpActivity{}
 
-	detector := codec.DbgPktDetector{}
-
 	opState := NewOpXState()
+
+	lookupOpMeta := func(execUuid uint64, packetId int) bool {
+		_, err := rtm.LookupOpIdByPacketID(execUuid, packetId)
+		return err == nil
+	}
+
 	for i := 0; i < len(opActVec); i++ {
 		curAct := &opActVec[i]
-		start := curAct.StartCycle()
-		idxStart := rtm.upperBoundForTaskVec(start)
-		// backtrace for no more than MAX_BACKTRACE_TASK_COUNT
-		found := false
-		for j := idxStart - 1; j > idxStart-1-MAX_BACKTRACE_TASK_COUNT; j-- {
-			if j < 0 || j >= len(vec) {
-				continue
-			}
-			taskInOrder := vec[j]
-			if !taskInOrder.IsValid() {
-				continue
-			}
 
-			if !taskInOrder.AbleToMatchCqm(*curAct, rule) {
-				// not match for pg resource
-				continue
-			}
-
-			if detector.IsTerminatorMark(curAct.Start) {
+		// terminator, fit and quit
+		isTerminator := (codec.DbgPktDetector{}).IsTerminatorMark(curAct.Start)
+		var exhaustiveMatcher MatchExtraConds = lookupOpMeta
+		if isTerminator {
+			terminatorCount++
+			exhaustiveMatcher = nil
+		}
+		taskInOrder, found := rtm.locateTask(
+			curAct.Start, rule, MatchToCqm{},
+			exhaustiveMatcher,
+		)
+		if found {
+			if isTerminator {
 				opState.CombineOps(taskInOrder.GetTaskID(),
 					curAct.ContextId())
 				continue
@@ -331,8 +335,9 @@ func (rtm *RuntimeTaskManager) GenerateDtuOps(
 				curAct.Start.PacketID); err == nil {
 				// There is always a dtuop related to dbg op
 				// and there is always a task
-				taskInOrder.SuccessMatchDtuop(curAct.Start.PacketID)
-				taskInOrder.SuccessMatchDtuop(curAct.End.PacketID)
+				// TODO: Statistics can be done later
+				// taskInOrder.SuccessMatchDtuop(curAct.Start.PacketID)
+				// taskInOrder.SuccessMatchDtuop(curAct.End.PacketID)
 
 				// Copy this result into op x-state
 				cloneAct := *curAct
@@ -340,12 +345,9 @@ func (rtm *RuntimeTaskManager) GenerateDtuOps(
 					taskInOrder.GetRefToTask()))
 				opState.AddOp(cloneAct)
 				// curAct.SetOpRef(rtdata.NewOpRef(&opInfo, taskInOrder.GetRefToTask()))
-				found = true
-				break
-			} else {
-				// fmt.Printf("error: %v\n", err)
 			}
 		}
+		// Test again
 		if found {
 			bingoCount++
 		} else {
@@ -356,45 +358,82 @@ func (rtm *RuntimeTaskManager) GenerateDtuOps(
 	}
 	fmt.Printf("Dbg op/Dtu-op meta success matched count: %v out of %v\n",
 		bingoCount,
-		len(opActVec),
+		len(opActVec)-terminatorCount,
 	)
 
 	// OrderTasks(rtm.orderedTaskVector).DumpInfos(rtm)
 	return opState.FinalizeOps(), unprocessedVec
 }
 
+func (rtm *RuntimeTaskManager) GenerateTaskOps(
+	fwActs []rtdata.FwActivity,
+	rule vgrule.EngineOrder,
+) map[int]rtdata.FwActivity {
+	var taskIdToActivity = make(map[int]rtdata.FwActivity)
+	for _, fwAct := range fwActs {
+		if fwAct.Start.EngineTypeCode == codec.EngCat_CQM &&
+			fwAct.Start.Event == codec.CqmExecutableStart {
+			task, found := rtm.locateTask(
+				fwAct.Start,
+				rule,
+				MatchToCqm{},
+				nil,
+			)
+			if found {
+				taskId := task.GetTaskID()
+				if _, ok := taskIdToActivity[taskId]; !ok {
+					taskIdToActivity[taskId] = fwAct
+				} else {
+					fmt.Fprintf(
+						os.Stderr,
+						"error duplicate executable to task for task id: %v\n",
+						taskId)
+				}
+			}
+		}
+	}
+	return taskIdToActivity
+}
+
+func (rtm *RuntimeTaskManager) locateTask(
+	evt codec.DpfEvent,
+	rule vgrule.EngineOrder,
+	matcher MatchPhysicalEngine,
+	extraMatch MatchExtraConds,
+) (rv rtdata.OrderTask, found bool) {
+	idxStart := rtm.upperBoundForTaskVec(evt.Cycle)
+	found = false
+	vec := rtm.orderedTaskVector
+	for j := idxStart - 1; j > idxStart-1-MAX_BACKTRACE_TASK_COUNT; j-- {
+		if j < 0 || j >= len(vec) {
+			continue
+		}
+		if !vec[j].IsValid() {
+			continue
+		}
+		thatTask := vec[j]
+		if matcher.DoMatchTo(evt, thatTask, rule) &&
+			(extraMatch == nil || extraMatch(thatTask.GetExecUuid(), evt.PacketID)) {
+			// Copy result
+			rv = thatTask
+			found = true
+			break
+		}
+	}
+	return
+}
+
 func (rtm *RuntimeTaskManager) GenerateKernelActs(
 	kernelActs []rtdata.KernelActivity,
 	opBundles []rtdata.OpActivity,
 	rule vgrule.EngineOrder) []rtdata.KernelActivity {
-	vec := rtm.orderedTaskVector
-	for i := 0; i < len(vec); i++ {
-		vec[i].CreateNewState()
-	}
-
-	// TODO: refactor this
-	// Retrieve Task Id Only
 	var sipTaskBingoCount = 0
 	for i, kernAct := range kernelActs {
-		start := kernAct.StartCycle()
-		idxStart := rtm.upperBoundForTaskVec(start)
-		// backtrace for no more than MAX_BACKTRACE_TASK_COUNT
-		found := false
-		for j := idxStart - 1; j > idxStart-1-MAX_BACKTRACE_TASK_COUNT; j-- {
-			if j < 0 || j >= len(vec) {
-				continue
-			}
-			taskInOrder := vec[j]
-			if !taskInOrder.IsValid() {
-				continue
-			}
-			if taskInOrder.AbleToMatchSip(kernAct, rule) {
-				kernelActs[i].RtInfo.TaskId = taskInOrder.GetTaskID()
-				found = true
-				break
-			}
-		}
+		assert.Assert(kernAct.Start.EngineTypeCode == codec.EngCat_SIP, "must be sip")
+		taskObj, found := rtm.locateTask(
+			kernAct.Start, rule, MatchToSip{}, nil)
 		if found {
+			kernelActs[i].RtInfo.TaskId = taskObj.GetTaskID()
 			sipTaskBingoCount++
 		}
 	}
@@ -446,10 +485,7 @@ func (r *RuntimeTaskManager) CookCqmEverSince(
 	for _, orderedTask := range r.orderedTaskVector {
 		validTaskMap[orderedTask.GetTaskID()] = true
 	}
-	vec := r.fullTaskVector
-	for i := 0; i < len(vec); i++ {
-		vec[i].CreateNewState()
-	}
+	vec := newStatedOrderTaskVector(r.fullTaskVector)
 
 	// If there is an ordered task vector, start from the very beginning
 	// Let's assume that we do not miss any TS event from the start
@@ -483,7 +519,7 @@ func (r *RuntimeTaskManager) CookCqmEverSince(
 			}
 			everSearched = true
 			thisExecUuid := taskInOrder.GetExecUuid()
-			if taskInOrder.AbleToMatchCqm(*curAct, rule) {
+			if taskInOrder.AbleToMatchCqm(curAct.Start, rule) {
 				opInfo, err := r.LookupOpIdByPacketID(
 					thisExecUuid,
 					curAct.Start.PacketID)
@@ -531,10 +567,7 @@ func (r *RuntimeTaskManager) OvercookCqm(
 ) {
 	// Each time we start processing a new session
 	// We create a new object to do the math
-	vec := r.orderedTaskVector
-	for i := 0; i < len(vec); i++ {
-		vec[i].CreateNewState()
-	}
+	vec := newStatedOrderTaskVector(r.orderedTaskVector)
 
 	bingoCount := 0
 	noBingoCount := 0
@@ -562,7 +595,7 @@ func (r *RuntimeTaskManager) OvercookCqm(
 			if !taskInOrder.IsValid() {
 				continue
 			}
-			if taskInOrder.AbleToMatchCqm(*curAct, rule) {
+			if taskInOrder.AbleToMatchCqm(curAct.Start, rule) {
 				thisExecUuid := taskInOrder.GetExecUuid()
 				opInfo, err := r.LookupOpIdByPacketID(
 					thisExecUuid,
@@ -665,7 +698,7 @@ func (r *RuntimeTaskManager) WildCookCqm(
 	return unmatchedVec
 }
 
-func (rtm *RuntimeTaskManager) DumpInfos(orderTask rtdata.OrderTasks) {
+func (rtm *RuntimeTaskManager) DumpInfos(orderTask []rtdata.OrderTaskStated) {
 	fmt.Printf("# statistics for ordered-task\n")
 	for _, task := range orderTask {
 		execScope := rtm.FindExecFor(task.GetExecUuid())
@@ -677,10 +710,7 @@ func (rtm *RuntimeTaskManager) CookDma(
 	dmaActVec []rtdata.DmaActivity,
 	algo vgrule.ActMatchAlgo,
 ) []rtdata.DmaActivity {
-	vec := rtm.orderedTaskVector
-	for i := 0; i < len(vec); i++ {
-		vec[i].CreateNewState()
-	}
+	vec := newStatedOrderTaskVector(rtm.orderedTaskVector)
 
 	bingoCount := 0
 	errDmaCount := 0
@@ -702,7 +732,7 @@ func (rtm *RuntimeTaskManager) CookDma(
 				// just because it is not setup correctly with meta.
 				continue
 			}
-			if !taskInOrder.MatchXDMA(*curAct, algo) {
+			if !taskInOrder.AbleToMatchXDMA(curAct.Start, algo) {
 				continue
 			}
 			if dmaOp, err := rtm.LookupDma(taskInOrder.GetExecUuid(),

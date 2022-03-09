@@ -144,6 +144,7 @@ func (dbs *DbSession) DumpDtuOps(
 func (dbs *DbSession) DumpFwActs(
 	coords rtdata.Coords,
 	bundle []rtdata.FwActivity,
+	taskActMap map[int]rtdata.FwActivity,
 	tm *rtinfo.TimelineManager,
 ) {
 	fw := NewFwSession(dbs.dbObject)
@@ -201,6 +202,32 @@ func (dbs *DbSession) DumpFwActs(
 		fwActCount,
 		dbs.targetName,
 	)
+
+	//
+
+	for taskId, act := range taskActMap {
+		startHostTime, startOK := tm.MapToHosttime(act.StartCycle())
+		endHostTime, endOK := tm.MapToHosttime(act.EndCycle())
+		if startOK && endOK {
+
+			packetID, contextID := 0, -1
+			switch act.Start.EngineTypeCode {
+			case codec.EngCat_CQM:
+				packetID = act.Start.PacketID
+				contextID = act.Start.Context
+			}
+			rowName := "Task"
+			name := fmt.Sprintf("Task.%v", taskId)
+			fw.AddFwTrace(dbs.idx, nodeID, deviceID, act.Start.ClusterID, contextID, name,
+				startHostTime, endHostTime, endHostTime-startHostTime,
+				act.StartCycle(), act.EndCycle(), act.EndCycle()-act.StartCycle(),
+				packetID, act.Start.EngineTy,
+				act.Start.EngineIndex, rowName,
+			)
+			dbs.fwOpCount++
+			dbs.idx++
+		}
+	}
 }
 
 func (dbs *DbSession) DumpDmaActs(
