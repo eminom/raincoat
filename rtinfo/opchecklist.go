@@ -262,8 +262,9 @@ func dumpStatInfoToFile(fout *os.File,
 		fmt.Fprintf(fout, "Exec 0x%16x, task list:\n", exec)
 		for _, tid := range statByExec[exec].TaskIdVec {
 			statInfo := statByTask[tid]
-			fmt.Fprintf(fout, "  %v, cycles: %v, exec bound: %v, with exec act: %v, execution time: %v\n",
+			fmt.Fprintf(fout, "  %v, pg %v, cycles: %v, exec bound: %v, with exec act: %v, execution time: %v\n",
 				tid,
+				statInfo.PgMask,
 				statInfo.TotalCycles,
 				statInfo.BoundedByExecAct,
 				statInfo.HasExecAct,
