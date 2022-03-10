@@ -76,31 +76,43 @@ func NewPostProcesser(loader efintf.InfoReceiver,
 	}
 }
 
-func (p PostProcessor) GetSinkers(disableDma bool) []sessintf.EventSinker {
+type DpfActionOptions struct {
+	NoDma bool
+	NoSip bool
+}
+
+func (p PostProcessor) GetSinkers(
+	dopts DpfActionOptions,
+) []sessintf.EventSinker {
 	rv := []sessintf.EventSinker{
 		p.taskVec,
 		p.qm,
 		p.fwVec,
 		p.tm,
-		p.kernelVec,
 	}
-	if !disableDma {
+	if !dopts.NoDma {
 		rv = append(rv, p.dmaVec)
+	}
+	if !dopts.NoSip {
+		rv = append(rv, p.kernelVec)
 	}
 	return rv
 }
 
 func (p PostProcessor) GetConcurSinkers(
-	disableDma bool) []sessintf.ConcurEventSinker {
+	dopts DpfActionOptions,
+) []sessintf.ConcurEventSinker {
 	rv := []sessintf.ConcurEventSinker{
 		p.taskVec,
 		p.qm,
 		p.fwVec,
 		p.tm,
-		p.kernelVec,
 	}
-	if !disableDma {
+	if !dopts.NoDma {
 		rv = append(rv, p.dmaVec)
+	}
+	if !dopts.NoSip {
+		rv = append(rv, p.kernelVec)
 	}
 	return rv
 }
@@ -204,7 +216,11 @@ func (p *PostProcessor) DoPostProcessing() {
 		}
 
 		dumpFullCycles(dtuOps)
-		rtinfo.GenerateBriefOpsStat(p.rtDict.FindExecFor, dtuOps)
+		rtinfo.GenerateBriefOpsStat(
+			p.rtDict.FindExecFor,
+			dtuOps,
+			p.taskActMap,
+		)
 
 		tr.DumpToEventTrace(dtuOps, p.tm,
 			NewNormalDumper(),

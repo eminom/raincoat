@@ -365,6 +365,9 @@ func (rtm *RuntimeTaskManager) GenerateDtuOps(
 	return opState.FinalizeOps(), unprocessedVec
 }
 
+/*
+ * One task, one executable activity
+ */
 func (rtm *RuntimeTaskManager) GenerateTaskOps(
 	fwActs []rtdata.FwActivity,
 	rule vgrule.EngineOrder,

@@ -12,6 +12,9 @@ const (
 	CqmExecutableStart = 3
 	CqmExecutableEnd   = 2
 
+	CqmSleepStart = 1
+	CqmSleepEnd   = 0
+
 	CqmDbgPacketStepStart = 0xb
 	CqmDbgPacketStepEnd   = 0xa
 )

@@ -37,7 +37,8 @@ var (
 	fPbMode = flag.Bool("pb", false, "protobuf mode, the latest state-of-art")
 
 	fEnableExTime = flag.Bool("extimeline", false, "enable extended timeline")
-	fDiableDma    = flag.Bool("disabledma", false, "disable dma event dispatching")
+	fWithoutDma   = flag.Bool("nodma", false, "disable dma event parsing")
+	fWithoutSip   = flag.Bool("nosip", false, "disable sip event parsing")
 	fJob          = flag.Int("job", 7, "jobs to go concurrent")
 
 	// if PbMode is enabled:
@@ -73,15 +74,18 @@ func DoProcess(jobCount int, sess *sess.SessBroadcaster,
 	startTime := time.Now()
 	log.Printf("Starting dispatch events at %v", startTime.Format(time.RFC3339))
 
+	dopts := DpfActionOptions{
+		NoDma: *fWithoutDma,
+		NoSip: *fWithoutSip,
+	}
+
 	if jobCount <= 0 {
 		sess.DispatchToSinkers(
-			processer.GetSinkers(
-				*fDiableDma,
-			)...)
+			processer.GetSinkers(dopts)...)
 	} else {
 		sess.DispatchToConcurSinkers(
 			jobCount,
-			processer.GetConcurSinkers(*fDiableDma)...,
+			processer.GetConcurSinkers(dopts)...,
 		)
 	}
 

@@ -31,6 +31,7 @@ func isFwInterested(event int) bool {
 		CqmEventOpStart,
 		CqmDbgPacketStepStart,
 		CqmExecutableStart,
+		CqmSleepStart,
 		TsLaunchCqmStart:
 		return true
 	}
