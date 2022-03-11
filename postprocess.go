@@ -220,6 +220,7 @@ func (p *PostProcessor) DoPostProcessing() {
 			p.rtDict.FindExecFor,
 			dtuOps,
 			p.taskActMap,
+			p.rtDict.GetOrderedTaskVec(),
 		)
 
 		tr.DumpToEventTrace(dtuOps, p.tm,

@@ -64,6 +64,7 @@ func GenerateBriefOpsStat(
 	execLocator func(uint64) metadata.ExecScope,
 	bundle []rtdata.OpActivity,
 	executableMap map[int]rtdata.FwActivity,
+	orderTaskVec []rtdata.OrderTask,
 ) {
 
 	var taskVals []int
@@ -229,7 +230,10 @@ func GenerateBriefOpsStat(
 	if fout, err := os.Create("tasklist.txt"); err == nil {
 		defer fout.Close()
 		dumpStatInfoToFile(fout,
-			taskVals, statByTask, statByExec, taskReportMap)
+			taskVals, statByTask, statByExec,
+			taskReportMap,
+			orderTaskVec,
+		)
 	}
 }
 
@@ -237,8 +241,9 @@ func dumpStatInfoToFile(fout *os.File,
 	taskVals []int,
 	statByTask map[int]*TaskInfoState,
 	statByExec map[uint64]*ExecInfoState,
-	taskReport map[int]string) {
-
+	taskReport map[int]string,
+	orderTaskVec []rtdata.OrderTask,
+) {
 	// Task by task
 	for _, tid := range taskVals {
 		thisExeScope := statByTask[tid].ExecScope
@@ -257,6 +262,7 @@ func dumpStatInfoToFile(fout *os.File,
 		io.WriteString(fout, taskReport[tid])
 	}
 
+	// Dump stat sorted by Executable
 	fmt.Fprintf(fout, "\n")
 	for exec := range statByExec {
 		fmt.Fprintf(fout, "Exec 0x%16x, task list:\n", exec)
@@ -273,4 +279,17 @@ func dumpStatInfoToFile(fout *os.File,
 		}
 		fmt.Fprintf(fout, "\n")
 	}
+
+	// Dump task overview
+	fmt.Fprintf(fout, "\n")
+	for _, task := range orderTaskVec {
+		fmt.Fprintf(fout, "Task %-4d, %22d, 0x%16x, %v\n",
+			task.GetTaskID(),
+			task.StartCy,
+			task.GetRefToTask().ExecutableUUID,
+			task.GetRefToTask().PgMask)
+	}
+
+	//
+	fmt.Fprintf(fout, "\n")
 }

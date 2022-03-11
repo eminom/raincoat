@@ -161,6 +161,10 @@ func (r RuntimeTaskManager) createTaskSeq(
 	return orders
 }
 
+func (r RuntimeTaskManager) GetOrderedTaskVec() []rtdata.OrderTask {
+	return r.orderedTaskVector
+}
+
 // LoadMeta will load executable raw from task info's executable-uuids
 func (r *RuntimeTaskManager) LoadMeta(
 	loader efintf.InfoReceiver,
