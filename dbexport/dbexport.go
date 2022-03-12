@@ -124,6 +124,7 @@ func (dbs *DbSession) DumpDtuOps(
 					startHostTime, endHostTime, endHostTime-startHostTime,
 					act.StartCycle(), act.EndCycle(), act.EndCycle()-act.StartCycle(),
 					act.GetOp().OpId, name,
+					DtuOpRowName,
 				)
 				dbs.dtuOpCount++
 				dbs.idx++
@@ -139,6 +140,55 @@ func (dbs *DbSession) DumpDtuOps(
 		dtuOpCount,
 		dbs.targetName,
 	)
+}
+
+func (dbs *DbSession) DumpTaskVec(
+	coords rtdata.Coords,
+	taskVec []rtdata.OrderTask,
+	taskActMap map[int]rtdata.FwActivity,
+	tm *rtinfo.TimelineManager,
+) {
+	dos := NewDtuOpSession(dbs.dbObject)
+	defer dos.Close()
+
+	nodeID, deviceID := coords.NodeID, coords.DeviceID
+	const clusterID = -1
+	const contextID = -1
+
+	for _, oTask := range taskVec {
+		if !oTask.IsValid() {
+			continue
+		}
+		fwAct, ok := taskActMap[oTask.GetTaskID()]
+		if !ok {
+			continue
+		}
+		task := oTask.GetRefToTask()
+		startCy, endCy := fwAct.StartCycle(), fwAct.EndCycle()
+		durationCycle := endCy - startCy
+		startHostTime, startOK := tm.MapToHosttime(startCy)
+		endHostTime, endOK := tm.MapToHosttime(endCy)
+		if !startOK || !endOK {
+			continue
+		}
+
+		fmt.Printf("Task %v,  duration %v\n", task.TaskID, durationCycle)
+		pgMask := task.PgMask
+		rowName := fmt.Sprintf("Pg %06b", pgMask)
+		name := fmt.Sprintf("Task.%v %s",
+			task.TaskID,
+			fmt.Sprintf("0x%16x", task.ExecutableUUID)[:6],
+		)
+
+		dos.AddDtuOp(dbs.idx, nodeID, deviceID, clusterID, contextID, name,
+			startHostTime, endHostTime, endHostTime-startHostTime,
+			startCy, endCy, durationCycle,
+			0, name,
+			rowName,
+		)
+		dbs.dtuOpCount++
+		dbs.idx++
+	}
 }
 
 func (dbs *DbSession) DumpFwActs(

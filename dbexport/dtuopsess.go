@@ -37,7 +37,7 @@ func (dos *DtuOpSession) AddDtuOp(
 	idx, nodeID, devID, clusterID, ctxID int, name string,
 	startTS, endTS, durTS uint64,
 	startCy, endCy, durCy uint64,
-	opId int, opName string) {
+	opId int, opName string, rowName string) {
 
 	moduleID := 1
 	vpId := GetNextVpId()
@@ -49,8 +49,8 @@ func (dos *DtuOpSession) AddDtuOp(
 		opId, opName,
 		// and the default
 		vpId, moduleID,
-		DtuOpRowName, fmt.Sprintf("%v:%v:%v:%v:%v",
-			nodeID, devID, ctxID, clusterID, DtuOpRowName,
+		rowName, fmt.Sprintf("%v:%v:%v:%v:%v",
+			nodeID, devID, ctxID, clusterID, rowName,
 		))
 	assert.Assert(err == nil, "Must be nil to carry on:%v", err)
 }

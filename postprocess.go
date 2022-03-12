@@ -123,6 +123,12 @@ type DbDumper interface {
 		bundle []rtdata.OpActivity,
 		tm *rtinfo.TimelineManager,
 	)
+	DumpTaskVec(
+		coords rtdata.Coords,
+		taskVec []rtdata.OrderTask,
+		taskActMap map[int]rtdata.FwActivity,
+		tm *rtinfo.TimelineManager,
+	)
 	DumpFwActs(
 		coords rtdata.Coords,
 		bundle []rtdata.FwActivity,
@@ -146,6 +152,11 @@ func (p PostProcessor) DumpToDb(coord rtdata.Coords, dbe DbDumper) {
 	dbe.DumpDtuOps(
 		coord,
 		p.dtuOps, p.tm,
+	)
+	dbe.DumpTaskVec(
+		coord,
+		p.rtDict.GetOrderedTaskVec(),
+		p.taskActMap, p.tm,
 	)
 	dbe.DumpFwActs(
 		coord,
