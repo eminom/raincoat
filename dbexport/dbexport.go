@@ -41,6 +41,7 @@ type DbSession struct {
 	idx        int
 
 	dtuOpCount    int
+	taskActCount  int
 	fwOpCount     int
 	dmaOpCount    int
 	kernelOpCount int
@@ -78,7 +79,7 @@ func (dbs *DbSession) Close() {
 	hs := NewHeaderSess(dbs.dbObject)
 	// Finalize headers, not until the end do we know the count
 	hs.AddHeader("dtu_op", "1.0",
-		TableCategory_DTUOpActivity, dbs.dtuOpCount, "ns")
+		TableCategory_DTUOpActivity, dbs.dtuOpCount+dbs.taskActCount, "ns")
 	hs.AddHeader("fw", "1.0",
 		TableCategory_DTUFwActivity, dbs.fwOpCount, "ns")
 	hs.AddHeader("memcpy", "1.0",
@@ -172,7 +173,6 @@ func (dbs *DbSession) DumpTaskVec(
 			continue
 		}
 
-		fmt.Printf("Task %v,  duration %v\n", task.TaskID, durationCycle)
 		pgMask := task.PgMask
 		rowName := fmt.Sprintf("Pg %06b", pgMask)
 		name := fmt.Sprintf("Task.%v %s",
@@ -186,7 +186,7 @@ func (dbs *DbSession) DumpTaskVec(
 			0, name,
 			rowName,
 		)
-		dbs.dtuOpCount++
+		dbs.taskActCount++
 		dbs.idx++
 	}
 }
