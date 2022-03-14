@@ -2,6 +2,7 @@ package dbexport
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"os"
 	"sort"
@@ -113,6 +114,46 @@ func (tr *TraceEventSession) appendEvt(evt TraceEvent) {
 
 type EventTraceItemGen interface {
 	GetPidAndName(rtdata.OpActivity) (bool, string, string, string)
+}
+
+func (tr *TraceEventSession) DumpTaskVec(
+	taskMap map[int]rtdata.FwActivity,
+	taskOrderVec []rtdata.OrderTask,
+	tm *rtinfo.TimelineManager,
+) {
+	const pid = "Task Distribution"
+	for _, task := range taskOrderVec {
+		if !task.IsValid() {
+			continue
+		}
+		fwAct, ok := taskMap[task.GetTaskID()]
+		if !ok {
+			continue
+		}
+		startHostTime, startOK := tm.MapToHosttime(fwAct.StartCycle())
+		endHostTime, endOK := tm.MapToHosttime(fwAct.EndCycle())
+		if !startOK || !endOK {
+			continue
+		}
+
+		// OK, all conditions met
+		tid := fmt.Sprintf("PG %06b", task.GetRefToTask().PgMask)
+		name := fmt.Sprintf("Task.%v 0x%s",
+			task.GetTaskID(),
+			fmt.Sprintf("%016x", task.GetExecUuid())[:8])
+		tr.appendEvt(NewTraceEventBegin(
+			pid,
+			tid,
+			name,
+			startHostTime,
+		))
+		tr.appendEvt(NewTraceEventEnd(
+			pid,
+			tid,
+			name,
+			endHostTime,
+		))
+	}
 }
 
 func (tr *TraceEventSession) DumpToEventTrace(

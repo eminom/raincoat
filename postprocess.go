@@ -234,6 +234,11 @@ func (p *PostProcessor) DoPostProcessing() {
 			p.rtDict.GetOrderedTaskVec(),
 		)
 
+		tr.DumpTaskVec(p.taskActMap,
+			p.rtDict.GetOrderedTaskVec(),
+			p.tm,
+		)
+
 		tr.DumpToEventTrace(dtuOps, p.tm,
 			NewNormalDumper(),
 			true,
