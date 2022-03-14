@@ -102,7 +102,14 @@ func GenerateBriefOpsStat(
 		execScope := statByTask[tid].ExecScope
 		thisExecuuid := execScope.GetExecUuid()
 		opSeq := statByTask[tid].OpGathering
-		opIdMap := execScope.CopyOpIdMap()
+		opIdToStrMap := execScope.CopyOpIdMap()
+
+		// Clone a bool map for visiting mark
+		opIdMap := make(map[int]bool)
+		for opId := range opIdToStrMap {
+			opIdMap[opId] = false
+		}
+
 		var startCy, endCy uint64
 		if len(opSeq) > 0 {
 			startCy = opSeq[0].StartCycle()
@@ -157,11 +164,35 @@ func GenerateBriefOpsStat(
 				hintStr, checkedCount, len(opIdMap))
 		}
 
+		// Let's assume that op id is in order
+		var opIdSeq []int
+		for opId := range opIdToStrMap {
+			opIdSeq = append(opIdSeq, opId)
+		}
+		sort.Ints(opIdSeq)
+
 		// Op in details
 		strStream := bytes.NewBuffer(nil)
 		previousCy := startCy
 		totalCy := endCy - startCy
+
+		// indexing op sequence
+		opSeqIdx := 0
 		for _, op := range opSeq {
+			curOpId := op.GetOp().OpId
+
+			// Check missing ops
+			for opSeqIdx < len(opIdSeq) && opIdSeq[opSeqIdx] != curOpId {
+				fmt.Fprintf(strStream,
+					"  Op id: %v, %v, missing\n",
+					opIdSeq[opSeqIdx],
+					opIdToStrMap[opIdSeq[opSeqIdx]],
+				)
+				opSeqIdx++
+			}
+			if opSeqIdx < len(opIdSeq) {
+				opSeqIdx++
+			}
 
 			if previousCy < op.StartCycle() {
 				gapsCycle += op.StartCycle() - previousCy
@@ -172,7 +203,7 @@ func GenerateBriefOpsStat(
 				rate = float64(durCy) / float64(totalCy)
 			}
 			fmt.Fprintf(strStream, "  Op id: %v, %v, %.4f%%\n",
-				op.GetOp().OpId,
+				curOpId,
 				op.GetOp().OpName,
 				rate*100)
 			fmt.Fprintf(strStream, "      Start at %v\n", op.Start.ToString())
