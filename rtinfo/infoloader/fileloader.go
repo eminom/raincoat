@@ -26,13 +26,14 @@ func (oneSolidTaskLoader) LoadTask() (dc map[int]*rtdata.RuntimeTask,
 	const theTaskID = efconst.SolidTaskID
 	dc = make(map[int]*rtdata.RuntimeTask)
 	dc[theTaskID] = &rtdata.RuntimeTask{
-		TaskID:         theTaskID,
-		ExecutableUUID: 0,
-		PgMask:         0,
-		StartCycle:     0,
-		EndCycle:       1 << 63, //
-		CycleValid:     true,
-		MetaValid:      true,
+		RuntimeTaskBase: rtdata.RuntimeTaskBase{TaskID: theTaskID,
+			ExecutableUUID: 0,
+			PgMask:         0,
+		},
+		StartCycle: 0,
+		EndCycle:   1 << 63, //
+		CycleValid: true,
+		MetaValid:  true,
 	}
 	taskSequentials = []int{theTaskID}
 	ok = true
@@ -124,9 +125,10 @@ func loadTaskFromFile(filename string) (
 			log.Printf("error read pg mask: %v", err)
 		}
 		dc[taskId] = &rtdata.RuntimeTask{
-			TaskID:         taskId,
-			ExecutableUUID: exec,
-			PgMask:         pgMask,
+			RuntimeTaskBase: rtdata.RuntimeTaskBase{TaskID: taskId,
+				ExecutableUUID: exec,
+				PgMask:         pgMask,
+			},
 		}
 		taskSequentials = append(taskSequentials, taskId)
 	}

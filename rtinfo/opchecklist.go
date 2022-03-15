@@ -65,6 +65,7 @@ func GenerateBriefOpsStat(
 	bundle []rtdata.OpActivity,
 	executableMap map[int]rtdata.FwActivity,
 	orderTaskVec []rtdata.OrderTask,
+	runtimeTaskVec []rtdata.RuntimeTaskBase,
 ) {
 
 	var taskVals []int
@@ -264,6 +265,7 @@ func GenerateBriefOpsStat(
 			taskVals, statByTask, statByExec,
 			taskReportMap,
 			orderTaskVec,
+			runtimeTaskVec,
 		)
 	}
 }
@@ -274,6 +276,7 @@ func dumpStatInfoToFile(fout *os.File,
 	statByExec map[uint64]*ExecInfoState,
 	taskReport map[int]string,
 	orderTaskVec []rtdata.OrderTask,
+	runtimeTaskVec []rtdata.RuntimeTaskBase,
 ) {
 	// Task by task
 	for _, tid := range taskVals {
@@ -313,12 +316,24 @@ func dumpStatInfoToFile(fout *os.File,
 
 	// Dump task overview
 	fmt.Fprintf(fout, "\n")
+	taskVisited := make(map[int]bool)
 	for _, task := range orderTaskVec {
+		taskVisited[task.GetTaskID()] = true
 		fmt.Fprintf(fout, "Task %-4d, %22d, 0x%16x, %v\n",
 			task.GetTaskID(),
 			task.StartCy,
 			task.GetRefToTask().ExecutableUUID,
 			task.GetRefToTask().PgMask)
+	}
+
+	fmt.Fprintf(fout, "\n")
+	for _, task := range runtimeTaskVec {
+		if !taskVisited[task.TaskID] {
+			fmt.Fprintf(fout, "Task %-4d, 0x%16x, %v, missing\n",
+				task.TaskID,
+				task.ExecutableUUID,
+				task.PgMask)
+		}
 	}
 
 	//

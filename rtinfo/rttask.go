@@ -161,6 +161,15 @@ func (r RuntimeTaskManager) createTaskSeq(
 	return orders
 }
 
+func (r RuntimeTaskManager) CopyTaskVec() []rtdata.RuntimeTaskBase {
+	var taskVec []rtdata.RuntimeTaskBase
+	for _, task := range r.taskIdToTask {
+		taskVec = append(taskVec, task.RuntimeTaskBase)
+	}
+	sort.Sort(rtdata.RuntimeTaskBaseVec(taskVec))
+	return taskVec
+}
+
 func (r RuntimeTaskManager) GetOrderedTaskVec() []rtdata.OrderTask {
 	return r.orderedTaskVector
 }

@@ -48,9 +48,10 @@ func (pb pbLoader) LoadTask() (taskMap map[int]*rtdata.RuntimeTask, taskIdOrder 
 			continue // do not add again
 		}
 		taskMap[taskId] = &rtdata.RuntimeTask{
-			TaskID:         taskId,
-			ExecutableUUID: execUuid,
-			PgMask:         pgMask,
+			RuntimeTaskBase: rtdata.RuntimeTaskBase{TaskID: taskId,
+				ExecutableUUID: execUuid,
+				PgMask:         pgMask,
+			},
 		}
 		taskIdOrder = append(taskIdOrder, taskId)
 	}

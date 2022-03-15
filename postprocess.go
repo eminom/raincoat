@@ -237,6 +237,7 @@ func (p *PostProcessor) DoPostProcessing() {
 			dtuOps,
 			p.taskActMap,
 			p.rtDict.GetOrderedTaskVec(),
+			p.rtDict.CopyTaskVec(),
 		)
 
 		tr.DumpTaskVec(p.taskActMap,

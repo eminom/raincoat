@@ -4,11 +4,14 @@ import (
 	"fmt"
 )
 
-type RuntimeTask struct {
+type RuntimeTaskBase struct {
 	TaskID         int
 	ExecutableUUID uint64
 	PgMask         int
+}
 
+type RuntimeTask struct {
+	RuntimeTaskBase
 	StartCycle uint64
 	EndCycle   uint64
 	CycleValid bool
@@ -49,4 +52,18 @@ func (r RuntimeTask) MatchCqm(cqmIdx int) bool {
 
 func (r RuntimeTask) MatchSip(sipOrder int) bool {
 	return r.PgMask&(1<<sipOrder) != 0
+}
+
+type RuntimeTaskBaseVec []RuntimeTaskBase
+
+func (r RuntimeTaskBaseVec) Len() int {
+	return len(r)
+}
+
+func (r RuntimeTaskBaseVec) Swap(i, j int) {
+	r[i], r[j] = r[j], r[i]
+}
+
+func (r RuntimeTaskBaseVec) Less(i, j int) bool {
+	return r[i].TaskID < r[j].TaskID
 }
