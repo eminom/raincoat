@@ -141,6 +141,9 @@ func (tr *TraceEventSession) DumpTaskVec(
 		name := fmt.Sprintf("Task.%v 0x%s",
 			task.GetTaskID(),
 			fmt.Sprintf("%016x", task.GetExecUuid())[:8])
+		if fwAct.End.Event < 0 {
+			name += "  ->..."
+		}
 		tr.appendEvt(NewTraceEventBegin(
 			pid,
 			tid,
