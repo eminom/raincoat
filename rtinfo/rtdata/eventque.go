@@ -12,6 +12,8 @@ import (
 
 type ActCollector interface {
 	AddAct(start, end codec.DpfEvent)
+	AddDebugEvent(codec.DpfEvent)
+	GetDebugEventVec() []codec.DpfEvent
 	GetAlgo() vgrule.ActMatchAlgo
 	DumpInfo()
 	GetActivity() interface{}
@@ -27,11 +29,13 @@ type EventQueue struct {
 	ActCollector
 	distr     []linklist.Lnk
 	evtFilter EventFilter
+	finCall   int
 }
 
 type EventFilter interface {
 	// Starter, Closer, and the Terminator
 	IsStarterMark(codec.DpfEvent) (bool, bool, bool)
+	IsRecyclable(codec.DpfEvent) bool
 	TestIfMatch(codec.DpfEvent, codec.DpfEvent) bool
 	GetEngineTypes() []codec.EngineTypeCode
 	PurgePreviousEvents() bool
@@ -128,7 +132,22 @@ func (q EventQueue) DumpInfo() {
 	}
 }
 
-// func (q EventQueue)
+func (q *EventQueue) collectUnmatchedStart() {
+	for _, v := range q.distr {
+		v.ConstForEach(func(evt interface{}) {
+			dpfEvent := evt.(codec.DpfEvent)
+			if q.evtFilter.IsRecyclable(dpfEvent) {
+				q.ActCollector.AddDebugEvent(dpfEvent)
+			}
+		})
+	}
+}
+
+func (q *EventQueue) Finalizes() {
+	q.finCall++
+	assert.Assert(q.finCall == 1, "must be eq to 1(%v)", q.finCall)
+	q.collectUnmatchedStart()
+}
 
 // Some casters
 func (q EventQueue) OpActivity() []OpActivity {

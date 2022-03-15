@@ -11,6 +11,7 @@ import (
 
 type FwActCollector struct {
 	acts FwActivityVec
+	DebugEventVec
 	algo vgrule.ActMatchAlgo
 }
 
@@ -47,6 +48,7 @@ func (fwa FwActCollector) MergeInto(lhs ActCollector) {
 	fmt.Printf("merge %v Fw Acts into master(currently %v)\n",
 		len(fwa.acts), len(master.acts))
 	master.acts = append(master.acts, fwa.acts...)
+	master.debugEventVec = append(master.debugEventVec, fwa.debugEventVec...)
 }
 
 func (fwa FwActCollector) DoSort() {

@@ -45,6 +45,11 @@ func (FwPktDetector) IsStarterMark(evt DpfEvent) (bool, bool, bool) {
 		false
 }
 
+// We only care about the unmatched cqm executable start
+func (FwPktDetector) IsRecyclable(evt DpfEvent) bool {
+	return evt.Event == CqmExecutableStart
+}
+
 func (FwPktDetector) TestIfMatch(former, latter DpfEvent) bool {
 	if former.EngineTypeCode != latter.EngineTypeCode ||
 		former.Event-1 != latter.Event {
@@ -84,6 +89,11 @@ func (DbgPktDetector) IsStarterMark(evt DpfEvent) (bool, bool, bool) {
 		evt.Event == CqmEventDebugPacketStepEnd
 }
 
+// We only care about the unmatched cqm executable start
+func (DbgPktDetector) IsRecyclable(DpfEvent) bool {
+	return false
+}
+
 func (DbgPktDetector) TestIfMatch(former, latter DpfEvent) bool {
 	return former.EngineTypeCode == latter.EngineTypeCode &&
 		former.PacketID+1 == latter.PacketID
@@ -110,6 +120,10 @@ func (DmaDetector) IsStarterMark(evt DpfEvent) (bool, bool, bool) {
 	return evtCode == DmaVcExecStart || evtCode == DmaBusyStart,
 		evtCode == DmaVcExecEnd || evtCode == DmaBusyEnd,
 		false
+}
+
+func (DmaDetector) IsRecyclable(DpfEvent) bool {
+	return false
 }
 
 func getVcVal(v int) int {
@@ -147,6 +161,10 @@ func (SipDetector) IsStarterMark(evt DpfEvent) (bool, bool, bool) {
 		false
 }
 
+func (SipDetector) IsRecyclable(DpfEvent) bool {
+	return false
+}
+
 // ALL SIP, Engine Type must be the same
 // 		former.EngineTypeCode == latter.EngineTypeCode
 // Packet id is now all zero for SIP events
@@ -167,6 +185,10 @@ func (TaskDetector) IsStarterMark(evt DpfEvent) (bool, bool, bool) {
 	return evt.Flag == 1 && evt.Event == TsLaunchCqmStart,
 		evt.Flag == 1 && evt.Event == TsLaunchCqmEnd,
 		false
+}
+
+func (TaskDetector) IsRecyclable(DpfEvent) bool {
+	return false
 }
 
 func (TaskDetector) TestIfMatch(former, latter DpfEvent) bool {

@@ -136,7 +136,7 @@ func GenerateBriefOpsStat(
 		var gapsCycle uint64
 		var hasExecutableAct = false
 		isBound := false
-		if fwAct, ok := executableMap[tid]; ok {
+		if fwAct, ok := executableMap[tid]; ok && fwAct.End.Event >= 0 {
 			hasExecutableAct = true
 			leftBound, rightBound := false, false
 			if startCy >= fwAct.StartCycle() {

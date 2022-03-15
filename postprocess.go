@@ -153,10 +153,12 @@ func (p PostProcessor) DumpToDb(coord rtdata.Coords, dbe DbDumper) {
 		coord,
 		p.dtuOps, p.tm,
 	)
+
 	dbe.DumpTaskVec(
 		coord,
 		p.rtDict.GetOrderedTaskVec(),
-		p.taskActMap, p.tm,
+		p.taskActMap, // Task id to Cqm Exec map
+		p.tm,
 	)
 	dbe.DumpFwActs(
 		coord,
@@ -204,15 +206,18 @@ func (p *PostProcessor) DoPostProcessing() {
 
 		var tr dbexport.TraceEventSession
 
-		// Generate task timeline
-		p.taskActMap = p.rtDict.GenerateTaskOps(
-			p.fwVec.FwActivity(), p.curAlgo)
-
 		// Generate op runtime info
 		dtuOps, unProcessed := p.rtDict.GenerateDtuOps(p.qm.OpActivity(),
 			p.curAlgo)
 		// Process kernel activities(SIPs)
 		subOps := p.rtDict.GenerateKernelActs(p.kernelVec.KernelActivity(),
+			dtuOps,
+			p.curAlgo)
+
+		// Generate task timeline(depends on OPs information)
+		p.taskActMap = p.rtDict.GenerateTaskOps(
+			p.fwVec.FwActivity(),
+			p.fwVec.GetDebugEventVec(),
 			dtuOps,
 			p.curAlgo)
 
@@ -271,6 +276,8 @@ func (pp *PostProcessor) Sorts() {
 		pp.dmaVec,
 		pp.qm,
 		pp.fwVec,
+		pp.kernelVec,
+		pp.taskVec,
 	} {
 		v.DoSort()
 	}

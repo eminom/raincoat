@@ -10,7 +10,8 @@ import (
 )
 
 type KernelActCollector struct {
-	acts  KernelActivityVec
+	acts KernelActivityVec
+	DebugEventVec
 	eAlgo vgrule.ActMatchAlgo
 }
 
@@ -61,6 +62,7 @@ func (q KernelActCollector) MergeInto(lhs ActCollector) {
 	fmt.Printf("merge %v Dma Acts into master(currently %v)\n",
 		len(q.acts), len(master.acts))
 	master.acts = append(master.acts, q.acts...)
+	master.debugEventVec = append(master.debugEventVec, q.debugEventVec...)
 }
 
 func (q KernelActCollector) DoSort() {

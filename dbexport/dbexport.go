@@ -179,6 +179,9 @@ func (dbs *DbSession) DumpTaskVec(
 			task.TaskID,
 			fmt.Sprintf("0x%16x", task.ExecutableUUID)[:6],
 		)
+		if fwAct.End.Event < 0 {
+			name += " ->..."
+		}
 
 		dos.AddDtuOp(dbs.idx, nodeID, deviceID, clusterID, contextID, name,
 			startHostTime, endHostTime, endHostTime-startHostTime,

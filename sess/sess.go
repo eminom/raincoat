@@ -342,7 +342,11 @@ func (sess *SessBroadcaster) DispatchToSinkers(
 		}
 	}
 
+	// Finalize in sequential mode
 	sess.emitEventsToSubscribersSequentials(subscribers)
+	for _, sinker := range sinkers {
+		sinker.Finalizes()
+	}
 }
 
 func (sess *SessBroadcaster) DispatchToConcurSinkers(
@@ -355,6 +359,16 @@ func (sess *SessBroadcaster) DispatchToConcurSinkers(
 			subs[typeCode] = append(subs[typeCode], sub)
 		}
 	}
+
+	sinkerCount := len(sinkers)
+	disSinkCount := 0
+	for _, subVec := range subs {
+		disSinkCount += len(subVec)
+	}
+	assert.Assert(sinkerCount <= disSinkCount,
+		"must be the less-equal to ?? (%v, vs %v)",
+		sinkerCount,
+		disSinkCount)
 
 	startTs := time.Now()
 	sess.emitEventsToSubscribersEx(jobCount, subs)

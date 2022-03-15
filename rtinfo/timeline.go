@@ -88,6 +88,8 @@ func (tm *TimelineManager) MapToHosttimeV0(targetCycle uint64) (uint64, bool) {
 	return 0, false
 }
 
+func (tm TimelineManager) Finalizes() {}
+
 func (tm *TimelineManager) DispatchEvent(evt codec.DpfEvent) error {
 	devCy := rtdata.DevCycleTime{
 		DpfSyncIndex: evt.DpfSyncIndex(),

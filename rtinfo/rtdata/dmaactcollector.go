@@ -10,7 +10,8 @@ import (
 )
 
 type DmaActCollector struct {
-	acts  DmaActivityVec
+	acts DmaActivityVec
+	DebugEventVec
 	eAlgo vgrule.ActMatchAlgo
 }
 
@@ -70,6 +71,7 @@ func (dmaVec DmaActCollector) MergeInto(lhs ActCollector) {
 	fmt.Printf("merge %v Dma Acts into master(currently %v)\n",
 		len(dmaVec.acts), len(master.acts))
 	master.acts = append(master.acts, dmaVec.acts...)
+	master.debugEventVec = append(master.debugEventVec, dmaVec.debugEventVec...)
 }
 
 func (dmaVec DmaActCollector) DoSort() {

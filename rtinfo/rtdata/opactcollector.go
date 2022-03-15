@@ -10,7 +10,8 @@ import (
 )
 
 type OpActCollector struct {
-	acts  OpActivityVector
+	acts OpActivityVector
+	DebugEventVec
 	eAlgo vgrule.ActMatchAlgo
 }
 
@@ -75,6 +76,7 @@ func (opVec OpActCollector) MergeInto(lhs ActCollector) {
 		len(opVec.acts), len(master.acts),
 	)
 	master.acts = append(master.acts, opVec.acts...)
+	master.debugEventVec = append(master.debugEventVec, opVec.debugEventVec...)
 }
 
 func (opVec OpActCollector) DoSort() {

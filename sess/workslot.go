@@ -35,10 +35,16 @@ func NewWorkSlot(nameI int, sinkers map[codec.EngineTypeCode][]sessintf.ConcurEv
 	return rv
 }
 
+// Since all subscribers can receive the same dpf event
+// and they are able to cache the interested events by their will
+// So same dpf events can show up in different subscriber's pro-debug event vector
+// And for now we do not sum the pro-debug events up
+// So it is fair to store them "redundantly"
 func (ws *WorkSlot) DoReduce(sinkers map[codec.EngineTypeCode][]sessintf.ConcurEventSinker) {
 	codec.EngineTypeCodeFor(func(tyCode codec.EngineTypeCode) {
 		// restore in the same sequence it is cloned
 		for idx, subscriber := range ws.subscribers[tyCode] {
+			subscriber.Finalizes()
 			subscriber.MergeTo(sinkers[tyCode][idx])
 		}
 	})

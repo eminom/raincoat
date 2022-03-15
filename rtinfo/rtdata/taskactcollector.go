@@ -11,6 +11,7 @@ import (
 
 type TaskActCollector struct {
 	acts TaskActivityVec
+	DebugEventVec
 	algo vgrule.ActMatchAlgo
 }
 
@@ -48,6 +49,7 @@ func (taskColl TaskActCollector) MergeInto(lhs ActCollector) {
 	fmt.Printf("merge %v task acts into master(currently %v)\n",
 		len(taskColl.acts), len(master.acts))
 	master.acts = append(master.acts, taskColl.acts...)
+	master.debugEventVec = append(master.debugEventVec, taskColl.debugEventVec...)
 }
 
 func (taskColl TaskActCollector) DoSort() {

@@ -374,6 +374,8 @@ func (rtm *RuntimeTaskManager) GenerateDtuOps(
  */
 func (rtm *RuntimeTaskManager) GenerateTaskOps(
 	fwActs []rtdata.FwActivity,
+	unmatchedStarts []codec.DpfEvent,
+	opActs []rtdata.OpActivity,
 	rule vgrule.EngineOrder,
 ) map[int]rtdata.FwActivity {
 	var taskIdToActivity = make(map[int]rtdata.FwActivity)
@@ -399,6 +401,47 @@ func (rtm *RuntimeTaskManager) GenerateTaskOps(
 			}
 		}
 	}
+
+	// Task end time, most-likely earlies than real end(cqm exec end)
+	taskEndTime := make(map[int]uint64)
+	for _, opAct := range opActs {
+		taskId := opAct.GetTaskID()
+		if taskEndTime[taskId] < opAct.EndCycle() {
+			taskEndTime[taskId] = opAct.EndCycle()
+		}
+	}
+
+	for _, unclosed := range unmatchedStarts {
+		task, found := rtm.locateTask(
+			unclosed,
+			rule,
+			MatchToCqm{},
+			nil,
+		)
+		if !found {
+			continue
+		}
+		taskId := task.GetTaskID()
+		if _, existed := taskIdToActivity[taskId]; existed {
+			fmt.Fprintf(os.Stderr, "ERROR: already taken for task %v", taskId)
+			continue
+		}
+
+		endCycle, hasEndCycle := taskEndTime[taskId]
+		if !hasEndCycle {
+			continue
+		}
+		endEvt := unclosed
+		endEvt.Event = -1 // Special mark
+		endEvt.Cycle = endCycle
+		taskIdToActivity[taskId] = rtdata.FwActivity{
+			DpfAct: rtdata.DpfAct{
+				Start: unclosed,
+				End:   endEvt,
+			},
+		}
+	}
+
 	return taskIdToActivity
 }
 
