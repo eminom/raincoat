@@ -43,8 +43,6 @@ type RuntimeTaskManager struct {
 	execKnowledge     *meta.ExecRaw
 	orderedTaskVector []rtdata.OrderTask
 	fullTaskVector    []rtdata.OrderTask
-
-	tempInternal RuntimeTaskManInternal
 }
 
 func newStatedOrderTaskVector(origin []rtdata.OrderTask) []rtdata.OrderTaskStated {
@@ -54,10 +52,6 @@ func newStatedOrderTaskVector(origin []rtdata.OrderTask) []rtdata.OrderTaskState
 		out[i] = rtdata.NewOrderTaskStated(v)
 	}
 	return out
-}
-
-type RuntimeTaskManInternal struct {
-	subOpInformation map[string]map[string][]string
 }
 
 func NewRuntimeTaskManager(oneTask bool) *RuntimeTaskManager {
@@ -486,12 +480,15 @@ func (rtm *RuntimeTaskManager) GenerateKernelActs(
 	kernelActs []rtdata.KernelActivity,
 	opBundles []rtdata.OpActivity,
 	rule vgrule.EngineOrder) []rtdata.KernelActivity {
+
+	// Mark all kernel activities with task id(if found)
 	var sipTaskBingoCount = 0
 	for i, kernAct := range kernelActs {
 		assert.Assert(kernAct.Start.EngineTypeCode == codec.EngCat_SIP, "must be sip")
 		taskObj, found := rtm.locateTask(
 			kernAct.Start, rule, MatchToSip{}, nil)
 		if found {
+			// Default TaskId for RtInfo is zero
 			kernelActs[i].RtInfo.TaskId = taskObj.GetTaskID()
 			sipTaskBingoCount++
 		}
@@ -499,27 +496,67 @@ func (rtm *RuntimeTaskManager) GenerateKernelActs(
 	fmt.Printf("SIP task bingo %v out of %v\n", sipTaskBingoCount,
 		len(kernelActs),
 	)
-	return GenerateKerenlActSeq(kernelActs, opBundles, rtm)
+
+	var subQuerier efintf.QuerySubOp
+	if handler := genSubOpLocator(rtm); handler != nil {
+		subQuerier = SubOpLocator{handler}
+	} else {
+		// A cache for exec to meta
+		execToSubOpSeq := make(map[uint64]map[int]map[int][]string)
+		taskToSubOpSeq := make(map[int]map[int]map[int][]string)
+		for taskId, task := range rtm.taskIdToTask {
+			if task.MetaValid {
+				if _, ok := execToSubOpSeq[task.ExecutableUUID]; !ok {
+					// Cache
+					execToSubOpSeq[task.ExecutableUUID] = rtm.execKnowledge.GetSubOpMetaMap(task.ExecutableUUID)
+				}
+				taskToSubOpSeq[taskId] = execToSubOpSeq[task.ExecutableUUID]
+			}
+		}
+		getSubInfo := func(taskId int, opId int, entityId int, subIdx int) (name string, ok bool) {
+			taskMeta, taskOk := taskToSubOpSeq[taskId]
+			if !taskOk {
+				return
+			}
+			subOpMap, opIdOk := taskMeta[opId]
+			if !opIdOk {
+				return
+			}
+			subOpSeq, subSeqOk := subOpMap[entityId]
+			if !subSeqOk {
+				return
+			}
+
+			if subIdx >= 0 && subIdx < len(subOpSeq) {
+				name = subOpSeq[subIdx]
+				ok = true
+			}
+			return
+		}
+		subQuerier = SubOpLocator{getSubInfo}
+	}
+	return GenerateKerenlActSeq(kernelActs, opBundles, subQuerier)
 }
 
-func (rtm *RuntimeTaskManager) QuerySubOpName(
-	taskId int,
-	opId int,
-	entityId int,
-	subIdx int,
-) (string, bool) {
-	if _, ok := rtm.taskIdToTask[taskId]; ok {
-		// execUuid := task.ExecutableUUID
-		// TODO: find sub op thru execKnowledge
-		// if rtm.execKnowledge == nil {
-		// 	return "", false
-		// }
-		if rtm.tempInternal.subOpInformation == nil {
-			rtm.tempInternal.subOpInformation = metadata.JsonLoader{}.LoadInfo("subops.json")
-		}
+type SubOpLocator struct {
+	handler func(int, int, int, int) (string, bool)
+}
 
-		if rtm.tempInternal.subOpInformation != nil {
-			that := rtm.tempInternal.subOpInformation[fmt.Sprintf("%v", opId)]
+func (subL SubOpLocator) QuerySubOpName(taskId int, opId int,
+	entityId int, subIdx int) (string, bool) {
+	return subL.handler(taskId, opId, entityId, subIdx)
+}
+
+func genSubOpLocator(rtm *RuntimeTaskManager) func(int, int, int, int) (string, bool) {
+	var subOpInformation = metadata.JsonLoader{}.LoadInfo("subops.json")
+	if subOpInformation != nil {
+		return func(taskId int, opId int,
+			entityId int, subIdx int) (string, bool) {
+			// No such task
+			if _, ok := rtm.taskIdToTask[taskId]; !ok {
+				return "", false
+			}
+			that := subOpInformation[fmt.Sprintf("%v", opId)]
 			if that != nil {
 				entity := fmt.Sprintf("%v", entityId)
 				subVec := that[entity]
@@ -527,9 +564,10 @@ func (rtm *RuntimeTaskManager) QuerySubOpName(
 					return subVec[subIdx], true
 				}
 			}
+			return "", false
 		}
 	}
-	return "", false
+	return nil
 }
 
 // Start from the first recorded task

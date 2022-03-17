@@ -337,6 +337,7 @@ func (d metaFileLoader) LoadExecScope(execUuid uint64) *metadata.ExecScope {
 			pktMap,
 			opMap,
 			dmaMap,
+			make(map[int][]metadata.SubOpMeta),
 		)
 	}
 	return nil

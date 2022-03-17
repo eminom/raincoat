@@ -1,7 +1,6 @@
 package rtdata
 
 import (
-	"fmt"
 	"strings"
 )
 
@@ -23,9 +22,7 @@ func (kAct KernelActivity) GetSipOpName() (string, bool) {
 	if kAct.RtInfo.SubValid {
 		return stripDoubleColm(kAct.RtInfo.Name), true
 	}
-	return fmt.Sprintf("%v.[%v.%v]", kAct.RtInfo.Name,
-		kAct.RtInfo.OpId,
-		kAct.RtInfo.SubIdx), true
+	return "", false
 }
 
 func (kAct KernelActivity) GetEngineIndex() int {

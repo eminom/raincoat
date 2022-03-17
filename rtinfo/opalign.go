@@ -9,33 +9,27 @@ import (
 	"git.enflame.cn/hai.bai/dmaster/rtinfo/rtdata"
 )
 
-type KernelSubSeq struct {
-	seq []*rtdata.KernelActivity
-}
-
 type TaskToEngines struct {
-	traces map[int]*KernelSubSeq
+	traces map[int]*[]rtdata.KernelActivity
 }
 
 func NewTaskToEngines() TaskToEngines {
 	return TaskToEngines{
-		traces: make(map[int]*KernelSubSeq),
+		traces: make(map[int]*[]rtdata.KernelActivity),
 	}
 }
 
 func (tte *TaskToEngines) AddTrace(
 	kernelAct rtdata.KernelActivity) {
 	masterId := kernelAct.Start.MasterIdValue()
-
-	var trace *KernelSubSeq
+	var trace *[]rtdata.KernelActivity
 	var ok bool
 	if trace, ok = tte.traces[masterId]; !ok {
-		trace = new(KernelSubSeq)
+		trace = &[]rtdata.KernelActivity{}
 		tte.traces[masterId] = trace
 	}
-	// Use a copy
-	cloned := kernelAct
-	trace.seq = append(trace.seq, &cloned)
+	// Append by value
+	*trace = append(*trace, kernelAct)
 }
 
 type SubOpState struct {
@@ -98,6 +92,7 @@ func GenerateKerenlActSeq(
 		}
 	}
 
+	// Sub ops
 	var newSipBusies []rtdata.KernelActivity
 
 	// distribution is done.
@@ -105,38 +100,24 @@ func GenerateKerenlActSeq(
 	for taskId, tte := range kernelTask {
 		opSeq := chans[taskId]
 		// the value >= valueOf[idx]
-		locateLowerBoundForOp := func(cycle uint64) int {
-			lo, hi := 0, len(opSeq)
-			for lo < hi {
-				mid := (lo + hi) >> 1
-				if cycle > opSeq[mid].StartCycle() {
-					lo = mid + 1
-				} else {
-					hi = mid
-				}
-			}
-			// lo if the lowerBound
-			rvIdx := lo
-			if rvIdx >= len(opSeq) {
-				rvIdx--
-			}
-			if rvIdx >= 0 && rvIdx < len(opSeq) {
-				if cycle < opSeq[rvIdx].StartCycle() {
-					rvIdx--
-				}
-			}
-			return rvIdx
-		}
+		locateLowerBoundForOp := getMasterOpLocator(opSeq)
 		for _, sipSeq := range tte.traces {
-			for _, act := range sipSeq.seq {
+			for _, act := range *sipSeq {
 				act.RtInfo.OpId = -1 // else
 				idx := locateLowerBoundForOp(act.StartCycle())
 				if idx < len(opSeq) && idx >= 0 {
 					//
 					dtuOpMeta := opSeq[idx].GetOp()
-					subIdx := subOpState.GetNextSubId(taskId,
+
+					// Within task scope
+					// classified by (master-id, op-id)
+					// There is an assumption here
+					//  the kernel activities are sorted already
+					subIdx := subOpState.GetNextSubId(
+						taskId,
 						act.Start.MasterIdValue(),
 						dtuOpMeta.OpId)
+					// Update the sub index info
 					act.RtInfo.SubIdx = subIdx
 					act.RtInfo.Name = dtuOpMeta.OpName
 					act.RtInfo.OpId = dtuOpMeta.OpId
@@ -152,7 +133,7 @@ func GenerateKerenlActSeq(
 					}
 
 					// append to result collection
-					newSipBusies = append(newSipBusies, *act)
+					newSipBusies = append(newSipBusies, act)
 				} else {
 					fmt.Fprintf(os.Stderr, "Not found for %+v\n", act)
 				}
@@ -161,4 +142,35 @@ func GenerateKerenlActSeq(
 	} // Assume that there is no missing
 	sort.Sort(rtdata.KernelActivityVec(newSipBusies))
 	return newSipBusies
+}
+
+// Op sequence may be overlapping to its neighbour
+func getMasterOpLocator(opSequence []rtdata.OpActivity) func(uint64) int {
+	// Return the first op with the startingCycle <= targetCycle
+	return func(cycle uint64) int {
+		lo, hi := 0, len(opSequence)
+		for lo < hi {
+			mid := (lo + hi) >> 1
+			if cycle > opSequence[mid].StartCycle() {
+				lo = mid + 1
+			} else {
+				hi = mid
+			}
+		}
+		// lo if the lowerBound
+		// [2, 3]
+		// locate 5, gets [2],  and reduce to [1] (value of 3)
+		// [2, 5, 7]
+		// locate 6, gets [2], and reduce to [1] (value of 5, which is ealier than 6)
+		rvIdx := lo
+		if rvIdx >= len(opSequence) {
+			rvIdx--
+		}
+		if rvIdx >= 0 && rvIdx < len(opSequence) {
+			if cycle < opSequence[rvIdx].StartCycle() {
+				rvIdx--
+			}
+		}
+		return rvIdx
+	}
 }

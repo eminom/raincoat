@@ -17,15 +17,19 @@ type ExecScope struct {
 	pktIdToOp map[int]int
 	opMap     map[int]DtuOp
 	dmaMap    DmaInfoMap
+	subOpMap  map[int][]SubOpMeta
 }
 
 func NewExecScope(execUuid uint64,
-	pktIdToOp map[int]int, opMap map[int]DtuOp, dmaMap DmaInfoMap) *ExecScope {
+	pktIdToOp map[int]int, opMap map[int]DtuOp,
+	dmaMap DmaInfoMap,
+	subOpMap map[int][]SubOpMeta) *ExecScope {
 	return &ExecScope{
 		execUuid,
 		pktIdToOp,
 		opMap,
 		dmaMap,
+		subOpMap,
 	}
 }
 
@@ -81,6 +85,25 @@ func (es ExecScope) DumpDtuopToOstream(fout *os.File, brief bool) {
 	}
 }
 
+func (es ExecScope) DumpSubOpMetaToOstream(fout *os.File) {
+	var masterOpIdVec []int
+	for opId := range es.subOpMap {
+		masterOpIdVec = append(masterOpIdVec, opId)
+	}
+	sort.Ints(masterOpIdVec)
+	for _, masterOpId := range masterOpIdVec {
+		subVec := es.subOpMap[masterOpId]
+		for _, subOp := range subVec {
+			fmt.Fprintf(fout, "%v %v %v %v\n",
+				subOp.MasterOpId,
+				subOp.SlaveOpId,
+				subOp.Tid,
+				subOp.SubOpName,
+			)
+		}
+	}
+}
+
 func (es ExecScope) DumpDtuOpToFile() {
 	filename := es.getDumpFileName("opmeta")
 	if fout, err := os.Create(filename); err == nil {
@@ -93,6 +116,16 @@ func (es ExecScope) DumpDtuOpToFile() {
 	if fout, err := os.Create(filename); err == nil {
 		defer fout.Close()
 		es.DumpDtuopToOstream(fout, true)
+	} else {
+		panic(fmt.Errorf("could not open %v for: %v", filename, err))
+	}
+}
+
+func (es ExecScope) DumpSubOpToFile() {
+	filename := es.getDumpFileName("subopmeta")
+	if fout, err := os.Create(filename); err == nil {
+		defer fout.Close()
+		es.DumpSubOpMetaToOstream(fout)
 	} else {
 		panic(fmt.Errorf("could not open %v for: %v", filename, err))
 	}
@@ -169,4 +202,19 @@ func (es ExecScope) CopyOpIdMap() map[int]string {
 		dc[opId] = opInfo.OpName
 	}
 	return dc
+}
+
+// OpId to "Entity to SubOpSequence"
+func (es ExecScope) GetSubOpMetaMap() map[int]map[int][]string {
+	subOpMetas := make(map[int]map[int][]string)
+	for opId, subOpVec := range es.subOpMap {
+		if _, ok := subOpMetas[opId]; !ok {
+			subOpMetas[opId] = make(map[int][]string)
+		}
+		for _, subOp := range subOpVec {
+			subOpMetas[opId][subOp.Tid] =
+				append(subOpMetas[opId][subOp.Tid], subOp.SubOpName)
+		}
+	}
+	return subOpMetas
 }

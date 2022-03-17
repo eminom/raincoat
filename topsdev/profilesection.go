@@ -100,6 +100,13 @@ typedef struct StringSec {
   char str[0];
 } StringSec;
 
+typedef struct SubOpMetaSec {
+  int32_t master_op_id;
+  int32_t slave_op_id;
+  int32_t tid;
+  uint32_t name;
+} SubOpMetaSec;
+
 size_t GetProfileSectionSize() {
 	return sizeof(ProfileSection);
 }
@@ -122,6 +129,9 @@ size_t GetModuleSecSize() {
 size_t GetStringIdSecSize() {
 	return sizeof(StringIdSec);
 }
+size_t GetSubOpMetaSecSize() {
+	return sizeof(SubOpMetaSec);
+}
 size_t GetProfileSubSectionSize() {
 	return sizeof(ProfileSectionSub);
 }
@@ -134,6 +144,7 @@ import (
 	"fmt"
 	"io"
 	"reflect"
+	"sort"
 	"unsafe"
 
 	"git.enflame.cn/hai.bai/dmaster/assert"
@@ -148,6 +159,7 @@ import (
 #define PROFSEC_TYPE_MODULETHUNK 0x12
 #define PROFSEC_TYPE_MEMCPY_THUNK 0x13
 #define PROFSEC_TYPE_STRINGID_THUNK 0x14
+#define PROFSEC_TYPE_SUBOPMETATHUNK 0x15
 #define PROFSEC_TYPE_STRINGPOOL 0x51
 */
 
@@ -157,6 +169,7 @@ const (
 	PROFSEC_TYPE_MODULETHUNK    = 0x12
 	PROFSEC_TYPE_MEMCPY_THUNK   = 0x13
 	PROFSEC_TYPE_STRINGID_THUNK = 0x14
+	PROFSEC_TYPE_SUBOPMETATHUNK = 0x15
 	PROFSEC_TYPE_STRINGPOOL     = 0x51
 )
 
@@ -192,6 +205,10 @@ func GetStringIdSecSize() uintptr {
 	return uintptr(C.GetStringIdSecSize())
 }
 
+func GetSubOpMetaSecSize() uintptr {
+	return uintptr(C.GetSubOpMetaSecSize())
+}
+
 func dumpProfSec(sec C.ProfileSection) {
 	fmt.Printf("flag: %v\n", sec.flag)
 	fmt.Printf("header_size: %v\n", sec.profile_section_header_size)
@@ -217,6 +234,7 @@ type ProfileSecPipBoy struct {
 	opMetaRec SubInfo
 	memcpyRec SubInfo
 	stringRec SubInfo
+	subOpRec  SubInfo
 }
 
 type RawDataSet struct {
@@ -262,7 +280,7 @@ func NewProfileSecPipBoy(rawData []byte) ProfileSecPipBoy {
 	}
 	assert.Assert(len(rawData) == int(sec.size), "must be length verified")
 
-	retrieveFor := func(typeCode int) SubInfo {
+	retrieveFor := func(typeCode int, required bool) SubInfo {
 		if sub, ok := subSecDc[typeCode]; ok {
 			return SubInfo{
 				int(sub.subInfo.count),
@@ -270,12 +288,16 @@ func NewProfileSecPipBoy(rawData []byte) ProfileSecPipBoy {
 				sub.rawCopy,
 			}
 		}
-		panic(fmt.Errorf("no section of type(%v)", typeCode))
+		if required {
+			panic(fmt.Errorf("no section of type(%v)", typeCode))
+		}
+		return SubInfo{0, 0, nil}
 	}
-	rv.pkt2opRec = retrieveFor(PROFSEC_TYPE_PKT2OPMAP)
-	rv.opMetaRec = retrieveFor(PROFSEC_TYPE_OPTHUNK)
-	rv.memcpyRec = retrieveFor(PROFSEC_TYPE_MEMCPY_THUNK)
-	rv.stringRec = retrieveFor(PROFSEC_TYPE_STRINGPOOL)
+	rv.pkt2opRec = retrieveFor(PROFSEC_TYPE_PKT2OPMAP, true)
+	rv.opMetaRec = retrieveFor(PROFSEC_TYPE_OPTHUNK, true)
+	rv.memcpyRec = retrieveFor(PROFSEC_TYPE_MEMCPY_THUNK, true)
+	rv.stringRec = retrieveFor(PROFSEC_TYPE_STRINGPOOL, true)
+	rv.subOpRec = retrieveFor(PROFSEC_TYPE_SUBOPMETATHUNK, false)
 
 	assert.Assert(len(rawData) == profileSectionSize+
 		int(sec.sub_section_count)*perSubSecSize+
@@ -306,6 +328,10 @@ func (ps ProfileSecPipBoy) OpMetaCount() int {
 
 func (ps ProfileSecPipBoy) MemcpyCount() int {
 	return ps.memcpyRec.count
+}
+
+func (ps ProfileSecPipBoy) SubOpCount() int {
+	return ps.subOpRec.count
 }
 
 func (ps ProfileSecPipBoy) HeaderSize() int {
@@ -454,12 +480,37 @@ func ParseProfileSectionFromData(
 		addDmaInfo(int(memcpyMetaSec.pkt), dc)
 	}
 
+	// SubOp
+	subOpInfoMap := make(map[int][]metadata.SubOpMeta)
+	rawChunk = newPb.subOpRec.rawChunk
+	elementSize = newPb.subOpRec.elementSize
+	for i := 0; i < newPb.SubOpCount(); i++ {
+		slice := rawChunk[i*elementSize:]
+		uVal := reflect.ValueOf(slice).Pointer()
+		subOpMetaSec := *(*C.SubOpMetaSec)(unsafe.Pointer(uVal))
+		masterOpId := int(subOpMetaSec.master_op_id)
+		slaveOpId := int(subOpMetaSec.slave_op_id)
+		tid := int(subOpMetaSec.tid)
+		name := newPb.ExtractStringAt(int(subOpMetaSec.name))
+		subOpInfoMap[masterOpId] = append(subOpInfoMap[masterOpId],
+			metadata.SubOpMeta{
+				MasterOpId: masterOpId,
+				SlaveOpId:  slaveOpId,
+				Tid:        tid,
+				SubOpName:  name,
+			})
+	}
+	for _, subVec := range subOpInfoMap {
+		sort.Sort(metadata.SubOpMetaVec(subVec))
+	}
+
 	return metadata.NewExecScope(execUuid,
 		pkt2OpDict,
 		opInformationMap,
 		metadata.DmaInfoMap{
 			Info: dmaInfoMap,
 		},
+		subOpInfoMap,
 	)
 }
 
@@ -492,5 +543,9 @@ func doAssertOnProfileSection() {
 	var secPbStringIdSec C.StringIdSec
 	if GetStringIdSecSize() != unsafe.Sizeof(secPbStringIdSec) {
 		panic(errors.New("stringid-sec size mismatched"))
+	}
+	var secSubOpMetaSec C.SubOpMetaSec
+	if GetSubOpMetaSecSize() != unsafe.Sizeof(secSubOpMetaSec) {
+		panic(errors.New("subop-sec size mismatched"))
 	}
 }

@@ -179,7 +179,6 @@ func (p PostProcessor) DumpToDb(coord rtdata.Coords, dbe DbDumper) {
 		p.kernelVec.KernelActivity(), p.tm,
 		"SIP BUSY",
 	)
-
 }
 
 func (p *PostProcessor) DoPostProcessing() {

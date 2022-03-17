@@ -96,6 +96,7 @@ func (pb pbLoader) DumpMeta() {
 		execMeta.DumpDtuOpToFile()
 		execMeta.DumpDmaToFile()
 		execMeta.DumpPktOpMapToFile()
+		execMeta.DumpSubOpToFile()
 	}
 }
 
@@ -105,7 +106,7 @@ func (pb pbLoader) DumpRuntimeInformation(inputNameHint string) {
 }
 
 func (pb pbLoader) dumpTimepoints(inputNameHint string) {
-	outName := fmt.Sprintf("%v.timeinfo", inputNameHint)
+	outName := fmt.Sprintf("%v_timeinfo.pbdumptxt", inputNameHint)
 	fout, err := os.Create(outName)
 	if err != nil {
 		panic(fmt.Errorf("could not open %v: %v", outName, err))
@@ -121,7 +122,7 @@ func (pb pbLoader) dumpTimepoints(inputNameHint string) {
 }
 
 func (pb pbLoader) dumpRuntimeTasks(inputNameHint string) {
-	outName := fmt.Sprintf("%v.tasks", inputNameHint)
+	outName := fmt.Sprintf("%v_tasks.pbdumptxt", inputNameHint)
 	fout, err := os.Create(outName)
 	if err != nil {
 		panic(fmt.Errorf("could not open %v: %v", outName, err))
