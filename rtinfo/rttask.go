@@ -372,6 +372,48 @@ func (rtm *RuntimeTaskManager) GenerateDtuOps(
 	return opState.FinalizeOps(), unprocessedVec
 }
 
+func (rtm RuntimeTaskManager) GenerateSubOpTracker(
+	opActSeq []rtdata.OpActivity,
+	rule vgrule.EngineOrder) SubOpTracker {
+
+	taskIdToOpSeq := make(map[int][]rtdata.OpActivity)
+	for i := 0; i < len(opActSeq); i++ {
+		opAct := opActSeq[i]
+		// terminator, ignore
+		isTerminator := (codec.DbgPktDetector{}).IsTerminatorMark(opAct.Start)
+		if isTerminator {
+			continue
+		}
+		taskInOrder, found := rtm.locateTask(
+			opAct.Start, rule, MatchToCqm{},
+			nil,
+		)
+		if !found {
+			fmt.Printf("# Cqm Op meta missing for no exhaustive search")
+			continue
+		}
+		if opInfo, err := rtm.LookupOpIdByPacketID(
+			taskInOrder.GetExecUuid(),
+			opAct.Start.PacketID); err == nil {
+			opAct.SetOpRef(
+				rtdata.NewOpRef(&opInfo,
+					taskInOrder.GetRefToTask()))
+			taskId := taskInOrder.GetTaskID()
+			taskIdToOpSeq[taskId] = append(taskIdToOpSeq[taskId], opAct)
+		}
+	}
+
+	// Pre-check
+	for _, opSeq := range taskIdToOpSeq {
+		for i := 0; i < len(opSeq)-1; i++ {
+			if opSeq[i].StartCycle() > opSeq[i+1].StartCycle() {
+				panic("task-id to op sequence: sequnce in not in non-descending order")
+			}
+		}
+	}
+	return NewSubOpTracker(taskIdToOpSeq)
+}
+
 /*
  * One task, one executable activity
  */
@@ -478,13 +520,14 @@ func (rtm RuntimeTaskManager) locateTask(
 
 func (rtm RuntimeTaskManager) GenerateKernelActs(
 	kernelActs []rtdata.KernelActivity,
-	opBundles []rtdata.OpActivity,
+	cqmOpSeq []rtdata.OpActivity,
 	rule vgrule.EngineOrder) []rtdata.KernelActivity {
 
 	// Mark all kernel activities with task id(if found)
 	rtm.assignTaskIdToKernelActivities(kernelActs, rule)
 	subQuerier := rtm.GenerateSubQuerier()
-	return GenerateKerenlActSeq(kernelActs, opBundles, subQuerier)
+	subTracker := rtm.GenerateSubOpTracker(cqmOpSeq, rule)
+	return GenerateKerenlActSeq(kernelActs, subTracker, subQuerier)
 }
 
 func (rtm *RuntimeTaskManager) assignTaskIdToKernelActivities(

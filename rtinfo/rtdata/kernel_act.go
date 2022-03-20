@@ -4,12 +4,23 @@ import (
 	"strings"
 )
 
+type RuntimeTaskInfo struct {
+	TaskId int
+}
+
 type RuntimeInfo struct {
-	TaskId   int
+	RuntimeTaskInfo
 	SubIdx   int
 	Name     string
 	OpId     int
 	SubValid bool
+}
+
+func (rti *RuntimeInfo) Update(subIdx int, name string, opId int) {
+	rti.SubIdx = subIdx
+	rti.Name = name
+	rti.OpId = opId
+	rti.SubValid = true
 }
 
 type KernelActivity struct {

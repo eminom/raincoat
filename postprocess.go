@@ -209,8 +209,9 @@ func (p *PostProcessor) DoPostProcessing() {
 		dtuOps, unProcessed := p.rtDict.GenerateDtuOps(p.qm.OpActivity(),
 			p.curAlgo)
 		// Process kernel activities(SIPs)
-		subOps := p.rtDict.GenerateKernelActs(p.kernelVec.KernelActivity(),
-			dtuOps,
+		subOps := p.rtDict.GenerateKernelActs(
+			p.kernelVec.KernelActivity(),
+			p.qm.OpActivity(),
 			p.curAlgo)
 
 		// Generate task timeline(depends on OPs information)
