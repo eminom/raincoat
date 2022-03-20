@@ -448,7 +448,7 @@ func (rtm *RuntimeTaskManager) GenerateTaskOps(
 	return taskIdToActivity
 }
 
-func (rtm *RuntimeTaskManager) locateTask(
+func (rtm RuntimeTaskManager) locateTask(
 	evt codec.DpfEvent,
 	rule vgrule.EngineOrder,
 	matcher MatchPhysicalEngine,
@@ -476,12 +476,21 @@ func (rtm *RuntimeTaskManager) locateTask(
 	return
 }
 
-func (rtm *RuntimeTaskManager) GenerateKernelActs(
+func (rtm RuntimeTaskManager) GenerateKernelActs(
 	kernelActs []rtdata.KernelActivity,
 	opBundles []rtdata.OpActivity,
 	rule vgrule.EngineOrder) []rtdata.KernelActivity {
 
 	// Mark all kernel activities with task id(if found)
+	rtm.assignTaskIdToKernelActivities(kernelActs, rule)
+	subQuerier := rtm.GenerateSubQuerier()
+	return GenerateKerenlActSeq(kernelActs, opBundles, subQuerier)
+}
+
+func (rtm *RuntimeTaskManager) assignTaskIdToKernelActivities(
+	kernelActs []rtdata.KernelActivity,
+	rule vgrule.EngineOrder) {
+	// Assign task id to kernel(SIP) activties: This is reliable
 	var sipTaskBingoCount = 0
 	for i, kernAct := range kernelActs {
 		assert.Assert(kernAct.Start.EngineTypeCode == codec.EngCat_SIP, "must be sip")
@@ -496,7 +505,9 @@ func (rtm *RuntimeTaskManager) GenerateKernelActs(
 	fmt.Printf("SIP task bingo %v out of %v\n", sipTaskBingoCount,
 		len(kernelActs),
 	)
+}
 
+func (rtm *RuntimeTaskManager) GenerateSubQuerier() efintf.QuerySubOp {
 	var subQuerier efintf.QuerySubOp
 	if handler := genSubOpLocator(rtm); handler != nil {
 		subQuerier = SubOpLocator{handler}
@@ -535,7 +546,7 @@ func (rtm *RuntimeTaskManager) GenerateKernelActs(
 		}
 		subQuerier = SubOpLocator{getSubInfo}
 	}
-	return GenerateKerenlActSeq(kernelActs, opBundles, subQuerier)
+	return subQuerier
 }
 
 type SubOpLocator struct {
