@@ -27,6 +27,13 @@ func (sot SubOpTracker) LocateOpId(taskId int,
 	startCycle, endCycle uint64) (opId int, subOpIndex int) {
 	opId = -1
 	subOpIndex = -1
+
+	// Check for duration zero
+	if endCycle <= startCycle {
+		return
+	}
+	duration := float64(endCycle - startCycle)
+
 	// Must be non-descending order to do binary search
 	opSeq, taskValid := sot.taskIdToOpSeq[taskId]
 	if !taskValid {
@@ -53,7 +60,7 @@ func (sot SubOpTracker) LocateOpId(taskId int,
 			thisOpAct := opSeq[startIdx]
 			leftCy := math.Max(float64(startCycle), float64(thisOpAct.StartCycle()))
 			rightCy := math.Min(float64(endCycle), float64(thisOpAct.EndCycle()))
-			r := (rightCy - leftCy) / float64(thisOpAct.Duration())
+			r := (rightCy - leftCy) / duration
 			if r > maxFit {
 				maxFit = r
 				opId = thisOpAct.GetOp().OpId
