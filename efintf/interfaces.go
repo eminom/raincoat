@@ -22,5 +22,5 @@ type InfoReceiver interface {
 }
 
 type QuerySubOp interface {
-	QuerySubOpName(taskId int, opId int, entityId int, subIdx int) (string, bool)
+	QuerySubOpName(taskId int, opId int, subIdx int) (string, bool)
 }

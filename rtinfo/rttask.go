@@ -411,7 +411,23 @@ func (rtm RuntimeTaskManager) GenerateSubOpTracker(
 			}
 		}
 	}
-	return NewSubOpTracker(taskIdToOpSeq)
+
+	execToSubIdxMap := make(map[uint64]map[int]int)
+	getSubIdxMap := func(execUuid uint64) map[int]int {
+		subMap, ok := execToSubIdxMap[execUuid]
+		if !ok {
+			subMap = rtm.FindExecFor(execUuid).GetPacketToSubIdxMap()
+			execToSubIdxMap[execUuid] = subMap
+		}
+		return subMap
+	}
+	taskToPacketToSub := make(map[int]map[int]int)
+	for taskId, task := range rtm.taskIdToTask {
+		if task.MetaValid {
+			taskToPacketToSub[taskId] = getSubIdxMap(task.ExecutableUUID)
+		}
+	}
+	return NewSubOpTracker(taskIdToOpSeq, taskToPacketToSub)
 }
 
 /*
@@ -551,77 +567,43 @@ func (rtm *RuntimeTaskManager) assignTaskIdToKernelActivities(
 }
 
 func (rtm *RuntimeTaskManager) GenerateSubQuerier() efintf.QuerySubOp {
-	var subQuerier efintf.QuerySubOp
-	if handler := genSubOpLocator(rtm); handler != nil {
-		subQuerier = SubOpLocator{handler}
-	} else {
-		// A cache for exec to meta
-		execToSubOpSeq := make(map[uint64]map[int]map[int][]string)
-		taskToSubOpSeq := make(map[int]map[int]map[int][]string)
-		for taskId, task := range rtm.taskIdToTask {
-			if task.MetaValid {
-				if _, ok := execToSubOpSeq[task.ExecutableUUID]; !ok {
-					// Cache
-					execToSubOpSeq[task.ExecutableUUID] = rtm.execKnowledge.GetSubOpMetaMap(task.ExecutableUUID)
-				}
-				taskToSubOpSeq[taskId] = execToSubOpSeq[task.ExecutableUUID]
+	// A cache for exec to meta
+	execToSubOpSeq := make(map[uint64]map[int][]string)
+	taskToSubOpSeq := make(map[int]map[int][]string)
+	for taskId, task := range rtm.taskIdToTask {
+		if task.MetaValid {
+			if _, ok := execToSubOpSeq[task.ExecutableUUID]; !ok {
+				// Cache
+				execToSubOpSeq[task.ExecutableUUID] = rtm.FindExecFor(task.ExecutableUUID).GetSubOpIndexMap()
 			}
+			taskToSubOpSeq[taskId] = execToSubOpSeq[task.ExecutableUUID]
 		}
-		getSubInfo := func(taskId int, opId int, entityId int, subIdx int) (name string, ok bool) {
-			taskMeta, taskOk := taskToSubOpSeq[taskId]
-			if !taskOk {
-				return
-			}
-			subOpMap, opIdOk := taskMeta[opId]
-			if !opIdOk {
-				return
-			}
-			subOpSeq, subSeqOk := subOpMap[entityId]
-			if !subSeqOk {
-				return
-			}
-
-			if subIdx >= 0 && subIdx < len(subOpSeq) {
-				name = subOpSeq[subIdx]
-				ok = true
-			}
+	}
+	getSubInfo := func(taskId int, opId int, subIdx int) (name string, ok bool) {
+		taskMeta, taskOk := taskToSubOpSeq[taskId]
+		if !taskOk {
 			return
 		}
-		subQuerier = SubOpLocator{getSubInfo}
+		subOpSeq, subSeqOk := taskMeta[opId]
+		if !subSeqOk {
+			return
+		}
+		if subIdx >= 0 && subIdx < len(subOpSeq) {
+			name = subOpSeq[subIdx]
+			ok = true
+		}
+		return
 	}
-	return subQuerier
+	return SubOpLocator{getSubInfo}
 }
 
 type SubOpLocator struct {
-	handler func(int, int, int, int) (string, bool)
+	handler func(int, int, int) (string, bool)
 }
 
 func (subL SubOpLocator) QuerySubOpName(taskId int, opId int,
-	entityId int, subIdx int) (string, bool) {
-	return subL.handler(taskId, opId, entityId, subIdx)
-}
-
-func genSubOpLocator(rtm *RuntimeTaskManager) func(int, int, int, int) (string, bool) {
-	var subOpInformation = metadata.JsonLoader{}.LoadInfo("subops.json")
-	if subOpInformation != nil {
-		return func(taskId int, opId int,
-			entityId int, subIdx int) (string, bool) {
-			// No such task
-			if _, ok := rtm.taskIdToTask[taskId]; !ok {
-				return "", false
-			}
-			that := subOpInformation[fmt.Sprintf("%v", opId)]
-			if that != nil {
-				entity := fmt.Sprintf("%v", entityId)
-				subVec := that[entity]
-				if subIdx >= 0 && subIdx < len(subVec) {
-					return subVec[subIdx], true
-				}
-			}
-			return "", false
-		}
-	}
-	return nil
+	subIdx int) (string, bool) {
+	return subL.handler(taskId, opId, subIdx)
 }
 
 // Start from the first recorded task

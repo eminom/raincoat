@@ -120,16 +120,6 @@ func (e ExecRaw) GetOpIdForPacketId(packetId int) (int, bool) {
 	return rv, ok
 }
 
-func (er ExecRaw) GetSubOpMetaMap(execUuid uint64) map[int]map[int][]string {
-	execScope, exists := er.bundle[execUuid]
-	if !exists {
-		return nil
-	}
-	// An executable scope "isa"
-	// A task scope
-	return execScope.GetSubOpMetaMap()
-}
-
 func NewExecRaw(loader efintf.InfoReceiver) *ExecRaw {
 	return &ExecRaw{
 		loader: loader,

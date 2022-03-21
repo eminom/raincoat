@@ -204,17 +204,38 @@ func (es ExecScope) CopyOpIdMap() map[int]string {
 	return dc
 }
 
-// OpId to "Entity to SubOpSequence"
-func (es ExecScope) GetSubOpMetaMap() map[int]map[int][]string {
-	subOpMetas := make(map[int]map[int][]string)
+// OpId to Sub-sequencet
+func (es ExecScope) GetSubOpIndexMap() map[int][]string {
+	subOpIndexMap := make(map[int][]string)
 	for opId, subOpVec := range es.subOpMap {
-		if _, ok := subOpMetas[opId]; !ok {
-			subOpMetas[opId] = make(map[int][]string)
-		}
+		visited := make(map[int]bool)
 		for _, subOp := range subOpVec {
-			subOpMetas[opId][subOp.Tid] =
-				append(subOpMetas[opId][subOp.Tid], subOp.SubOpName)
+			if visited[subOp.SlaveOpId] {
+				continue
+			}
+			visited[subOp.SlaveOpId] = true
+			subOpIndexMap[opId] = append(subOpIndexMap[opId], subOp.SubOpName)
 		}
 	}
-	return subOpMetas
+	return subOpIndexMap
+}
+
+func (es ExecScope) GetPacketToSubIdxMap() map[int]int {
+	// op id to packet id seq
+	opIdToPktSeq := make(map[int][]int)
+	for pktId, opId := range es.pktIdToOp {
+		opIdToPktSeq[opId] = append(opIdToPktSeq[opId], pktId)
+	}
+
+	pktIdToSubIdx := make(map[int]int)
+	for _, pktIdSeq := range opIdToPktSeq {
+		subIdx := 0
+		for _, pktId := range pktIdSeq {
+			// start op and end op are in pairs
+			// But we dont assume that if start op packet id is odd(or event)
+			pktIdToSubIdx[pktId] = subIdx / 2
+			subIdx++
+		}
+	}
+	return pktIdToSubIdx
 }
