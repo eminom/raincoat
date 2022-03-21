@@ -399,8 +399,12 @@ func ParseProfileSectionFromData(
 	// StringSec
 	pkt2OpDict := make(map[int]int)
 	addPkt2Op := func(pktId, opId int) {
-		if _, ok := pkt2OpDict[pktId]; ok {
-			panic(errors.New("duplicate packet id entry"))
+		if orgOpId, ok := pkt2OpDict[pktId]; ok {
+			// panic(errors.New("duplicate packet id entry"))
+			fmt.Printf("error duplicate pid %v\n", pktId)
+			if orgOpId != opId {
+				panic(errors.New("mismatched pid to opid"))
+			}
 		}
 		pkt2OpDict[pktId] = opId
 	}
