@@ -160,6 +160,17 @@ func (tm *TimelineManager) AlignToHostTimeline() {
 		fmt.Fprintf(os.Stderr, "cycles from dpf buffer: %+v\n",
 			tm.cycles)
 	}
+
+	if !timeInfoValid {
+		for _, v := range tm.cycles {
+			tm.tll = TimelineLinear{
+				v.DevCycle,
+				v.DevCycle,
+			}
+			timeInfoValid = true
+			break
+		}
+	}
 	assert.Assert(timeInfoValid, "Must be true")
 }
 

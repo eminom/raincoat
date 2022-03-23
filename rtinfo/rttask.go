@@ -414,6 +414,9 @@ func (rtm RuntimeTaskManager) GenerateSubOpTracker(
 
 	execToSubIdxMap := make(map[uint64]map[int]int)
 	getSubIdxMap := func(execUuid uint64) map[int]int {
+		if execUuid == 0 {
+			return nil
+		}
 		subMap, ok := execToSubIdxMap[execUuid]
 		if !ok {
 			subMap = rtm.FindExecFor(execUuid).GetPacketToSubIdxMap()
@@ -571,7 +574,7 @@ func (rtm *RuntimeTaskManager) GenerateSubQuerier() efintf.QuerySubOp {
 	execToSubOpSeq := make(map[uint64]map[int][]string)
 	taskToSubOpSeq := make(map[int]map[int][]string)
 	for taskId, task := range rtm.taskIdToTask {
-		if task.MetaValid {
+		if task.MetaValid && task.ExecutableUUID != 0 {
 			if _, ok := execToSubOpSeq[task.ExecutableUUID]; !ok {
 				// Cache
 				execToSubOpSeq[task.ExecutableUUID] = rtm.FindExecFor(task.ExecutableUUID).GetSubOpIndexMap()

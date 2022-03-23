@@ -118,6 +118,14 @@ func main() {
 		return false
 	})()
 
+	if len(*fMetaStartup) == 0 {
+		if cwd, err := os.Getwd(); err == nil {
+			if abspath, err := filepath.Abs(cwd); err == nil {
+				*fMetaStartup = abspath
+			}
+		}
+	}
+
 	if len(flag.Args()) >= 1 {
 		if *fExec {
 			topsdev.DumpProfileSectionFromExecutable(flag.Args()[0])
