@@ -227,6 +227,10 @@ func (es ExecScope) GetPacketToSubIdxMap() map[int]int {
 		opIdToPktSeq[opId] = append(opIdToPktSeq[opId], pktId)
 	}
 
+	for opId := range opIdToPktSeq {
+		sort.Ints(opIdToPktSeq[opId])
+	}
+
 	pktIdToSubIdx := make(map[int]int)
 	for _, pktIdSeq := range opIdToPktSeq {
 		subIdx := 0
