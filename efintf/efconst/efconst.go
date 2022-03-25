@@ -11,3 +11,7 @@ func IsWildcardExecuuid(execUuid uint64) bool {
 func IsAllZeroPgMask(pgMask int) bool {
 	return pgMask == 0
 }
+
+func IsInvalidOpId(opId int) bool {
+	return opId == 2147483646
+}

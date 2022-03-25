@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"sort"
+
+	"git.enflame.cn/hai.bai/dmaster/efintf/efconst"
 )
 
 var (
@@ -47,9 +49,17 @@ func (es ExecScope) DumpPktOpMapToOstream(fout *os.File) {
 		pktIdVec = append(pktIdVec, pktId)
 	}
 	sort.Ints(pktIdVec)
+
+	subInfo := es.GetPacketToSubIdxMap()
+
 	for _, pktId := range pktIdVec {
 		opId := es.pktIdToOp[pktId]
-		fmt.Fprintf(fout, "%v %v\n", pktId, opId)
+
+		if name, ok := subInfo.PktIdToName[pktId]; ok {
+			fmt.Fprintf(fout, "%v %v %v\n", pktId, opId, name)
+		} else {
+			fmt.Fprintf(fout, "%v %v\n", pktId, opId)
+		}
 	}
 }
 
@@ -280,6 +290,7 @@ func (es ExecScope) GetPacketToSubIdxMap() PacketIdInfoMap {
 		}
 	}
 
+	// The return values of this function
 	pktIdToSubIdx := make(map[int]int)
 	pktIdToNameStr := make(map[int]string)
 	// for packet id to name:  some entry may be missing if the verification fails
@@ -301,7 +312,11 @@ func (es ExecScope) GetPacketToSubIdxMap() PacketIdInfoMap {
 				pktIdToNameStr[pktId] = subOpNameSeq[subIdx]
 			}
 		} else {
-			fmt.Fprintf(os.Stderr, "# error: No packet id to name map genereated\n")
+			if !efconst.IsInvalidOpId(opId) {
+				fmt.Fprintf(os.Stderr,
+					"# error: No packet id to name map genereated for op id(%v)\n",
+					opId)
+			}
 		}
 
 	}
