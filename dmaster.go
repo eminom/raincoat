@@ -47,6 +47,9 @@ var (
 
 	//decode go routine count
 	fDecodeRoutineCount = flag.Int("subr", 7, "sub process count")
+
+	// DB rendering options
+	fSipBusy = flag.Bool("sipbusy", false, "dump sip busy events")
 )
 
 func init() {
@@ -64,12 +67,14 @@ func init() {
 
 func DoProcess(jobCount int, sess *sess.SessBroadcaster,
 	algo vgrule.ActMatchAlgo,
-	seqId int,
-	oneTask bool,
+	ppOpt PostProcessOpt,
 ) PostProcessor {
 	loader := sess.GetLoader()
 
-	processer := NewPostProcesser(loader, algo, *fEnableExTime, seqId, oneTask)
+	processer := NewPostProcesser(loader, algo,
+		*fEnableExTime,
+		ppOpt,
+	)
 
 	startTime := time.Now()
 	log.Printf("Starting dispatch events at %v", startTime.Format(time.RFC3339))
@@ -193,7 +198,11 @@ func main() {
 		chunk := contentLoader.LoadRingBufferContent(cidToDecode, fileIdx)
 		sess := sess.NewSessBroadcaster(loader)
 		sess.DecodeChunk(chunk, decoder, oneTask, *fDecodeRoutineCount)
-		outputChan <- DoProcess(*fJob, sess, curAlgo, fileIdx, oneTask)
+		outputChan <- DoProcess(*fJob, sess, curAlgo, PostProcessOpt{
+			OneTask:     oneTask,
+			DumpSipBusy: *fSipBusy,
+			SeqIdx:      fileIdx,
+		})
 	}
 	for i := 0; i < rbCount; i++ {
 		wg.Add(1)

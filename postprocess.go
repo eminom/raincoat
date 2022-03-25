@@ -15,6 +15,12 @@ import (
 	"git.enflame.cn/hai.bai/dmaster/vgrule"
 )
 
+type PostProcessOpt struct {
+	OneTask     bool
+	DumpSipBusy bool
+	SeqIdx      int
+}
+
 type PostProcessor struct {
 	rtDict    *rtinfo.RuntimeTaskManager
 	qm        *rtdata.EventQueue
@@ -26,7 +32,7 @@ type PostProcessor struct {
 
 	curAlgo vgrule.ActMatchAlgo
 	loader  efintf.InfoReceiver
-	seqIdx  int
+	procOpt PostProcessOpt
 
 	// Results
 	dtuOps     []rtdata.OpActivity
@@ -37,10 +43,9 @@ type PostProcessor struct {
 func NewPostProcesser(loader efintf.InfoReceiver,
 	curAlgo vgrule.ActMatchAlgo,
 	enableExtendedTimeline bool,
-	seqIdx int,
-	oneTask bool,
+	ppOpt PostProcessOpt,
 ) PostProcessor {
-	rtDict := rtinfo.NewRuntimeTaskManager(oneTask)
+	rtDict := rtinfo.NewRuntimeTaskManager(ppOpt.OneTask)
 	rtDict.LoadRuntimeTask(loader)
 
 	qm := rtdata.NewOpEventQueue(rtdata.NewOpActCollector(curAlgo),
@@ -72,7 +77,7 @@ func NewPostProcesser(loader efintf.InfoReceiver,
 		taskVec:   taskVec,
 		kernelVec: kernelVec,
 		tm:        tm,
-		seqIdx:    seqIdx,
+		procOpt:   ppOpt,
 	}
 }
 
@@ -174,11 +179,13 @@ func (p PostProcessor) DumpToDb(coord rtdata.Coords, dbe DbDumper) {
 		p.subOps, p.tm,
 		"Sub Ops",
 	)
-	dbe.DumpKernelActs(
-		coord,
-		p.kernelVec.KernelActivity(), p.tm,
-		"SIP BUSY",
-	)
+	if p.procOpt.DumpSipBusy {
+		dbe.DumpKernelActs(
+			coord,
+			p.kernelVec.KernelActivity(), p.tm,
+			"SIP BUSY",
+		)
+	}
 }
 
 func (p *PostProcessor) DoPostProcessing() {
@@ -292,7 +299,7 @@ func (ps PostProcessors) Len() int {
 }
 
 func (ps PostProcessors) Less(i, j int) bool {
-	return ps[i].seqIdx < ps[j].seqIdx
+	return ps[i].procOpt.SeqIdx < ps[j].procOpt.SeqIdx
 }
 
 func (ps PostProcessors) Swap(i, j int) {

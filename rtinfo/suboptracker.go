@@ -5,17 +5,18 @@ import (
 	"math"
 	"os"
 
+	"git.enflame.cn/hai.bai/dmaster/meta/metadata"
 	"git.enflame.cn/hai.bai/dmaster/rtinfo/rtdata"
 )
 
 type SubOpTracker struct {
 	taskIdToOpSeq   map[int][]rtdata.OpActivity
-	taskToPidSubIdx map[int]map[int]int
+	taskToPidSubIdx map[int]*metadata.PacketIdInfoMap
 }
 
 func NewSubOpTracker(
 	taskIdToOpSeq map[int][]rtdata.OpActivity,
-	taskToPidSubIdx map[int]map[int]int) SubOpTracker {
+	taskToPidSubIdx map[int]*metadata.PacketIdInfoMap) SubOpTracker {
 	return SubOpTracker{
 		taskIdToOpSeq:   taskIdToOpSeq,
 		taskToPidSubIdx: taskToPidSubIdx,
@@ -24,7 +25,7 @@ func NewSubOpTracker(
 
 // -1 for no op id
 func (sot SubOpTracker) LocateOpId(taskId int,
-	startCycle, endCycle uint64) (opId int, subOpIndex int) {
+	startCycle, endCycle uint64) (opId int, subOpIndex int, subOpName string) {
 	opId = -1
 	subOpIndex = -1
 
@@ -68,13 +69,21 @@ func (sot SubOpTracker) LocateOpId(taskId int,
 				// check sub idx
 				thisTaskId := thisOpAct.GetTaskID()
 				elSubIndex := -1
-				if subMap, ok := sot.taskToPidSubIdx[thisTaskId]; ok {
-					if index, ok := subMap[thisOpAct.Start.PacketID]; ok {
+				var subName string
+				if subMap, ok := sot.taskToPidSubIdx[thisTaskId]; ok &&
+					subMap != nil {
+					if index, ok := subMap.PktIdToSubIdx[thisOpAct.Start.PacketID]; ok {
 						elSubIndex = index
+						subName = "" // update sub name along
+						if name, ok := subMap.PktIdToName[thisOpAct.Start.PacketID]; ok {
+							subName = name
+						}
 					}
 				}
 				if elSubIndex >= 0 {
+					// Update return values
 					subOpIndex = elSubIndex
+					subOpName = subName
 				} else {
 					fmt.Fprintf(os.Stderr, "could not determine sub index")
 				}

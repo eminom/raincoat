@@ -220,7 +220,12 @@ func (es ExecScope) GetSubOpIndexMap() map[int][]string {
 	return subOpIndexMap
 }
 
-func (es ExecScope) GetPacketToSubIdxMap() map[int]int {
+type PacketIdInfoMap struct {
+	PktIdToSubIdx map[int]int // Start and End packet id share the same sub index
+	PktIdToName   map[int]string
+}
+
+func (es ExecScope) GetPacketToSubIdxMap() PacketIdInfoMap {
 	// op id to packet id seq
 	opIdToPktSeq := make(map[int][]int)
 	for pktId, opId := range es.pktIdToOp {
@@ -231,8 +236,55 @@ func (es ExecScope) GetPacketToSubIdxMap() map[int]int {
 		sort.Ints(opIdToPktSeq[opId])
 	}
 
+	// Setup a map, op id to its name sequence
+	// With validation
+	opIdToSubOpNameSeq := make(map[int][]string)
+	for opId, subSeq := range es.subOpMap {
+		slaveOpNameMap := make(map[int]string)
+		for _, subOp := range subSeq {
+			if name, ok := slaveOpNameMap[subOp.SlaveOpId]; ok {
+				if name != subOp.SubOpName {
+					fmt.Fprintf(os.Stderr,
+						"# ERROR: inconsistent sub op information: %s vs %s, op id(%v)\n",
+						name, subOp.SubOpName,
+						subOp.MasterOpId)
+				}
+			} else {
+				slaveOpNameMap[subOp.SlaveOpId] = subOp.SubOpName
+			}
+		}
+		var subIndexVec []int
+		for subIdx := range slaveOpNameMap {
+			subIndexVec = append(subIndexVec, subIdx)
+		}
+		sort.Ints(subIndexVec)
+		var valid = false
+		if len(subIndexVec) > 0 {
+			valid = true
+			if subIndexVec[0] != 0 {
+				fmt.Fprintf(os.Stderr, "# ERROR: inconsistent sub op indexing start\n")
+				valid = false
+			}
+			if subIndexVec[len(subIndexVec)-1] != len(subIndexVec)-1 {
+				fmt.Fprintf(os.Stderr, "# ERROR: inconsistent sub op indexing end\n")
+				valid = false
+			}
+		}
+
+		if valid {
+			for _, idx := range subIndexVec {
+				opIdToSubOpNameSeq[opId] =
+					append(opIdToSubOpNameSeq[opId],
+						slaveOpNameMap[idx])
+			}
+		}
+	}
+
 	pktIdToSubIdx := make(map[int]int)
-	for _, pktIdSeq := range opIdToPktSeq {
+	pktIdToNameStr := make(map[int]string)
+	// for packet id to name:  some entry may be missing if the verification fails
+
+	for opId, pktIdSeq := range opIdToPktSeq {
 		subIdx := 0
 		for _, pktId := range pktIdSeq {
 			// start op and end op are in pairs
@@ -240,6 +292,21 @@ func (es ExecScope) GetPacketToSubIdxMap() map[int]int {
 			pktIdToSubIdx[pktId] = subIdx / 2
 			subIdx++
 		}
+
+		if subOpNameSeq, ok := opIdToSubOpNameSeq[opId]; ok &&
+			len(subOpNameSeq) == subIdx/2 {
+			for _, pktId := range pktIdSeq {
+				// First map packet id to its sub indexing within the op scope
+				subIdx := pktIdToSubIdx[pktId]
+				pktIdToNameStr[pktId] = subOpNameSeq[subIdx]
+			}
+		} else {
+			fmt.Fprintf(os.Stderr, "# error: No packet id to name map genereated\n")
+		}
+
 	}
-	return pktIdToSubIdx
+	return PacketIdInfoMap{
+		pktIdToSubIdx,
+		pktIdToNameStr,
+	}
 }

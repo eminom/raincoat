@@ -412,19 +412,20 @@ func (rtm RuntimeTaskManager) GenerateSubOpTracker(
 		}
 	}
 
-	execToSubIdxMap := make(map[uint64]map[int]int)
-	getSubIdxMap := func(execUuid uint64) map[int]int {
+	execToSubIdxMap := make(map[uint64]*metadata.PacketIdInfoMap)
+	getSubIdxMap := func(execUuid uint64) *metadata.PacketIdInfoMap {
 		if execUuid == 0 {
 			return nil
 		}
 		subMap, ok := execToSubIdxMap[execUuid]
 		if !ok {
-			subMap = rtm.FindExecFor(execUuid).GetPacketToSubIdxMap()
+			subMapObj := rtm.FindExecFor(execUuid).GetPacketToSubIdxMap()
+			subMap = &subMapObj
 			execToSubIdxMap[execUuid] = subMap
 		}
 		return subMap
 	}
-	taskToPacketToSub := make(map[int]map[int]int)
+	taskToPacketToSub := make(map[int]*metadata.PacketIdInfoMap)
 	for taskId, task := range rtm.taskIdToTask {
 		if task.MetaValid {
 			taskToPacketToSub[taskId] = getSubIdxMap(task.ExecutableUUID)
@@ -544,9 +545,8 @@ func (rtm RuntimeTaskManager) GenerateKernelActs(
 
 	// Mark all kernel activities with task id(if found)
 	rtm.assignTaskIdToKernelActivities(kernelActs, rule)
-	subQuerier := rtm.GenerateSubQuerier()
 	subTracker := rtm.GenerateSubOpTracker(cqmOpSeq, rule)
-	return GenerateKerenlActSeq(kernelActs, subTracker, subQuerier)
+	return GenerateKerenlActSeq(kernelActs, subTracker)
 }
 
 func (rtm *RuntimeTaskManager) assignTaskIdToKernelActivities(
@@ -567,46 +567,6 @@ func (rtm *RuntimeTaskManager) assignTaskIdToKernelActivities(
 	fmt.Printf("SIP task bingo %v out of %v\n", sipTaskBingoCount,
 		len(kernelActs),
 	)
-}
-
-func (rtm *RuntimeTaskManager) GenerateSubQuerier() efintf.QuerySubOp {
-	// A cache for exec to meta
-	execToSubOpSeq := make(map[uint64]map[int][]string)
-	taskToSubOpSeq := make(map[int]map[int][]string)
-	for taskId, task := range rtm.taskIdToTask {
-		if task.MetaValid && task.ExecutableUUID != 0 {
-			if _, ok := execToSubOpSeq[task.ExecutableUUID]; !ok {
-				// Cache
-				execToSubOpSeq[task.ExecutableUUID] = rtm.FindExecFor(task.ExecutableUUID).GetSubOpIndexMap()
-			}
-			taskToSubOpSeq[taskId] = execToSubOpSeq[task.ExecutableUUID]
-		}
-	}
-	getSubInfo := func(taskId int, opId int, subIdx int) (name string, ok bool) {
-		taskMeta, taskOk := taskToSubOpSeq[taskId]
-		if !taskOk {
-			return
-		}
-		subOpSeq, subSeqOk := taskMeta[opId]
-		if !subSeqOk {
-			return
-		}
-		if subIdx >= 0 && subIdx < len(subOpSeq) {
-			name = subOpSeq[subIdx]
-			ok = true
-		}
-		return
-	}
-	return SubOpLocator{getSubInfo}
-}
-
-type SubOpLocator struct {
-	handler func(int, int, int) (string, bool)
-}
-
-func (subL SubOpLocator) QuerySubOpName(taskId int, opId int,
-	subIdx int) (string, bool) {
-	return subL.handler(taskId, opId, subIdx)
 }
 
 // Start from the first recorded task
