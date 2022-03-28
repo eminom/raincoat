@@ -2,11 +2,16 @@ package rtdata
 
 import (
 	"fmt"
+	"io"
 	"sort"
 	"time"
 
 	"git.enflame.cn/hai.bai/dmaster/codec"
 	"git.enflame.cn/hai.bai/dmaster/vgrule"
+)
+
+var (
+	opActLog = io.Discard
 )
 
 type OpActCollector struct {
@@ -30,7 +35,7 @@ func (q OpActCollector) GetAlgo() vgrule.ActMatchAlgo {
 }
 
 func (q OpActCollector) DumpInfo() {
-	fmt.Printf("%v acts found\n", len(q.acts))
+	fmt.Fprintf(opActLog, "%v acts found\n", len(q.acts))
 
 	chDictInAll := make(map[int]int)
 	for _, v := range q.acts {
@@ -41,7 +46,7 @@ func (q OpActCollector) DumpInfo() {
 		chDictInAll[index]++
 	}
 
-	fmt.Printf("Cqm Op debug packet distribution:\n")
+	fmt.Fprintf(opActLog, "Cqm Op debug packet distribution:\n")
 	for index, count := range chDictInAll {
 		masterVal, ctx := q.eAlgo.DecodeChan(index)
 		engTy, engIdx, clusterId := q.eAlgo.DecodeMasterValue(masterVal)
@@ -72,7 +77,7 @@ func (opVec OpActCollector) AxSelfClone() ActCollector {
 func (opVec OpActCollector) MergeInto(lhs ActCollector) {
 	master := lhs.(*OpActCollector)
 	// opVec.DoSort()
-	fmt.Printf("merge %v OpActs into master(currently %v)\n",
+	fmt.Fprintf(opActLog, "merge %v OpActs into master(currently %v)\n",
 		len(opVec.acts), len(master.acts),
 	)
 	master.acts = append(master.acts, opVec.acts...)
@@ -82,19 +87,5 @@ func (opVec OpActCollector) MergeInto(lhs ActCollector) {
 func (opVec OpActCollector) DoSort() {
 	startTs := time.Now()
 	sort.Sort(opVec.acts)
-	fmt.Printf("sort %v dtuops in %v\n", len(opVec.acts), time.Since(startTs))
-}
-
-func maxU64(a, b uint64) uint64 {
-	if a < b {
-		return b
-	}
-	return a
-}
-
-func minU64(a, b uint64) uint64 {
-	if a < b {
-		return a
-	}
-	return b
+	fmt.Fprintf(opActLog, "sort %v dtuops in %v\n", len(opVec.acts), time.Since(startTs))
 }

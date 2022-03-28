@@ -5,6 +5,8 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"log"
 	"os"
 	"sort"
@@ -371,13 +373,14 @@ func (sess *SessBroadcaster) DispatchToConcurSinkers(
 		disSinkCount)
 
 	startTs := time.Now()
-	sess.emitEventsToSubscribersEx(jobCount, subs)
+	sess.emitEventsToSubscribersEx(jobCount, subs, ioutil.Discard)
 	fmt.Printf("# event dispatching cost %v\n", time.Since(startTs))
 }
 
 func (sess SessBroadcaster) emitEventsToSubscribersEx(
 	jobCount int,
 	sinkers map[codec.EngineTypeCode][]sessintf.ConcurEventSinker,
+	dbgStream io.Writer,
 ) {
 	// Divide the cake
 	totCount := len(sess.items)
@@ -413,7 +416,7 @@ func (sess SessBroadcaster) emitEventsToSubscribersEx(
 	workerFunc := func(eventSlice []codec.DpfEvent, wSlot *WorkSlot, nameI int) {
 		defer wg.Done()
 		startTs := time.Now()
-		fmt.Printf("%v working on %v item(s), evntTypesCount(%v),\n",
+		fmt.Fprintf(dbgStream, "%v working on %v item(s), evntTypesCount(%v),\n",
 			wSlot.ToString(),
 			len(eventSlice),
 			len(wSlot.subscribers))
@@ -432,7 +435,7 @@ func (sess SessBroadcaster) emitEventsToSubscribersEx(
 			}
 		}
 		wSlot.FinalizeSlot()
-		fmt.Printf("%v is quitting. %v consumed\n",
+		fmt.Fprintf(dbgStream, "%v is quitting. %v consumed\n",
 			wSlot.ToString(),
 			time.Since(startTs),
 		)
@@ -452,14 +455,14 @@ func (sess SessBroadcaster) emitEventsToSubscribersEx(
 	wg.Wait()
 
 	// Merge results
-	fmt.Printf("starting merging results\n")
+	fmt.Fprintf(dbgStream, "starting merging results\n")
 	for i := 0; i < workerItemCount; i++ {
-		fmt.Printf("merging with [%v]...\n", i)
+		fmt.Fprintf(dbgStream, "merging with [%v]...\n", i)
 		startTs := time.Now()
 		workers[i].DoReduce(sinkers)
-		fmt.Printf("done in %v\n", time.Since(startTs))
+		fmt.Fprintf(dbgStream, "done in %v\n", time.Since(startTs))
 	}
-	fmt.Printf("done merging\n")
+	fmt.Fprintf(dbgStream, "done merging\n")
 }
 
 func (sess SessBroadcaster) emitEventsToSubscribersSequentials(

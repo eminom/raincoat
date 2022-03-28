@@ -2,11 +2,16 @@ package rtdata
 
 import (
 	"fmt"
+	"io"
 	"sort"
 	"time"
 
 	"git.enflame.cn/hai.bai/dmaster/codec"
 	"git.enflame.cn/hai.bai/dmaster/vgrule"
+)
+
+var (
+	fwActLog = io.Discard
 )
 
 type FwActCollector struct {
@@ -45,7 +50,7 @@ func (fwa FwActCollector) AxSelfClone() ActCollector {
 func (fwa FwActCollector) MergeInto(lhs ActCollector) {
 	master := lhs.(*FwActCollector)
 	// fwa.DoSort()
-	fmt.Printf("merge %v Fw Acts into master(currently %v)\n",
+	fmt.Fprintf(fwActLog, "merge %v Fw Acts into master(currently %v)\n",
 		len(fwa.acts), len(master.acts))
 	master.acts = append(master.acts, fwa.acts...)
 	master.debugEventVec = append(master.debugEventVec, fwa.debugEventVec...)
@@ -55,5 +60,5 @@ func (fwa FwActCollector) DoSort() {
 	// In-place sort works
 	startTs := time.Now()
 	sort.Sort(fwa.acts)
-	fmt.Printf("sort %v fw acts in %v\n", len(fwa.acts), time.Since(startTs))
+	fmt.Fprintf(fwActLog, "sort %v fw acts in %v\n", len(fwa.acts), time.Since(startTs))
 }

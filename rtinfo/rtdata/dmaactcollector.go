@@ -2,11 +2,16 @@ package rtdata
 
 import (
 	"fmt"
+	"io"
 	"sort"
 	"time"
 
 	"git.enflame.cn/hai.bai/dmaster/codec"
 	"git.enflame.cn/hai.bai/dmaster/vgrule"
+)
+
+var (
+	dmaActLog = io.Discard
 )
 
 type DmaActCollector struct {
@@ -28,7 +33,7 @@ func (q DmaActCollector) GetAlgo() vgrule.ActMatchAlgo {
 }
 
 func (q DmaActCollector) DumpInfo() {
-	fmt.Printf("%v Dma Acts found\n", len(q.acts))
+	fmt.Fprintf(dmaActLog, "%v Dma Acts found\n", len(q.acts))
 
 	chDictInAll := make(map[int]int)
 	for _, v := range q.acts {
@@ -39,7 +44,7 @@ func (q DmaActCollector) DumpInfo() {
 		chDictInAll[index]++
 	}
 
-	fmt.Printf("# Dma Op event distribution:\n")
+	fmt.Fprintf(dmaActLog, "# Dma Op event distribution:\n")
 	for index, count := range chDictInAll {
 		masterVal, ctx := q.eAlgo.DecodeChan(index)
 		engTy, engIdx, clusterId := q.eAlgo.DecodeMasterValue(masterVal)
@@ -68,7 +73,7 @@ func (dmaVec DmaActCollector) AxSelfClone() ActCollector {
 func (dmaVec DmaActCollector) MergeInto(lhs ActCollector) {
 	master := lhs.(*DmaActCollector)
 	// dmaVec.DoSort()
-	fmt.Printf("merge %v Dma Acts into master(currently %v)\n",
+	fmt.Fprintf(dmaActLog, "merge %v Dma Acts into master(currently %v)\n",
 		len(dmaVec.acts), len(master.acts))
 	master.acts = append(master.acts, dmaVec.acts...)
 	master.debugEventVec = append(master.debugEventVec, dmaVec.debugEventVec...)
@@ -77,5 +82,5 @@ func (dmaVec DmaActCollector) MergeInto(lhs ActCollector) {
 func (dmaVec DmaActCollector) DoSort() {
 	startTs := time.Now()
 	sort.Sort(dmaVec.acts)
-	fmt.Printf("sort %v dma ops in %v\n", len(dmaVec.acts), time.Since(startTs))
+	fmt.Fprintf(dmaActLog, "sort %v dma ops in %v\n", len(dmaVec.acts), time.Since(startTs))
 }

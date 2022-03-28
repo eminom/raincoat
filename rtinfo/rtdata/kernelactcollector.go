@@ -2,11 +2,16 @@ package rtdata
 
 import (
 	"fmt"
+	"io"
 	"sort"
 	"time"
 
 	"git.enflame.cn/hai.bai/dmaster/codec"
 	"git.enflame.cn/hai.bai/dmaster/vgrule"
+)
+
+var (
+	kernelActLog = io.Discard
 )
 
 type KernelActCollector struct {
@@ -28,7 +33,7 @@ func (q KernelActCollector) GetAlgo() vgrule.ActMatchAlgo {
 }
 
 func (q KernelActCollector) DumpInfo() {
-	fmt.Printf("%v Dma Acts found\n", len(q.acts))
+	fmt.Fprintf(kernelActLog, "%v Dma Acts found\n", len(q.acts))
 
 	chDictInAll := make(map[int]int)
 	for _, v := range q.acts {
@@ -59,7 +64,7 @@ func (q KernelActCollector) AxSelfClone() ActCollector {
 func (q KernelActCollector) MergeInto(lhs ActCollector) {
 	master := lhs.(*KernelActCollector)
 	// dmaVec.DoSort()
-	fmt.Printf("merge %v Dma Acts into master(currently %v)\n",
+	fmt.Fprintf(kernelActLog, "merge %v Dma Acts into master(currently %v)\n",
 		len(q.acts), len(master.acts))
 	master.acts = append(master.acts, q.acts...)
 	master.debugEventVec = append(master.debugEventVec, q.debugEventVec...)
@@ -68,5 +73,5 @@ func (q KernelActCollector) MergeInto(lhs ActCollector) {
 func (q KernelActCollector) DoSort() {
 	startTs := time.Now()
 	sort.Sort(q.acts)
-	fmt.Printf("sort %v dma ops in %v\n", len(q.acts), time.Since(startTs))
+	fmt.Fprintf(kernelActLog, "sort %v dma ops in %v\n", len(q.acts), time.Since(startTs))
 }
