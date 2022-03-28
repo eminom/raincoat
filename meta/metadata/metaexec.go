@@ -232,7 +232,7 @@ func (es ExecScope) GetSubOpIndexMap() map[int][]string {
 
 type PacketIdInfoMap struct {
 	PktIdToSubIdx map[int]int // Start and End packet id share the same sub index
-	PktIdToName   map[int]string
+	PktIdToName   map[int]map[int]string
 }
 
 func (es ExecScope) GetPacketToSubIdxMap() PacketIdInfoMap {
@@ -248,19 +248,41 @@ func (es ExecScope) GetPacketToSubIdxMap() PacketIdInfoMap {
 
 	// Setup a map, op id to its name sequence
 	// With validation
-	opIdToSubOpNameSeq := make(map[int][]string)
+	opIdToSubOpNameSeq := make(map[int][]map[int]string)
+
+	// sub index   0,                    1,                2
+	// sub name    ---------------------------------------------------
+	//               |
+	//               |----> factor__0
+	//               |----> factor__1
+	//               |----> factor__2
+	//               |----> factor__3
+
 	for opId, subSeq := range es.subOpMap {
-		slaveOpNameMap := make(map[int]string)
+		// slaveOpNameMap: slave-index to thread-id to name
+		slaveOpNameMap := make(map[int]map[int]string)
+		getOrNewForSub := func(subOpId int) map[int]string {
+			var dc map[int]string
+			var ok bool
+			dc, ok = slaveOpNameMap[subOpId]
+			if !ok {
+				dc = make(map[int]string)
+				slaveOpNameMap[subOpId] = dc
+			}
+			return dc
+		}
 		for _, subOp := range subSeq {
-			if name, ok := slaveOpNameMap[subOp.SlaveOpId]; ok {
-				if name != subOp.SubOpName {
+			var subDict map[int]string
+			var ok bool
+			if subDict, ok = slaveOpNameMap[subOp.SlaveOpId]; ok {
+				if _, ok = subDict[subOp.Tid]; ok {
 					fmt.Fprintf(os.Stderr,
-						"# ERROR: inconsistent sub op information: %s vs %s, op id(%v)\n",
-						name, subOp.SubOpName,
-						subOp.MasterOpId)
+						"# ERROR: duplicate tid(%v) at op id(%v), sub index(%v)\n",
+						subOp.Tid, subOp.MasterOpId, subOp.SlaveOpId)
 				}
-			} else {
-				slaveOpNameMap[subOp.SlaveOpId] = subOp.SubOpName
+			}
+			if !ok {
+				getOrNewForSub(subOp.SlaveOpId)[subOp.Tid] = subOp.SubOpName
 			}
 		}
 		var subIndexVec []int
@@ -283,6 +305,9 @@ func (es ExecScope) GetPacketToSubIdxMap() PacketIdInfoMap {
 
 		if valid {
 			for _, idx := range subIndexVec {
+				// idx is the sub index
+				// Now we need to correlct tid to sub name
+				// (for there are different sub op name for different tid)
 				opIdToSubOpNameSeq[opId] =
 					append(opIdToSubOpNameSeq[opId],
 						slaveOpNameMap[idx])
@@ -292,7 +317,7 @@ func (es ExecScope) GetPacketToSubIdxMap() PacketIdInfoMap {
 
 	// The return values of this function
 	pktIdToSubIdx := make(map[int]int)
-	pktIdToNameStr := make(map[int]string)
+	pktIdToNameStr := make(map[int]map[int]string)
 	// for packet id to name:  some entry may be missing if the verification fails
 
 	for opId, pktIdSeq := range opIdToPktSeq {

@@ -25,6 +25,7 @@ func NewSubOpTracker(
 
 // -1 for no op id
 func (sot SubOpTracker) LocateOpId(taskId int,
+	engineIndex int,
 	startCycle, endCycle uint64) (opId int, subOpIndex int, subOpName string) {
 	opId = -1
 	subOpIndex = -1
@@ -56,6 +57,7 @@ func (sot SubOpTracker) LocateOpId(taskId int,
 	//      Cqm Op Start           Cqm Op Start
 	//                         Sip Start
 	var maxFit float64 = -1.0
+	var opMatched rtdata.OpActivity
 	for startIdx := lo; startIdx >= lo-1; startIdx-- {
 		if startIdx >= 0 && startIdx < len(opSeq) {
 			thisOpAct := opSeq[startIdx]
@@ -64,32 +66,57 @@ func (sot SubOpTracker) LocateOpId(taskId int,
 			r := (rightCy - leftCy) / duration
 			if r > maxFit {
 				maxFit = r
-				opId = thisOpAct.GetOp().OpId
-
-				// check sub idx
-				thisTaskId := thisOpAct.GetTaskID()
-				elSubIndex := -1
-				var subName string
-				if subMap, ok := sot.taskToPidSubIdx[thisTaskId]; ok &&
-					subMap != nil {
-					if index, ok := subMap.PktIdToSubIdx[thisOpAct.Start.PacketID]; ok {
-						elSubIndex = index
-						subName = "" // update sub name along
-						if name, ok := subMap.PktIdToName[thisOpAct.Start.PacketID]; ok {
-							subName = name
-						}
-					}
-				}
-				if elSubIndex >= 0 {
-					// Update return values
-					subOpIndex = elSubIndex
-					subOpName = subName
-				} else {
-					fmt.Fprintf(os.Stderr, "could not determine sub index")
-				}
+				opMatched = thisOpAct
 			}
 		}
 	}
+
+	if maxFit >= 0 {
+
+		opId = opMatched.GetOp().OpId
+
+		// check sub idx
+		thisTaskId := opMatched.GetTaskID()
+		elSubIndex := -1
+		var subName string
+		if subMap, ok := sot.taskToPidSubIdx[thisTaskId]; ok &&
+			subMap != nil {
+			if index, ok := subMap.PktIdToSubIdx[opMatched.Start.PacketID]; ok {
+
+				subName = "" // update sub name along
+				var subNameFound bool
+				if subInfoDict, ok := subMap.PktIdToName[opMatched.Start.PacketID]; ok {
+
+					var subIdxOk bool
+					subIdx, subIdxOk := subMap.PktIdToSubIdx[opMatched.Start.PacketID]
+					if !subIdxOk {
+						subIdx = -1
+					}
+
+					subName, subNameFound = subInfoDict[engineIndex]
+					if !subNameFound {
+						fmt.Fprintf(os.Stderr, "# ERROR: no info for tid(%v), op_id(%v), sub(%v)\n",
+							engineIndex,
+							opId,
+							subIdx,
+						)
+					}
+				}
+
+				if subNameFound {
+					elSubIndex = index
+				}
+			}
+		}
+		if elSubIndex >= 0 {
+			// Update return values
+			subOpIndex = elSubIndex
+			subOpName = subName
+		} else {
+			fmt.Fprintf(os.Stderr, "could not determine sub index\n")
+		}
+	}
+
 	// fmt.Printf("max fit %v\n", maxFit)
 	return
 }

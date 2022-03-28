@@ -19,6 +19,7 @@ func GenerateKerenlActSeq(
 			tid := act.RtInfo.TaskId
 			opId, subIdx, subOpName := sot.LocateOpId(
 				tid,
+				act.GetEngineIndex(),
 				act.StartCycle(),
 				act.EndCycle(),
 			)
