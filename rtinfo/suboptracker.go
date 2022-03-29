@@ -30,6 +30,9 @@ func (sot SubOpTracker) LocateOpId(taskId int,
 	opId = -1
 	subOpIndex = -1
 
+	// Wrap engine index:
+	engineIndex %= 4
+
 	// Check for duration zero
 	if endCycle <= startCycle {
 		return
