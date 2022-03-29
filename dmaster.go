@@ -147,6 +147,7 @@ func main() {
 			if *fDumpmeta {
 				pbLoader.DumpMeta()
 				pbLoader.DumpRuntimeInformation(inputName)
+				pbLoader.DumpMisc(inputName)
 				return
 			}
 

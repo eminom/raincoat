@@ -105,6 +105,10 @@ func (pb pbLoader) DumpRuntimeInformation(inputNameHint string) {
 	pb.dumpRuntimeTasks(inputNameHint)
 }
 
+func (pb pbLoader) DumpMisc(inputNameHint string) {
+	pb.dumpMisc(inputNameHint)
+}
+
 func (pb pbLoader) dumpTimepoints(inputNameHint string) {
 	outName := fmt.Sprintf("%v_timeinfo.pbdumptxt", inputNameHint)
 	fout, err := os.Create(outName)
@@ -134,6 +138,19 @@ func (pb pbLoader) dumpRuntimeTasks(inputNameHint string) {
 			task.GetExecUuid(),
 			task.GetPgMask(),
 		)
+	}
+}
+
+func (pb pbLoader) dumpMisc(inputNameHint string) {
+	outName := fmt.Sprintf("%v_misc.pbdumptxt", inputNameHint)
+	fout, err := os.Create(outName)
+	if err != nil {
+		panic(fmt.Errorf("could not open %v: %v", outName, err))
+	}
+	defer fout.Close()
+	fmt.Fprintf(fout, "config:\n")
+	for k, v := range pb.pbObj.Info.ConfigInfo.Config {
+		fmt.Fprintf(fout, "%v %v\n", k, v)
 	}
 }
 
