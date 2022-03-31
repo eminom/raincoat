@@ -14,6 +14,10 @@ var (
 	ErrInvalidPacketId   = errors.New("invalid packet id")
 )
 
+type SuperExecScope interface {
+	GetPacketToSubIdxMap() PacketIdInfoMap
+}
+
 type ExecScope struct {
 	execUuid  uint64
 	pktIdToOp map[int]int
@@ -339,7 +343,8 @@ func (es ExecScope) GetPacketToSubIdxMap() PacketIdInfoMap {
 		} else {
 			if !efconst.IsInvalidOpId(opId) {
 				fmt.Fprintf(os.Stderr,
-					"# error: No packet id to name map genereated for op id(%v)\n",
+					"# error: (%v)No packet id to name map genereated for op id(%v)\n",
+					fmt.Sprintf("0x%016x", es.execUuid)[:10],
 					opId)
 			}
 		}

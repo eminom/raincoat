@@ -9,6 +9,7 @@ import (
 	"sort"
 
 	"git.enflame.cn/hai.bai/dmaster/meta/metadata"
+	"git.enflame.cn/hai.bai/dmaster/rtinfo/infoloader"
 	"git.enflame.cn/hai.bai/dmaster/rtinfo/rtdata"
 	"git.enflame.cn/hai.bai/dmaster/topsdev/proto/pbdef/topspb"
 )
@@ -34,7 +35,7 @@ func NewPbLoader(inputFile string) (loader pbLoader, err error) {
 	return
 }
 
-func (pb pbLoader) LoadTask() (taskMap map[int]*rtdata.RuntimeTask, taskIdOrder []int, ok bool) {
+func (pb pbLoader) LoadTask(oneSolid bool) (taskMap map[int]*rtdata.RuntimeTask, taskIdOrder []int, ok bool) {
 	taskMap = make(map[int]*rtdata.RuntimeTask)
 	for _, task := range pb.pbObj.Dtu.Runtime.Task.TaskData {
 		// fmt.Printf("%v 0x%016x %v\n", *task.TaskId, *task.ExecUuid, *task.PgMask)
@@ -55,6 +56,14 @@ func (pb pbLoader) LoadTask() (taskMap map[int]*rtdata.RuntimeTask, taskIdOrder 
 		}
 		taskIdOrder = append(taskIdOrder, taskId)
 	}
+
+	if len(taskIdOrder) == 0 {
+		if oneSolid {
+			// Exception is made
+			return infoloader.OneSolidTaskLoader{}.LoadTask(oneSolid)
+		}
+	}
+
 	sort.Ints(taskIdOrder)
 	ok = true
 	return
@@ -157,6 +166,11 @@ func (pb pbLoader) dumpMisc(inputNameHint string) {
 func (pb pbLoader) LoadWildcards(checkExist func(str string) bool,
 	notifyNew func(uint64, *metadata.ExecScope)) {
 
+	// no task record, will load all exec into wild
+	for _, seri := range pb.pbObj.Dtu.Meta.GetExecutableProfileSerialize() {
+		execMeta := ParseProfileSection(seri, DummyStdout{})
+		notifyNew(execMeta.GetExecUuid(), execMeta)
+	}
 }
 
 type PbComplex struct {

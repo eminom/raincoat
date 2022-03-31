@@ -12,33 +12,9 @@ import (
 	"strings"
 
 	"git.enflame.cn/hai.bai/dmaster/efintf"
-	"git.enflame.cn/hai.bai/dmaster/efintf/efconst"
 	"git.enflame.cn/hai.bai/dmaster/meta/metadata"
 	"git.enflame.cn/hai.bai/dmaster/rtinfo/rtdata"
 )
-
-type oneSolidTaskLoader struct{}
-
-func (oneSolidTaskLoader) LoadTask() (dc map[int]*rtdata.RuntimeTask,
-	taskSequentials []int,
-	ok bool,
-) {
-	const theTaskID = efconst.SolidTaskID
-	dc = make(map[int]*rtdata.RuntimeTask)
-	dc[theTaskID] = &rtdata.RuntimeTask{
-		RuntimeTaskBase: rtdata.RuntimeTaskBase{TaskID: theTaskID,
-			ExecutableUUID: 0,
-			PgMask:         0,
-		},
-		StartCycle: 0,
-		EndCycle:   1 << 63, //
-		CycleValid: true,
-		MetaValid:  true,
-	}
-	taskSequentials = []int{theTaskID}
-	ok = true
-	return
-}
 
 type taskFileLoader struct {
 	startupPath string
@@ -48,7 +24,7 @@ func (d taskFileLoader) GetRuntimeTaskPath() string {
 	return filepath.Join(d.startupPath, "runtime_task.txt")
 }
 
-func (d taskFileLoader) LoadTask() (dc map[int]*rtdata.RuntimeTask,
+func (d taskFileLoader) LoadTask(oneSolid bool) (dc map[int]*rtdata.RuntimeTask,
 	taskSequentials []int,
 	ok bool,
 ) {
@@ -64,7 +40,7 @@ func NewMetaFileLoader(startup string, oneTaskMode bool) *metaFileLoader {
 	return &metaFileLoader{
 		TaskLoader: (func() efintf.TaskLoader {
 			if oneTaskMode {
-				return oneSolidTaskLoader{}
+				return OneSolidTaskLoader{}
 			}
 			return taskFileLoader{startupPath: startup}
 		})(),

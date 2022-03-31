@@ -50,6 +50,7 @@ var (
 
 	// DB rendering options
 	fSipBusy = flag.Bool("sipbusy", false, "dump sip busy events")
+	fNoSubop = flag.Bool("nosubop", false, "no sub op processing")
 )
 
 func init() {
@@ -203,6 +204,7 @@ func main() {
 			OneTask:     oneTask,
 			DumpSipBusy: *fSipBusy,
 			SeqIdx:      fileIdx,
+			NoSubop:     *fNoSubop,
 		})
 	}
 	for i := 0; i < rbCount; i++ {

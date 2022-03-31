@@ -11,7 +11,7 @@ type RingBufferLoader interface {
 }
 
 type TaskLoader interface {
-	LoadTask() (map[int]*rtdata.RuntimeTask, []int, bool)
+	LoadTask(oneSolid bool) (map[int]*rtdata.RuntimeTask, []int, bool)
 }
 
 type InfoReceiver interface {

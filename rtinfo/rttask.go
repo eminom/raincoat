@@ -98,8 +98,9 @@ func (rtm *RuntimeTaskManagerBase) GetTaskForId(taskId int) (
 func (rtm *RuntimeTaskManager) LoadRuntimeTask(
 	infoReceiver efintf.InfoReceiver,
 ) bool {
-	dc, taskSequentials, ok := infoReceiver.LoadTask()
-	if !ok {
+	dc, taskSequentials, ok := infoReceiver.LoadTask(rtm.isOneSolidTask)
+	if !ok || len(dc) == 0 {
+		fmt.Fprintf(os.Stderr, "# No task loaded\n")
 		return false
 	}
 	rtm.taskIdToTask, rtm.taskIdVec = dc, taskSequentials
@@ -189,10 +190,18 @@ func (r *RuntimeTaskManager) LoadMeta(
 	r.execKnowledge = execKm
 }
 
-func (r *RuntimeTaskManager) FindExecFor(execUuid uint64) metadata.ExecScope {
+func (r RuntimeTaskManager) FindExecFor(execUuid uint64) metadata.ExecScope {
 	exec, ok := r.execKnowledge.FindExecScope(execUuid)
 	assert.Assert(ok, "Must be there")
 	return exec
+}
+
+func (r RuntimeTaskManager) MustFindExecFor(
+	execUuid uint64) metadata.SuperExecScope {
+	if !efconst.IsWildcardExecuuid(execUuid) {
+		return r.FindExecFor(execUuid)
+	}
+	return r.execKnowledge
 }
 
 func (r *RuntimeTaskManager) LookupOpIdByPacketID(
@@ -389,7 +398,7 @@ func (rtm RuntimeTaskManager) GenerateSubOpTracker(
 			nil,
 		)
 		if !found {
-			fmt.Printf("# Cqm Op meta missing for no exhaustive search")
+			fmt.Printf("# Cqm Op meta missing for non-exhaustive search\n")
 			continue
 		}
 		if opInfo, err := rtm.LookupOpIdByPacketID(
@@ -414,15 +423,22 @@ func (rtm RuntimeTaskManager) GenerateSubOpTracker(
 
 	execToSubIdxMap := make(map[uint64]*metadata.PacketIdInfoMap)
 	getSubIdxMap := func(execUuid uint64) *metadata.PacketIdInfoMap {
-		if execUuid == 0 {
-			return nil
-		}
 		subMap, ok := execToSubIdxMap[execUuid]
-		if !ok {
-			subMapObj := rtm.FindExecFor(execUuid).GetPacketToSubIdxMap()
+		if ok {
+			return subMap
+		}
+
+		if efconst.IsWildcardExecuuid(execUuid) {
+			subMapObj := rtm.MustFindExecFor(execUuid).GetPacketToSubIdxMap()
 			subMap = &subMapObj
 			execToSubIdxMap[execUuid] = subMap
+			return subMap
 		}
+
+		// And load by exec-uuid
+		subMapObj := rtm.FindExecFor(execUuid).GetPacketToSubIdxMap()
+		subMap = &subMapObj
+		execToSubIdxMap[execUuid] = subMap
 		return subMap
 	}
 	taskToPacketToSub := make(map[int]*metadata.PacketIdInfoMap)
@@ -431,7 +447,8 @@ func (rtm RuntimeTaskManager) GenerateSubOpTracker(
 			taskToPacketToSub[taskId] = getSubIdxMap(task.ExecutableUUID)
 		}
 	}
-	return NewSubOpTracker(taskIdToOpSeq, taskToPacketToSub)
+	return NewSubOpTracker(taskIdToOpSeq, taskToPacketToSub,
+		rtm.isOneSolidTask)
 }
 
 /*
@@ -516,6 +533,15 @@ func (rtm RuntimeTaskManager) locateTask(
 	matcher MatchPhysicalEngine,
 	extraMatch MatchExtraConds,
 ) (rv rtdata.OrderTask, found bool) {
+
+	if rtm.isOneSolidTask {
+		if len(rtm.orderedTaskVector) > 0 {
+			return rtm.orderedTaskVector[0], true
+		}
+		// False
+		return
+	}
+
 	idxStart := rtm.upperBoundForTaskVec(evt.Cycle)
 	found = false
 	vec := rtm.orderedTaskVector

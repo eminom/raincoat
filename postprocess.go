@@ -19,6 +19,7 @@ type PostProcessOpt struct {
 	OneTask     bool
 	DumpSipBusy bool
 	SeqIdx      int
+	NoSubop     bool
 }
 
 type PostProcessor struct {
@@ -216,10 +217,14 @@ func (p *PostProcessor) DoPostProcessing() {
 		dtuOps, unProcessed := p.rtDict.GenerateDtuOps(p.qm.OpActivity(),
 			p.curAlgo)
 		// Process kernel activities(SIPs)
-		subOps := p.rtDict.GenerateKernelActs(
-			p.kernelVec.KernelActivity(),
-			p.qm.OpActivity(),
-			p.curAlgo)
+
+		var subOps []rtdata.KernelActivity
+		if !p.procOpt.NoSubop {
+			subOps = p.rtDict.GenerateKernelActs(
+				p.kernelVec.KernelActivity(),
+				p.qm.OpActivity(),
+				p.curAlgo)
+		}
 
 		// Generate task timeline(depends on OPs information)
 		p.taskActMap = p.rtDict.GenerateTaskOps(
@@ -239,14 +244,19 @@ func (p *PostProcessor) DoPostProcessing() {
 		}
 
 		dumpFullCycles(dtuOps)
-		rtinfo.GenerateBriefOpsStat(
-			p.rtDict.FindExecFor,
-			dtuOps,
-			p.taskActMap,
-			p.rtDict.GetOrderedTaskVec(),
-			p.rtDict.CopyTaskVec(),
-		)
 
+		if !p.procOpt.OneTask {
+			// Only valid for vg mode
+			// There is no true One-Task session.
+			// There is only session with a bundle of task without host trace
+			rtinfo.GenerateBriefOpsStat(
+				p.rtDict.FindExecFor,
+				dtuOps,
+				p.taskActMap,
+				p.rtDict.GetOrderedTaskVec(),
+				p.rtDict.CopyTaskVec(),
+			)
+		}
 		tr.DumpTaskVec(p.taskActMap,
 			p.rtDict.GetOrderedTaskVec(),
 			p.tm,

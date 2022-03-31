@@ -22,6 +22,32 @@ type ExecRaw struct {
 	pkOpMap PktToOpMap
 }
 
+func (e ExecRaw) GetPacketToSubIdxMap() metadata.PacketIdInfoMap {
+	pktIdToSubIdx := make(map[int]int)
+	pktIdToName := make(map[int]map[int]string)
+
+	mergeOne := func(es *metadata.ExecScope) {
+		pktInfo := es.GetPacketToSubIdxMap()
+		for pktId, subIdx := range pktInfo.PktIdToSubIdx {
+			pktIdToSubIdx[pktId] = subIdx
+		}
+		for pktId, subNameMap := range pktInfo.PktIdToName {
+			// Assuming there is no duplicated
+			pktIdToName[pktId] = subNameMap
+		}
+	}
+	for _, es := range e.bundle {
+		mergeOne(es)
+	}
+	for _, es := range e.wilds {
+		mergeOne(es)
+	}
+	return metadata.PacketIdInfoMap{
+		PktIdToSubIdx: pktIdToSubIdx,
+		PktIdToName:   pktIdToName,
+	}
+}
+
 func (e *ExecRaw) LoadMeta(execUuid uint64) bool {
 	if _, ok := e.bundle[execUuid]; ok {
 		return true
@@ -99,7 +125,14 @@ func (e ExecRaw) DumpInfo() {
 func (e ExecRaw) WalkExecScopes(walk func(exec *metadata.ExecScope) bool) {
 	for _, es := range e.wilds {
 		if !walk(es) {
-			break
+			return
+		}
+	}
+
+	// Now walk everywhere: March 31, 2022
+	for _, es := range e.bundle {
+		if !walk(es) {
+			return
 		}
 	}
 }

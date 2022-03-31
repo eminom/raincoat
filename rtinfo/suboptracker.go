@@ -1,6 +1,7 @@
 package rtinfo
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"os"
@@ -9,17 +10,26 @@ import (
 	"git.enflame.cn/hai.bai/dmaster/rtinfo/rtdata"
 )
 
+var (
+	errNoPktEntryInfo = errors.New("no entry for pkt-id")
+)
+
 type SubOpTracker struct {
 	taskIdToOpSeq   map[int][]rtdata.OpActivity
 	taskToPidSubIdx map[int]*metadata.PacketIdInfoMap
+	oneTaskFlag     bool
+	errPidMet       map[int]bool
 }
 
 func NewSubOpTracker(
 	taskIdToOpSeq map[int][]rtdata.OpActivity,
-	taskToPidSubIdx map[int]*metadata.PacketIdInfoMap) SubOpTracker {
+	taskToPidSubIdx map[int]*metadata.PacketIdInfoMap,
+	oneTaskFlag bool) SubOpTracker {
 	return SubOpTracker{
 		taskIdToOpSeq:   taskIdToOpSeq,
 		taskToPidSubIdx: taskToPidSubIdx,
+		oneTaskFlag:     oneTaskFlag,
+		errPidMet:       make(map[int]bool),
 	}
 }
 
@@ -31,7 +41,9 @@ func (sot SubOpTracker) LocateOpId(taskId int,
 	subOpIndex = -1
 
 	// Wrap engine index:
-	engineIndex %= 4
+	if !sot.oneTaskFlag {
+		engineIndex %= 4
+	}
 
 	// Check for duration zero
 	if endCycle <= startCycle {
@@ -74,6 +86,8 @@ func (sot SubOpTracker) LocateOpId(taskId int,
 		}
 	}
 
+	var possibleErr error
+
 	if maxFit >= 0 {
 
 		opId = opMatched.GetOp().OpId
@@ -109,6 +123,8 @@ func (sot SubOpTracker) LocateOpId(taskId int,
 				if subNameFound {
 					elSubIndex = index
 				}
+			} else {
+				possibleErr = errNoPktEntryInfo
 			}
 		}
 		if elSubIndex >= 0 {
@@ -116,10 +132,54 @@ func (sot SubOpTracker) LocateOpId(taskId int,
 			subOpIndex = elSubIndex
 			subOpName = subName
 		} else {
-			fmt.Fprintf(os.Stderr, "could not determine sub index\n")
+			sot.showDiagnosis(opMatched, possibleErr, maxFit)
 		}
 	}
-
 	// fmt.Printf("max fit %v\n", maxFit)
 	return
+}
+
+func (sot SubOpTracker) showDiagnosis(
+	op rtdata.OpActivity,
+	errPossible error,
+	maxFit float64) {
+	pid := op.Start.PacketID
+	if sot.errPidMet[pid] {
+		return
+	}
+	fmt.Fprintf(os.Stderr,
+		"could not determine sub index: %v, pid(%v), engine_id(%v), max fit(%v)\n",
+		errPossible,
+		op.Start.PacketID,
+		op.Start.EngineIndex,
+		maxFit)
+
+	sot.errPidMet[pid] = true
+	taskId := op.GetTaskID()
+	subMap, ok := sot.taskToPidSubIdx[taskId]
+	if !ok {
+		fmt.Fprintf(os.Stderr, "# no sub map for task id %v\n", taskId)
+		return
+	}
+
+	_, ok = subMap.PktIdToSubIdx[pid]
+	if !ok {
+		fmt.Fprintf(os.Stderr, "# no sub index for packet id %v\n", pid)
+		return
+	}
+
+	nameDc, ok := subMap.PktIdToName[pid]
+	if !ok {
+		fmt.Fprintf(os.Stderr, "# no sub name set for packet id %v\n", pid)
+		return
+	}
+
+	_, ok = nameDc[op.Start.EngineIndex]
+	if !ok {
+		fmt.Fprintf(os.Stderr,
+			"# no name info for engine %v, pkt id %v\n",
+			op.Start.EngineIndex,
+			pid,
+		)
+	}
 }
