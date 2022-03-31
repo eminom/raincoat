@@ -429,7 +429,7 @@ func (rtm RuntimeTaskManager) GenerateSubOpTracker(
 		}
 
 		if efconst.IsWildcardExecuuid(execUuid) {
-			subMapObj := rtm.MustFindExecFor(execUuid).GetPacketToSubIdxMap()
+			subMapObj := rtm.MustFindExecFor(execUuid).GetPacketToSubIdxMapV2()
 			subMap = &subMapObj
 			execToSubIdxMap[execUuid] = subMap
 			return subMap

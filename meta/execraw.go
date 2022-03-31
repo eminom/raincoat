@@ -22,6 +22,7 @@ type ExecRaw struct {
 	pkOpMap PktToOpMap
 }
 
+// This method is ideal
 func (e ExecRaw) GetPacketToSubIdxMap() metadata.PacketIdInfoMap {
 	pktIdToSubIdx := make(map[int]int)
 	pktIdToName := make(map[int]map[int]string)
@@ -46,6 +47,34 @@ func (e ExecRaw) GetPacketToSubIdxMap() metadata.PacketIdInfoMap {
 		PktIdToSubIdx: pktIdToSubIdx,
 		PktIdToName:   pktIdToName,
 	}
+}
+
+// This method is more robust
+func (e ExecRaw) GetPacketToSubIdxMapV2() metadata.PacketIdInfoMap {
+	opIdToPktSeq := make(map[int][]int)
+	opIdToSubOpNameSeq := make(map[int][]map[int]string)
+	opIdToNameString := make(map[int]string)
+
+	mergeOne := func(es *metadata.ExecScope) {
+		opSet1, opIdToName, opSet2 := es.GetOpToPktInfoCollection()
+		for opId, pktSeq := range opSet1 {
+			opIdToPktSeq[opId] = pktSeq
+		}
+		for opId, pktToNameSeq := range opSet2 {
+			opIdToSubOpNameSeq[opId] = pktToNameSeq
+		}
+		for opId, name := range opIdToName {
+			opIdToNameString[opId] = name
+		}
+	}
+	for _, es := range e.bundle {
+		mergeOne(es)
+	}
+	for _, es := range e.wilds {
+		mergeOne(es)
+	}
+	return metadata.SynsthesisPktInfoDict(0,
+		opIdToPktSeq, opIdToNameString, opIdToSubOpNameSeq)
 }
 
 func (e *ExecRaw) LoadMeta(execUuid uint64) bool {
