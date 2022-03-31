@@ -239,9 +239,10 @@ type PacketIdInfoMap struct {
 	PktIdToName   map[int]map[int]string
 }
 
-func (es ExecScope) GetPacketToSubIdxMap() PacketIdInfoMap {
+func (es ExecScope) GetOpToPktInfoCollection() (
+	opIdToPktSeq map[int][]int, opIdToSubOpNameSeq map[int][]map[int]string) {
 	// op id to packet id seq
-	opIdToPktSeq := make(map[int][]int)
+	opIdToPktSeq = make(map[int][]int)
 	for pktId, opId := range es.pktIdToOp {
 		opIdToPktSeq[opId] = append(opIdToPktSeq[opId], pktId)
 	}
@@ -252,7 +253,7 @@ func (es ExecScope) GetPacketToSubIdxMap() PacketIdInfoMap {
 
 	// Setup a map, op id to its name sequence
 	// With validation
-	opIdToSubOpNameSeq := make(map[int][]map[int]string)
+	opIdToSubOpNameSeq = make(map[int][]map[int]string)
 
 	// sub index   0,                    1,                2
 	// sub name    ---------------------------------------------------
@@ -318,7 +319,12 @@ func (es ExecScope) GetPacketToSubIdxMap() PacketIdInfoMap {
 			}
 		}
 	}
+	return
+}
 
+func SynsthesisPktInfoDict(execUuid uint64,
+	opIdToPktSeq map[int][]int,
+	opIdToSubOpNameSeq map[int][]map[int]string) PacketIdInfoMap {
 	// The return values of this function
 	pktIdToSubIdx := make(map[int]int)
 	pktIdToNameStr := make(map[int]map[int]string)
@@ -344,7 +350,7 @@ func (es ExecScope) GetPacketToSubIdxMap() PacketIdInfoMap {
 			if !efconst.IsInvalidOpId(opId) {
 				fmt.Fprintf(os.Stderr,
 					"# error: (%v)No packet id to name map genereated for op id(%v)\n",
-					fmt.Sprintf("0x%016x", es.execUuid)[:10],
+					fmt.Sprintf("0x%016x", execUuid)[:10],
 					opId)
 			}
 		}
@@ -354,4 +360,10 @@ func (es ExecScope) GetPacketToSubIdxMap() PacketIdInfoMap {
 		pktIdToSubIdx,
 		pktIdToNameStr,
 	}
+}
+
+func (es ExecScope) GetPacketToSubIdxMap() PacketIdInfoMap {
+	opIdToPktSeq, opIdToSubOpNameSeq := es.GetOpToPktInfoCollection()
+	return SynsthesisPktInfoDict(es.GetExecUuid(),
+		opIdToPktSeq, opIdToSubOpNameSeq)
 }
