@@ -384,9 +384,13 @@ func (sess SessBroadcaster) emitEventsToSubscribersEx(
 ) {
 	// Divide the cake
 	totCount := len(sess.items)
+	if totCount <= 0 {
+		fmt.Fprintf(os.Stderr, "#Error : No dpf buffer\n")
+		os.Exit(1)
+	}
 	workerItemCount, segmentSize := DefaultJobDivider().
 		DetermineWorkThread(jobCount,
-			len(sess.items))
+			totCount)
 
 	// Create work slot array
 	workers := make([]*WorkSlot, workerItemCount)
