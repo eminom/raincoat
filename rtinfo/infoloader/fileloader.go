@@ -163,6 +163,10 @@ func (d metaFileLoader) LoadTimepoints() (hosttp []rtdata.HostTimeEntry, ok bool
 	return
 }
 
+func (metaFileLoader) ExtractHostInfo() *rtdata.HostInfo {
+	return nil
+}
+
 func (d metaFileLoader) LoadWildcards(checkExist func(str string) bool,
 	notfiyNew func(uint64, *metadata.ExecScope)) {
 	entries, err := os.ReadDir(d.startupPath)

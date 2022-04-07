@@ -163,6 +163,28 @@ func (pb pbLoader) dumpMisc(inputNameHint string) {
 	}
 }
 
+func (pb pbLoader) ExtractHostInfo() *rtdata.HostInfo {
+	var verInfo rtdata.VersionInfo
+	if pb.pbObj.GetInfo() != nil && pb.pbObj.GetInfo().GetVersionInfo() != nil {
+		vi := pb.pbObj.GetInfo().GetVersionInfo()
+		verInfo = rtdata.VersionInfo{
+			SdkVersion:   vi.GetSdkVersion(),
+			FrameworkVer: vi.GetFrameworkVersion(),
+			// ProfileDataName: vi.ProfileDataName,
+			// ProfileDataType: vi.GetProfileVersion().ProfileDataType,
+			// ProfileDataVer:  vi.GetProfileDataVersion(),
+		}
+	}
+	return &rtdata.HostInfo{
+		CommandInfo: rtdata.CommandInfo{
+			Command: pb.pbObj.Info.CommandInfo.GetCommand(),
+			StartTs: uint64(pb.pbObj.Info.CommandInfo.GetStartTimestamp()),
+			EndTs:   uint64(pb.pbObj.Info.CommandInfo.GetEndTimestamp()),
+		},
+		VerInfo: verInfo,
+	}
+}
+
 func (pb pbLoader) LoadWildcards(checkExist func(str string) bool,
 	notifyNew func(uint64, *metadata.ExecScope)) {
 

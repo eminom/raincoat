@@ -39,6 +39,7 @@ type PostProcessor struct {
 	dtuOps     []rtdata.OpActivity
 	subOps     []rtdata.KernelActivity
 	taskActMap map[int]rtdata.FwActivity
+	host       rtdata.HostInfo
 }
 
 func NewPostProcesser(loader efintf.InfoReceiver,
@@ -68,6 +69,12 @@ func NewPostProcesser(loader efintf.InfoReceiver,
 			EnableExtendedTimeline: enableExtendedTimeline,
 		})
 	tm.LoadTimepoints(loader)
+
+	var hostInfo rtdata.HostInfo
+	if hi := loader.ExtractHostInfo(); hi != nil {
+		hostInfo = *hi //copy
+	}
+
 	return PostProcessor{
 		loader:    loader,
 		curAlgo:   curAlgo,
@@ -79,6 +86,7 @@ func NewPostProcesser(loader efintf.InfoReceiver,
 		kernelVec: kernelVec,
 		tm:        tm,
 		procOpt:   ppOpt,
+		host:      hostInfo,
 	}
 }
 
@@ -124,6 +132,9 @@ func (p PostProcessor) GetConcurSinkers(
 }
 
 type DbDumper interface {
+	DumpHostInfo(
+		hostInfo rtdata.HostInfo,
+	)
 	DumpDtuOps(
 		coords rtdata.Coords,
 		bundle []rtdata.OpActivity,
@@ -155,6 +166,11 @@ type DbDumper interface {
 }
 
 func (p PostProcessor) DumpToDb(coord rtdata.Coords, dbe DbDumper) {
+
+	dbe.DumpHostInfo(
+		p.host,
+	)
+
 	dbe.DumpDtuOps(
 		coord,
 		p.dtuOps, p.tm,

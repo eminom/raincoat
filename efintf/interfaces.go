@@ -19,4 +19,5 @@ type InfoReceiver interface {
 	LoadTimepoints() ([]rtdata.HostTimeEntry, bool)
 	LoadExecScope(execUuid uint64) *metadata.ExecScope
 	LoadWildcards(checkExist func(str string) bool, notifyNew func(uint64, *metadata.ExecScope))
+	ExtractHostInfo() *rtdata.HostInfo
 }

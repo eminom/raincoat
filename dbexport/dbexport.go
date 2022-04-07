@@ -35,16 +35,27 @@ type AddFwTrace func(idx, nodeID, devID, clusterID, ctxID int, name string,
 	engineID int,
 )
 
-type DbSession struct {
-	targetName string
-	dbObject   *sql.DB
-	idx        int
-
+type ItemStat struct {
 	dtuOpCount    int
 	taskActCount  int
 	fwOpCount     int
 	dmaOpCount    int
 	kernelOpCount int
+	cmdInfoCount  int
+	verInfoCount  int
+	platformCount int
+}
+
+func (item ItemStat) GetOpCount() int {
+	return item.dtuOpCount + item.taskActCount
+}
+
+type DbSession struct {
+	targetName string
+	dbObject   *sql.DB
+	idx        int
+
+	itemStat ItemStat
 }
 
 func ifFileExist(file string) bool {
@@ -79,13 +90,19 @@ func (dbs *DbSession) Close() {
 	hs := NewHeaderSess(dbs.dbObject)
 	// Finalize headers, not until the end do we know the count
 	hs.AddHeader("dtu_op", "1.0",
-		TableCategory_DTUOpActivity, dbs.dtuOpCount+dbs.taskActCount, "ns")
+		TableCategory_DTUOpActivity, dbs.itemStat.GetOpCount(), "ns")
 	hs.AddHeader("fw", "1.0",
-		TableCategory_DTUFwActivity, dbs.fwOpCount, "ns")
+		TableCategory_DTUFwActivity, dbs.itemStat.fwOpCount, "ns")
 	hs.AddHeader("memcpy", "1.0",
-		TableCategory_DTUMemcpyActivity, dbs.dmaOpCount, "ns")
+		TableCategory_DTUMemcpyActivity, dbs.itemStat.dmaOpCount, "ns")
 	hs.AddHeader("kernel", "1.0",
-		TableCategory_DTUKernelActivity, dbs.kernelOpCount, "ns")
+		TableCategory_DTUKernelActivity, dbs.itemStat.kernelOpCount, "ns")
+	hs.AddHeader("command", "2.0",
+		TableCategory_CommandInfo, dbs.itemStat.cmdInfoCount, "ns")
+	hs.AddHeader("version", "2.0",
+		TableCategory_VersionInfo, dbs.itemStat.verInfoCount, "ns")
+	hs.AddHeader("platform", "2.0",
+		TableCategroy_Platform, dbs.itemStat.platformCount, "ns")
 	hs.Close()
 	// And finally , close DB handle
 	dbs.dbObject.Close()
@@ -127,7 +144,7 @@ func (dbs *DbSession) DumpDtuOps(
 					act.GetOp().OpId, name,
 					DtuOpRowName,
 				)
-				dbs.dtuOpCount++
+				dbs.itemStat.dtuOpCount++
 				dbs.idx++
 			} else {
 				convertToHostError++
@@ -189,7 +206,7 @@ func (dbs *DbSession) DumpTaskVec(
 			0, name,
 			rowName,
 		)
-		dbs.taskActCount++
+		dbs.itemStat.taskActCount++
 		dbs.idx++
 	}
 }
@@ -265,7 +282,7 @@ func (dbs *DbSession) DumpFwActs(
 				packetID, act.Start.EngineTy,
 				act.Start.EngineIndex, rowName,
 			)
-			dbs.fwOpCount++
+			dbs.itemStat.fwOpCount++
 			dbs.idx++
 		} else {
 			convertToHostError++
@@ -343,7 +360,7 @@ func (dbs *DbSession) DumpDmaActs(
 				act.GetEngineIndex(),
 				act.GetVcId(),
 			)
-			dbs.dmaOpCount++
+			dbs.itemStat.dmaOpCount++
 			dbs.idx++
 		} else {
 			convertToHostError++
@@ -399,7 +416,7 @@ func (dbs *DbSession) DumpKernelActs(
 				packetID, act.Start.EngineTy,
 				act.GetEngineIndex(), rowName,
 			)
-			dbs.kernelOpCount++
+			dbs.itemStat.kernelOpCount++
 			dbs.idx++
 		}
 	}
@@ -408,4 +425,25 @@ func (dbs *DbSession) DumpKernelActs(
 		dbs.targetName,
 	)
 
+}
+
+func (dbs *DbSession) DumpHostInfo(
+	hostInfo rtdata.HostInfo,
+) {
+	// Miscellaneous
+	cmdS := NewCmdInfoSession(dbs.dbObject)
+	dbs.itemStat.cmdInfoCount++
+	cmdS.AddCmdInfo(hostInfo.CommandInfo.Command,
+		hostInfo.CommandInfo.StartTs, hostInfo.CommandInfo.EndTs)
+	cmdS.Close()
+
+	verS := NewVerInfoSession(dbs.dbObject)
+	dbs.itemStat.verInfoCount++
+	verS.AddVerInfo(hostInfo.VerInfo.SdkVersion, hostInfo.VerInfo.FrameworkVer)
+	verS.Close()
+
+	platS := NewPlatformInfoSession(dbs.dbObject)
+	dbs.itemStat.platformCount++
+	platS.AddPlatform("platform")
+	platS.Close()
 }
