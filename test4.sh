@@ -15,7 +15,7 @@ fi
 #echo decode for ${INF}
 INF="/home/hai.bai/data18/cluster_ringbuf_0.dump.bin"
 OUT="result.txt"
-$(pwd)/build/dmaster -meta /home/hai.bai/data18/meta ${INF} | tee ${OUT}
+$(pwd)/build/dmaster -rawdpf -meta /home/hai.bai/data18/meta ${INF} | tee ${OUT}
 
 if [[ x$? == x0 ]]; then
   echo result save to ${OUT}

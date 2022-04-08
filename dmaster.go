@@ -34,7 +34,7 @@ var (
 	)
 	fMetaStartup = flag.String("meta", "",
 		"meta startup folder, if need to do some post-processing meta must be specified")
-	fPbMode = flag.Bool("pb", false, "protobuf mode, the latest state-of-art")
+	fRawDpf = flag.Bool("rawdpf", false, "raw dpf buffer content from file")
 
 	fEnableExTime = flag.Bool("extimeline", false, "enable extended timeline")
 	fWithoutDma   = flag.Bool("nodma", false, "disable dma event parsing")
@@ -53,9 +53,30 @@ var (
 	fNoSubop = flag.Bool("nosubop", false, "no sub op processing")
 )
 
+// package
+var (
+	fDoradoRun = flag.Bool("i20", false, "dorado go")
+	fPavoRun   = flag.Bool("t20", false, "pavo go")
+)
+
 func init() {
 	flag.Parse()
 	log.SetFlags(log.Lshortfile)
+
+	// Override
+	if *fDoradoRun && *fPavoRun {
+		log.Fatal("error flag t20 i20 shall not meet")
+	}
+	if *fDoradoRun {
+		*fArch = "dorado"
+		*fDump = true
+		*fRaw = true
+	}
+	if *fPavoRun {
+		*fArch = "pavo"
+		*fDump = true
+		*fRaw = true
+	}
 
 	switch *fArch {
 	case "pavo":
@@ -138,7 +159,7 @@ func main() {
 			return
 		}
 
-		if *fPbMode {
+		if !*fRawDpf {
 			inputName := flag.Args()[0]
 			pbLoader, err := topsdev.NewPbComplex(inputName, oneTask)
 			if err != nil {
@@ -171,7 +192,7 @@ func main() {
 	}
 
 	if *fDump {
-		if *fPbMode {
+		if !*fRawDpf {
 			// only decode the very first one
 			cidToDecode := 0
 			chunk := contentLoader.LoadRingBufferContent(cidToDecode, 0)

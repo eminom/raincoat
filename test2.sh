@@ -11,7 +11,7 @@ make
 INF="raw_dpf.bin"
 OUT="result.txt"
 rm -rfv ${OUT}
-time $(pwd)/build/dmaster -dump -raw -subr 7 ${INF} > ${OUT}
+time $(pwd)/build/dmaster -rawdpf -dump -raw -subr 7 ${INF} > ${OUT}
 
 if [[ x$? == x0 ]]; then
   tail -10 ${OUT}
@@ -21,7 +21,7 @@ fi
 H1=$(sha256sum ${OUT}|awk '{print $1}')
 
 OUT1="result1.txt"
-time $(pwd)/build/dmaster -dump -raw -subr 1 ${INF} > ${OUT1}
+time $(pwd)/build/dmaster -rawdpf -dump -raw -subr 1 ${INF} > ${OUT1}
 
 H2=$(sha256sum ${OUT1}|awk '{print $1}')
 
@@ -33,7 +33,7 @@ else
   echo SUCCESS the same hash ${H1}
 fi
 
-if [[ x${H1} == xb1518745f9e485f9f48c06136b2d24d9c713c7c076b2f126361798402103c8c3 ]]; then
+if [[ x${H1} == x3e1507ef7a5c14fcadfd334fb454e98664585281dff39e085028702e42a29557 ]]; then
   echo SUCCESS MATCHED
 else
   echo ERROR MISMATCHED
