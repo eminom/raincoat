@@ -1,9 +1,12 @@
 package topsdev
 
 import (
+	"archive/zip"
 	"bytes"
 	"errors"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"log"
 	"os"
 )
@@ -68,8 +71,40 @@ func (t *TokenScanner) NextChunk(need int) []byte {
 	return rv
 }
 
+func openZipFile(inputFile string) (*os.File, error) {
+	zipReader, zipErr := zip.OpenReader(inputFile)
+	if zipErr != nil {
+		return os.Open(inputFile)
+	}
+	var fileNames []string
+	for _, file := range zipReader.Reader.File {
+		zippedFile, err := file.Open()
+		if err != nil {
+			panic(err)
+		}
+		tmpFile, err := ioutil.TempFile(os.TempDir(), "prefix-")
+		if err != nil {
+			panic(err)
+		}
+		_, err = io.Copy(tmpFile, zippedFile)
+		if err != nil {
+			panic(err)
+		}
+		tmpFile.Close()
+		fileNames = append(fileNames, tmpFile.Name())
+	}
+
+	if len(fileNames) <= 0 {
+		return nil, errors.New("no suitable file for content")
+	}
+	if len(fileNames) > 1 {
+		log.Printf("warning: INPUT more THAN 1")
+	}
+	return os.Open(fileNames[0])
+}
+
 func DecodeFile(inputFile string) (hd ProfHeader, body []byte, err error) {
-	fin, err := os.Open(inputFile)
+	fin, err := openZipFile(inputFile)
 	if err != nil {
 		log.Printf("error open \"%v\":%v", inputFile, err)
 		return
