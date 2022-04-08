@@ -1,0 +1,33 @@
+#!/bin/bash
+if [ -z $1 ]; then
+  exit 0
+fi
+INPUT=$1
+if [[ ! -f ${INPUT} ]]; then
+  echo ${INPUT} not exists 1>&2
+  exit 1
+fi
+DM=$(which dmaster)
+if [ -z $DM ]; then
+  echo no dmaster 1>&2
+  exit 1
+fi
+
+RFILE=$(mktemp)
+SOUT="sips.txt"
+
+${DM} -i20 ${INPUT} > ${RFILE}
+if [[ x$? != x0 ]]; then
+  echo error dmaster procesing 1>&2
+  exit 1
+fi
+
+cat ${RFILE} |grep ^SIP > ${SOUT}
+echo "#statistics for events for SIP:"
+cat ${SOUT}|awk '{print $5}'|sort -u
+
+echo "# statistics for SIP distribution"
+cat ${SOUT}|awk '{print $1,$2,$3,$4,$5}'|sort -u
+
+echo "# statistics for SIP PIDs"
+cat ${SOUT}|awk '{print $6}'|sort -u

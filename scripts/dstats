@@ -1,0 +1,26 @@
+#!/bin/bash
+if [ -z $1 ]; then
+  exit 0
+fi
+INPUT=$1
+if [[ ! -f ${INPUT} ]]; then
+  echo ${INPUT} not exists 1>&2
+  exit 1
+fi
+DM=$(which dmaster)
+if [ -z $DM ]; then
+  echo no dmaster 1>&2
+  exit 1
+fi
+
+RFILE=$(mktemp)
+SOUT="sips.txt"
+
+${DM} -i20 ${INPUT} > ${RFILE}
+if [[ x$? != x0 ]]; then
+  echo error dmaster procesing 1>&2
+  exit 1
+fi
+
+echo "# engines:"
+cat ${RFILE}|awk '{print $1}'|sort -u
