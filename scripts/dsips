@@ -1,7 +1,28 @@
 #!/bin/bash
+
+# default to dorado
+ARCH="-i20"
+
+TY=$1
+case x${TY} in
+xt20|xpavo)
+  ARCH="-t20"
+  shift
+;;
+xi20|xdorado)
+  ARCH="-i20"
+  shift
+;;
+*)
+;;
+esac
+
 if [ -z $1 ]; then
+  echo need input
   exit 0
 fi
+
+
 INPUT=$1
 if [[ ! -f ${INPUT} ]]; then
   echo ${INPUT} not exists 1>&2
@@ -16,7 +37,7 @@ fi
 RFILE=$(mktemp)
 SOUT="sips.txt"
 
-${DM} -i20 ${INPUT} > ${RFILE}
+${DM} ${ARCH} ${INPUT} > ${RFILE}
 if [[ x$? != x0 ]]; then
   echo error dmaster procesing 1>&2
   exit 1
