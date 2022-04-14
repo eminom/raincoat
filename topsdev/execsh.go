@@ -96,15 +96,16 @@ func SizeOfShSectionHeader() int {
 type ExecRawData struct {
 	ExecUuid  uint64
 	DataChunk []byte
+	DataType  int
 }
 
-func LoadProfSectionDataFromExecutable(filename string) []ExecRawData {
+func LoadSectionsFromExec(filename string) []ExecRawData {
 	chunk, err := os.ReadFile(filename)
 	if err != nil {
 		log.Fatalf("error open %v: %v", filename, err)
 	}
 
-	var profileVec []ExecRawData
+	var rawVec []ExecRawData
 	uVal := reflect.ValueOf(chunk).Pointer()
 	sec := *(*C.ExecutableHeader)(unsafe.Pointer(uVal))
 
@@ -118,26 +119,42 @@ func LoadProfSectionDataFromExecutable(filename string) []ExecRawData {
 			offset := int(shSec.sh_offset)
 			chunkSize := int(shSec.sh_size)
 			sli := chunk[offset : offset+chunkSize]
-			profileVec = append(profileVec, ExecRawData{
+			rawVec = append(rawVec, ExecRawData{
 				DataChunk: bytes.Repeat(sli, 1),
 				ExecUuid:  uint64(sec.crc64),
+				DataType:  SHT_PROFILE,
+			})
+		} else if shSec.sh_type == SHT_KERN_ASSERT_INFO {
+			log.Printf("%v(SHT_KERN_ASSERT_INFO) detected", SHT_KERN_ASSERT_INFO)
+			offset := int(shSec.sh_offset)
+			chunkSize := int(shSec.sh_size)
+			sli := chunk[offset : offset+chunkSize]
+			rawVec = append(rawVec, ExecRawData{
+				DataChunk: bytes.Repeat(sli, 1),
+				ExecUuid:  uint64(sec.crc64),
+				DataType:  SHT_KERN_ASSERT_INFO,
 			})
 		} else {
 			fmt.Printf("sec type %v\n", shSec)
 		}
 	}
-	return profileVec
+	return rawVec
 }
 
-func DumpProfileSectionFromExecutable(filename string) {
-	chunkVec := LoadProfSectionDataFromExecutable(filename)
+func DumpSectionsFromExecutable(filename string) {
+	chunkVec := LoadSectionsFromExec(filename)
 	for _, execRaw := range chunkVec {
-		execScope := ParseProfileSectionFromData(execRaw.DataChunk,
-			execRaw.ExecUuid,
-			os.Stdout,
-		)
-		execScope.DumpDtuOpToFile()
-		execScope.DumpDmaToFile()
-		execScope.DumpPktOpMapToFile()
+		switch execRaw.DataType {
+		case SHT_PROFILE:
+			execScope := ParseProfileSectionFromData(execRaw.DataChunk,
+				execRaw.ExecUuid,
+				os.Stdout,
+			)
+			execScope.DumpDtuOpToFile()
+			execScope.DumpDmaToFile()
+			execScope.DumpPktOpMapToFile()
+		case SHT_KERN_ASSERT_INFO:
+			NewAssertRtDict(execRaw).DumpAssertInfo()
+		}
 	}
 }

@@ -155,7 +155,8 @@ func main() {
 
 	if len(flag.Args()) >= 1 {
 		if *fExec {
-			topsdev.DumpProfileSectionFromExecutable(flag.Args()[0])
+			inputFile := flag.Args()[0]
+			topsdev.DumpSectionsFromExecutable(inputFile)
 			return
 		}
 
