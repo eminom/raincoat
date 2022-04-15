@@ -351,15 +351,12 @@ func (ps ProfileSecPipBoy) ExtractArgsAt(offset int, args int) map[string]string
 	start := offset
 
 	extractOne := func() string {
-		for start < len(ps.stringPool) && ps.stringPool[start] == 0 {
-			start++
-		}
 		i := start
 		for i < len(ps.stringPool) && ps.stringPool[i] != 0 {
 			i++
 		}
 		oneStr := string(ps.stringPool[start:i])
-		start = i
+		start = i + 1 // skip the last zero
 		return oneStr
 	}
 	for j := 0; j < args; j++ {
