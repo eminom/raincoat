@@ -138,10 +138,10 @@ func main() {
 	var contentLoader efintf.RingBufferLoader
 
 	var oneTask = (func() bool {
-		switch *fArch {
-		case "pavo":
-			return true
-		}
+		// switch *fArch {
+		// case "pavo":
+		// 	return true
+		// }
 		return false
 	})()
 
