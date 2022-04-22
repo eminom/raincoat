@@ -51,6 +51,9 @@ var (
 	// DB rendering options
 	fSipBusy = flag.Bool("sipbusy", false, "dump sip busy events")
 	fNoSubop = flag.Bool("nosubop", false, "no sub op processing")
+
+	// Force onetask
+	fForceOneTask = flag.Bool("force1task", false, "force 1task for pavo")
 )
 
 // package
@@ -138,10 +141,10 @@ func main() {
 	var contentLoader efintf.RingBufferLoader
 
 	var oneTask = (func() bool {
-		// switch *fArch {
-		// case "pavo":
-		// 	return true
-		// }
+		switch *fArch {
+		case "pavo":
+			return *fForceOneTask
+		}
 		return false
 	})()
 

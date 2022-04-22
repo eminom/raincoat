@@ -57,11 +57,9 @@ func (pb pbLoader) LoadTask(oneSolid bool) (taskMap map[int]*rtdata.RuntimeTask,
 		taskIdOrder = append(taskIdOrder, taskId)
 	}
 
-	if len(taskIdOrder) == 0 {
-		if oneSolid {
-			// Exception is made
-			return infoloader.OneSolidTaskLoader{}.LoadTask(oneSolid)
-		}
+	if len(taskIdOrder) == 0 || oneSolid {
+		// Exception is made
+		return infoloader.OneSolidTaskLoader{}.LoadTask(oneSolid)
 	}
 
 	sort.Ints(taskIdOrder)

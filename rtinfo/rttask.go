@@ -372,7 +372,7 @@ func (rtm *RuntimeTaskManager) GenerateDtuOps(
 			})
 		}
 	}
-	fmt.Printf("Dbg op/Dtu-op meta success matched count: %v out of %v\n",
+	fmt.Printf("# Dbg op/Dtu-op meta success matched count: %v out of %v\n",
 		bingoCount,
 		len(opActVec)-terminatorCount,
 	)
@@ -385,6 +385,7 @@ func (rtm RuntimeTaskManager) GenerateSubOpTracker(
 	opActSeq []rtdata.OpActivity,
 	rule vgrule.EngineOrder) SubOpTracker {
 
+	missCount := 0
 	taskIdToOpSeq := make(map[int][]rtdata.OpActivity)
 	for i := 0; i < len(opActSeq); i++ {
 		opAct := opActSeq[i]
@@ -398,7 +399,7 @@ func (rtm RuntimeTaskManager) GenerateSubOpTracker(
 			nil,
 		)
 		if !found {
-			fmt.Printf("# Cqm Op meta missing for non-exhaustive search\n")
+			missCount++
 			continue
 		}
 		if opInfo, err := rtm.LookupOpIdByPacketID(
@@ -410,6 +411,12 @@ func (rtm RuntimeTaskManager) GenerateSubOpTracker(
 			taskId := taskInOrder.GetTaskID()
 			taskIdToOpSeq[taskId] = append(taskIdToOpSeq[taskId], opAct)
 		}
+	}
+
+	if missCount > 0 {
+		fmt.Printf(
+			"# Cqm Op meta missing %v time(s) for non-exhaustive search\n",
+			missCount)
 	}
 
 	// Pre-check
