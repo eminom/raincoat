@@ -140,10 +140,20 @@ func DecodeFile(inputFile string) (hd ProfHeader, body []byte, err error) {
 	}
 
 	body = make([]byte, bodySize)
-	dwRead, err = fin.Read(body)
-	if dwRead != len(body) {
-		log.Printf("error read less than expected for body")
-		return
+
+	left := bodySize
+	var writePtr int64 = 0
+	for left > 0 {
+		dwRead, err = fin.Read(body[writePtr:])
+		log.Printf("read rawfile: %v byte(s) read", dwRead)
+		if dwRead == 0 {
+			break
+		}
+		writePtr += int64(dwRead)
+		left -= int64(dwRead)
+	}
+	if left > 0 {
+		log.Fatalf("%v bytes missed\n", left)
 	}
 	return
 }
