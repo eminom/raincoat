@@ -5,6 +5,15 @@ import (
 	"fmt"
 )
 
+const (
+	createHeaderTable = `
+	CREATE TABLE header(table_name TEXT,version TEXT,category TEXT,count INT,time_unit TEXT);`
+)
+
+func init() {
+	RegisterTabInitCommand(createHeaderTable)
+}
+
 type HeaderSession struct {
 	TableSession
 }

@@ -7,6 +7,22 @@ import (
 	"git.enflame.cn/hai.bai/dmaster/assert"
 )
 
+const (
+	createMemcpyTable = `
+	CREATE TABLE memcpy(idx INT,name TEXT,node_id INT,description TEXT,context_id INT,
+		start_timestamp INT,end_timestamp INT,duration_timestamp INT,
+		start_cycle INT,end_cycle INT,duration_cycle INT,
+		packet_id INT,device_id INT,cluster_id INT,engine_id INT,
+		engine_type TEXT,op_id INT,op_name TEXT,
+		src_addr INT,dst_addr INT,src_size INT,dst_size INT,
+		direction TEXT,tiling_mode TEXT,vc INT,
+		args TEXT,vp_id INT,row_name TEXT,tid TEXT);`
+)
+
+func init() {
+	RegisterTabInitCommand(createMemcpyTable)
+}
+
 type DmaSession struct {
 	TableSession
 }
