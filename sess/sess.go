@@ -66,6 +66,7 @@ func getHigh32(a uint64) uint32 {
 	return uint32(a >> 32)
 }
 
+/*
 func (sess *Session) FakeStepEnd(decoder *codec.DecodeMaster) {
 	lz := len(sess.items)
 	if lz > 0 {
@@ -87,6 +88,7 @@ func (sess *Session) FakeStepEnd(decoder *codec.DecodeMaster) {
 		sess.appendItem(stepDoneEnd)
 	}
 }
+*/
 
 // Process master text, no cache
 func (sess *Session) ProcessMasterText(text string, decoder *codec.DecodeMaster) bool {
@@ -213,7 +215,6 @@ func (sess *Session) DecodeFromTextStream(
 func (sess *Session) DecodeChunk(
 	chunk []byte,
 	decoder *codec.DecodeMaster,
-	oneTask bool,
 	sugguestJobCount int,
 ) {
 	decodeChunkStartTs := time.Now()
@@ -292,11 +293,6 @@ func (sess *Session) DecodeChunk(
 	log.Printf("done decoding in %v", time.Since(decodeChunkStartTs))
 	// after all items are in place.
 
-	if oneTask && decoder.Arch == "pavo" {
-		// BAIHAI: if one task, need to fake an Step End
-		// And the decoder must be of Pavo
-		sess.FakeStepEnd(decoder)
-	}
 	if sess.sessOpt.Sort {
 		sort.Sort(codec.DpfItems(sess.items))
 	}

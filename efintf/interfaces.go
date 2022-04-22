@@ -1,6 +1,7 @@
 package efintf
 
 import (
+	"git.enflame.cn/hai.bai/dmaster/meta/dtuarch"
 	"git.enflame.cn/hai.bai/dmaster/meta/metadata"
 	"git.enflame.cn/hai.bai/dmaster/rtinfo/rtdata"
 	"git.enflame.cn/hai.bai/dmaster/topsdev/mimic/mimicdefs"
@@ -15,8 +16,13 @@ type TaskLoader interface {
 	LoadTask(oneSolid bool) (map[int]*rtdata.RuntimeTask, []int, bool)
 }
 
+type ArchTypeGet interface {
+	GetArchType() dtuarch.ArchType
+}
+
 type InfoReceiver interface {
 	TaskLoader
+	ArchTypeGet
 	LoadTimepoints() ([]rtdata.HostTimeEntry, bool)
 	LoadExecScope(execUuid uint64) *metadata.ExecScope
 	LoadWildcards(checkExist func(str string) bool, notifyNew func(uint64, *metadata.ExecScope))

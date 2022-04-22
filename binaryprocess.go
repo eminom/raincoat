@@ -13,6 +13,6 @@ func BinaryProcess(chunk []byte, decoder *codec.DecodeMaster, decodeGr int) {
 		DecodeFull:   *fDecodeFull,
 		EngineFilter: *fEng,
 	})
-	sess.DecodeChunk(chunk, decoder, false, decodeGr)
+	sess.DecodeChunk(chunk, decoder, decodeGr)
 	sess.PrintItems(*fRaw)
 }

@@ -447,7 +447,7 @@ func (dbs *DbSession) DumpHostInfo(
 	platS := NewPlatformInfoSession(dbs.dbObject)
 	for _, plInfo := range hostInfo.PlatformInfo {
 		dbs.itemStat.platformCount++
-		platS.AddPlatform(plInfo.Platform)
+		platS.AddPlatform(plInfo.Product)
 	}
 	platS.Close()
 }

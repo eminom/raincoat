@@ -30,6 +30,8 @@ func (xs *OpXState) AddOp(op rtdata.OpActivity) {
 	}
 }
 
+// Even there is no CQM_EXECUTABLE_STEP message at the end
+// We always generate the ops as we collected them already
 func (xs *OpXState) FinalizeOps() []rtdata.OpActivity {
 	if len(xs.opLane) > 0 {
 		idxSet := make(map[int]bool)
@@ -46,6 +48,8 @@ func (xs *OpXState) FinalizeOps() []rtdata.OpActivity {
 	return xs.converged
 }
 
+// Once a CQM_EXECUTABLE_STEP message is reached
+// Combine the ops information
 func (xs *OpXState) CombineOps(taskId int, ctxId int) {
 	xs.collectAtChannel(mapTaskIdContextId(taskId, ctxId))
 }

@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"git.enflame.cn/hai.bai/dmaster/efintf"
+	"git.enflame.cn/hai.bai/dmaster/meta/dtuarch"
 	"git.enflame.cn/hai.bai/dmaster/meta/metadata"
 	"git.enflame.cn/hai.bai/dmaster/rtinfo/rtdata"
 	"git.enflame.cn/hai.bai/dmaster/topsdev/mimic/mimicdefs"
@@ -47,6 +48,10 @@ func NewMetaFileLoader(startup string, oneTaskMode bool) *metaFileLoader {
 		})(),
 		startupPath: startup,
 	}
+}
+
+func (metaFileLoader) GetArchType() dtuarch.ArchType {
+	return dtuarch.EnflameUnknownArch
 }
 
 func (d metaFileLoader) GetMetaStartupPath() string {

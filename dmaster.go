@@ -13,6 +13,7 @@ import (
 	"git.enflame.cn/hai.bai/dmaster/codec"
 	"git.enflame.cn/hai.bai/dmaster/dbexport"
 	"git.enflame.cn/hai.bai/dmaster/efintf"
+	"git.enflame.cn/hai.bai/dmaster/rtinfo/archdetect"
 	"git.enflame.cn/hai.bai/dmaster/rtinfo/infoloader"
 	"git.enflame.cn/hai.bai/dmaster/rtinfo/rtdata"
 	"git.enflame.cn/hai.bai/dmaster/sess"
@@ -22,7 +23,7 @@ import (
 
 var (
 	fDebug      = flag.Bool("debug", false, "for debug output")
-	fArch       = flag.String("arch", "dorado", "hardware arch")
+	fArch       = flag.String("arch", "auto", "hardware arch")
 	fDecodeFull = flag.Bool("decodefull", false, "decode all line")
 	fSort       = flag.Bool("sort", false, "sort by order")
 	fEng        = flag.String("eng", "", "engine to filter in")
@@ -82,6 +83,7 @@ func init() {
 	}
 
 	switch *fArch {
+	case "auto":
 	case "pavo":
 	case "dorado":
 	default:
@@ -140,14 +142,6 @@ func main() {
 	var loader efintf.InfoReceiver
 	var contentLoader efintf.RingBufferLoader
 
-	var oneTask = (func() bool {
-		switch *fArch {
-		case "pavo":
-			return *fForceOneTask
-		}
-		return false
-	})()
-
 	if len(*fMetaStartup) == 0 {
 		if cwd, err := os.Getwd(); err == nil {
 			if abspath, err := filepath.Abs(cwd); err == nil {
@@ -165,7 +159,7 @@ func main() {
 
 		if !*fRawDpf {
 			inputName := flag.Args()[0]
-			pbLoader, err := topsdev.NewPbComplex(inputName, oneTask)
+			pbLoader, err := topsdev.NewPbComplex(inputName)
 			if err != nil {
 				log.Fatalf("error load in pbmode: %v", err)
 			}
@@ -182,12 +176,13 @@ func main() {
 			contentLoader = &pbLoader
 		} else {
 			metaStartup := *fMetaStartup
-			loader = infoloader.NewMetaFileLoader(metaStartup, oneTask)
+			loader = infoloader.NewMetaFileLoader(metaStartup, *fForceOneTask)
 			contentLoader = infoloader.NewContentBufferLoader(flag.Args()...)
 		}
 	}
 
-	decoder := codec.NewDecodeMaster(*fArch)
+	archDetector := archdetect.NewArchDetector(*fArch, *fForceOneTask, loader)
+	decoder := codec.NewDecodeMaster(archDetector.GetArch())
 
 	// The very ancient way
 	if len(flag.Args()) == 0 {
@@ -224,9 +219,9 @@ func main() {
 		cidToDecode := 0
 		chunk := contentLoader.LoadRingBufferContent(cidToDecode, fileIdx)
 		sess := sess.NewSessBroadcaster(loader)
-		sess.DecodeChunk(chunk, decoder, oneTask, *fDecodeRoutineCount)
+		sess.DecodeChunk(chunk, decoder, *fDecodeRoutineCount)
 		outputChan <- DoProcess(*fJob, sess, curAlgo, PostProcessOpt{
-			OneTask:     oneTask,
+			OneTask:     archDetector.GetOneTaskFlag(),
 			DumpSipBusy: *fSipBusy,
 			SeqIdx:      fileIdx,
 			NoSubop:     *fNoSubop,

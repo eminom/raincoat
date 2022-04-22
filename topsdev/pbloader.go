@@ -7,7 +7,9 @@ import (
 	"log"
 	"os"
 	"sort"
+	"strings"
 
+	"git.enflame.cn/hai.bai/dmaster/meta/dtuarch"
 	"git.enflame.cn/hai.bai/dmaster/meta/metadata"
 	"git.enflame.cn/hai.bai/dmaster/rtinfo/infoloader"
 	"git.enflame.cn/hai.bai/dmaster/rtinfo/rtdata"
@@ -160,6 +162,14 @@ func (pb pbLoader) dumpMisc(inputNameHint string) {
 	for k, v := range pb.pbObj.Info.ConfigInfo.Config {
 		fmt.Fprintf(fout, "%v %v\n", k, v)
 	}
+
+	fmt.Fprintf(fout, "\n")
+	fmt.Fprintf(fout, "platform:\n")
+	for _, pl := range pb.pbObj.GetInfo().GetPlatformInfo() {
+		fmt.Fprintf(fout, "%v\n", pl.GetArch())
+		fmt.Fprintf(fout, "%v\n", pl.GetPlatform())
+		fmt.Fprintf(fout, "%v\n", pl.GetProduct())
+	}
 }
 
 func (pb pbLoader) ExtractHostInfo() *mimicdefs.HostInfo {
@@ -207,13 +217,27 @@ func (pb pbLoader) LoadWildcards(checkExist func(str string) bool,
 	}
 }
 
+func (pb pbLoader) GetArchType() dtuarch.ArchType {
+	if pls := pb.pbObj.Info.GetPlatformInfo(); pls != nil {
+		for _, platform := range pls {
+			switch strings.ToUpper(platform.GetProduct()) {
+			case "T20":
+				return dtuarch.EnflameT20
+			case "I20", "X":
+				return dtuarch.EnflameI20
+			}
+		}
+	}
+	return dtuarch.EnflameUnknownArch
+}
+
 type PbComplex struct {
 	pbLoader
 	ringbufferContentIdx int
 }
 
 // For now one-task-mode is ignored
-func NewPbComplex(name string, oneTaskMode bool) (
+func NewPbComplex(name string) (
 	pbCom PbComplex,
 	err error,
 ) {
