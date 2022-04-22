@@ -50,6 +50,22 @@ func toType(ty reflect.Type) string {
 	return "string"
 }
 
+func isSimpleType(ty reflect.Type) bool {
+	for ty.Kind() == reflect.Pointer {
+		ty = ty.Elem()
+	}
+	switch ty.Kind() {
+	case reflect.Struct:
+		return false
+	case reflect.Int,
+		reflect.Int32,
+		reflect.Int64,
+		reflect.String:
+		return true
+	}
+	return false
+}
+
 /*
  * Example:
  * `protobuf:"bytes,1,req,name=node2dev" json:"node2dev,omitempty"`
@@ -88,6 +104,37 @@ type ReflectSrc struct {
 	TableGen string
 }
 
+// DFS append
+func appendElement(elements *[]SubElement, fields *[]string, fd reflect.StructField) {
+	if !fd.IsExported() {
+		return
+	}
+
+	if isSimpleType(fd.Type) {
+		protoBufName, ok := parseTag(string(fd.Tag))
+		if ok {
+			*elements = append(*elements, SubElement{
+				Name: protoBufName,
+				Type: fd.Type,
+			})
+
+			*fields = append(*fields,
+				fmt.Sprintf("%v %v", fd.Name, toType(fd.Type)))
+		}
+		return
+	}
+
+	complexTy := fd.Type
+	for complexTy.Kind() == reflect.Pointer {
+		complexTy = complexTy.Elem()
+	}
+	if complexTy.Kind() == reflect.Struct {
+		for i := 0; i < complexTy.NumField(); i++ {
+			appendElement(elements, fields, complexTy.Field(i))
+		}
+	}
+}
+
 func GenStructDesc(target ObjDesc) ReflectSrc {
 	ty := reflect.TypeOf(target.Obj)
 	if ty.Kind() != reflect.Struct {
@@ -97,18 +144,7 @@ func GenStructDesc(target ObjDesc) ReflectSrc {
 	var elements []SubElement
 	for i := 0; i < ty.NumField(); i++ {
 		var fd reflect.StructField = ty.Field(i)
-		if fd.IsExported() {
-			protoBufName, ok := parseTag(string(fd.Tag))
-			if ok {
-				elements = append(elements, SubElement{
-					Name: protoBufName,
-					Type: fd.Type,
-				})
-
-				fields = append(fields,
-					fmt.Sprintf("%v %v", fd.Name, toType(fd.Type)))
-			}
-		}
+		appendElement(&elements, &fields, fd)
 	}
 
 	var tig = TableInitGen{
