@@ -29,7 +29,7 @@ var (
 	fEng        = flag.String("eng", "", "engine to filter in")
 
 	fDump = flag.Bool("dump", false, "decode file and dump to stdout")
-	fRaw  = flag.Bool("raw", false,
+	fRaw  = flag.Bool("raw", true,
 		"dump raw value\n"+
 			"if -dump is set, dmaster is going to dump the original value from ring buffer\n",
 	)
@@ -74,12 +74,10 @@ func init() {
 	if *fDoradoRun {
 		*fArch = "dorado"
 		*fDump = true
-		*fRaw = true
 	}
 	if *fPavoRun {
 		*fArch = "pavo"
 		*fDump = true
-		*fRaw = true
 	}
 
 	switch *fArch {
