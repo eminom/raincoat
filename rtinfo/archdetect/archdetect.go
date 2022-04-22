@@ -2,6 +2,7 @@ package archdetect
 
 import (
 	"git.enflame.cn/hai.bai/dmaster/efintf"
+	"git.enflame.cn/hai.bai/dmaster/meta/dtuarch"
 )
 
 type ArchDetector struct {
@@ -34,5 +35,5 @@ func (ad ArchDetector) GetArch() string {
 // OneTask: strictly
 // Only pavo can be one-tasked
 func (ad ArchDetector) GetOneTaskFlag() bool {
-	return ad.GetArch() == "pavo" && ad.forceOneTask
+	return ad.getter.GetArchType() == dtuarch.EnflameT20 && ad.forceOneTask
 }
