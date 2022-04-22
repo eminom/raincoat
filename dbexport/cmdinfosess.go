@@ -19,7 +19,7 @@ func NewCmdInfoSession(db *sql.DB) *CmdInfoSession {
 	}
 }
 
-func (cmdS *CmdInfoSession) AddCmdInfo(cmd string, start, end uint64) {
+func (cmdS *CmdInfoSession) AddCmdInfo(cmd string, start, end int64) {
 	_, err := cmdS.stmt.Exec(cmd, start, end)
 	assert.Assert(err == nil, "Must be nil error: %v", err)
 }

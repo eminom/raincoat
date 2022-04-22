@@ -14,6 +14,7 @@ import (
 	"git.enflame.cn/hai.bai/dmaster/efintf"
 	"git.enflame.cn/hai.bai/dmaster/meta/metadata"
 	"git.enflame.cn/hai.bai/dmaster/rtinfo/rtdata"
+	"git.enflame.cn/hai.bai/dmaster/topsdev/mimic/mimicdefs"
 )
 
 type taskFileLoader struct {
@@ -163,7 +164,7 @@ func (d metaFileLoader) LoadTimepoints() (hosttp []rtdata.HostTimeEntry, ok bool
 	return
 }
 
-func (metaFileLoader) ExtractHostInfo() *rtdata.HostInfo {
+func (metaFileLoader) ExtractHostInfo() *mimicdefs.HostInfo {
 	return nil
 }
 

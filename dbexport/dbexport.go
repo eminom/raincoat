@@ -9,6 +9,7 @@ import (
 	"git.enflame.cn/hai.bai/dmaster/codec"
 	"git.enflame.cn/hai.bai/dmaster/rtinfo"
 	"git.enflame.cn/hai.bai/dmaster/rtinfo/rtdata"
+	"git.enflame.cn/hai.bai/dmaster/topsdev/mimic/mimicdefs"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -428,22 +429,25 @@ func (dbs *DbSession) DumpKernelActs(
 }
 
 func (dbs *DbSession) DumpHostInfo(
-	hostInfo rtdata.HostInfo,
+	hostInfo mimicdefs.HostInfo,
 ) {
 	// Miscellaneous
 	cmdS := NewCmdInfoSession(dbs.dbObject)
 	dbs.itemStat.cmdInfoCount++
 	cmdS.AddCmdInfo(hostInfo.CommandInfo.Command,
-		hostInfo.CommandInfo.StartTs, hostInfo.CommandInfo.EndTs)
+		hostInfo.CommandInfo.StartTimestamp, hostInfo.CommandInfo.EndTimestamp)
 	cmdS.Close()
 
 	verS := NewVerInfoSession(dbs.dbObject)
 	dbs.itemStat.verInfoCount++
-	verS.AddVerInfo(hostInfo.VerInfo.SdkVersion, hostInfo.VerInfo.FrameworkVer)
+	verS.AddVerInfo(hostInfo.VersionInfo.SdkVersion,
+		hostInfo.VersionInfo.FrameworkVersion)
 	verS.Close()
 
 	platS := NewPlatformInfoSession(dbs.dbObject)
-	dbs.itemStat.platformCount++
-	platS.AddPlatform("platform")
+	for _, plInfo := range hostInfo.PlatformInfo {
+		dbs.itemStat.platformCount++
+		platS.AddPlatform(plInfo.Platform)
+	}
 	platS.Close()
 }

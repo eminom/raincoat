@@ -11,6 +11,7 @@ import (
 	"git.enflame.cn/hai.bai/dmaster/meta/metadata"
 	"git.enflame.cn/hai.bai/dmaster/rtinfo/infoloader"
 	"git.enflame.cn/hai.bai/dmaster/rtinfo/rtdata"
+	"git.enflame.cn/hai.bai/dmaster/topsdev/mimic/mimicdefs"
 	"git.enflame.cn/hai.bai/dmaster/topsdev/proto/pbdef/topspb"
 )
 
@@ -161,25 +162,38 @@ func (pb pbLoader) dumpMisc(inputNameHint string) {
 	}
 }
 
-func (pb pbLoader) ExtractHostInfo() *rtdata.HostInfo {
-	var verInfo rtdata.VersionInfo
+func (pb pbLoader) ExtractHostInfo() *mimicdefs.HostInfo {
+	var verInfo mimicdefs.VersionInfo
 	if pb.pbObj.GetInfo() != nil && pb.pbObj.GetInfo().GetVersionInfo() != nil {
 		vi := pb.pbObj.GetInfo().GetVersionInfo()
-		verInfo = rtdata.VersionInfo{
-			SdkVersion:   vi.GetSdkVersion(),
-			FrameworkVer: vi.GetFrameworkVersion(),
+		verInfo = mimicdefs.VersionInfo{
+			SdkVersion:       vi.GetSdkVersion(),
+			FrameworkVersion: vi.GetFrameworkVersion(),
 			// ProfileDataName: vi.ProfileDataName,
 			// ProfileDataType: vi.GetProfileVersion().ProfileDataType,
 			// ProfileDataVer:  vi.GetProfileDataVersion(),
 		}
 	}
-	return &rtdata.HostInfo{
-		CommandInfo: rtdata.CommandInfo{
-			Command: pb.pbObj.Info.CommandInfo.GetCommand(),
-			StartTs: uint64(pb.pbObj.Info.CommandInfo.GetStartTimestamp()),
-			EndTs:   uint64(pb.pbObj.Info.CommandInfo.GetEndTimestamp()),
+
+	var platInfo []mimicdefs.PlatformInfo
+	if pb.pbObj.GetInfo() != nil && pb.pbObj.GetInfo().GetPlatformInfo() != nil {
+		for _, pl := range pb.pbObj.GetInfo().GetPlatformInfo() {
+			platInfo = append(platInfo, mimicdefs.PlatformInfo{
+				Platform:  pl.GetPlatform(),
+				OsName:    pl.GetOsName(),
+				OsVersion: pl.GetOsVersion(),
+			})
+		}
+	}
+
+	return &mimicdefs.HostInfo{
+		CommandInfo: mimicdefs.CommandInfo{
+			Command:        pb.pbObj.Info.CommandInfo.GetCommand(),
+			StartTimestamp: int64(pb.pbObj.Info.CommandInfo.GetStartTimestamp()),
+			EndTimestamp:   pb.pbObj.Info.CommandInfo.GetEndTimestamp(),
 		},
-		VerInfo: verInfo,
+		VersionInfo:  verInfo,
+		PlatformInfo: platInfo,
 	}
 }
 

@@ -12,6 +12,7 @@ import (
 	"git.enflame.cn/hai.bai/dmaster/meta"
 	"git.enflame.cn/hai.bai/dmaster/rtinfo"
 	"git.enflame.cn/hai.bai/dmaster/rtinfo/rtdata"
+	"git.enflame.cn/hai.bai/dmaster/topsdev/mimic/mimicdefs"
 	"git.enflame.cn/hai.bai/dmaster/vgrule"
 )
 
@@ -39,7 +40,7 @@ type PostProcessor struct {
 	dtuOps     []rtdata.OpActivity
 	subOps     []rtdata.KernelActivity
 	taskActMap map[int]rtdata.FwActivity
-	host       rtdata.HostInfo
+	hostInfo   mimicdefs.HostInfo
 }
 
 func NewPostProcesser(loader efintf.InfoReceiver,
@@ -70,7 +71,7 @@ func NewPostProcesser(loader efintf.InfoReceiver,
 		})
 	tm.LoadTimepoints(loader)
 
-	var hostInfo rtdata.HostInfo
+	var hostInfo mimicdefs.HostInfo
 	if hi := loader.ExtractHostInfo(); hi != nil {
 		hostInfo = *hi //copy
 	}
@@ -86,7 +87,7 @@ func NewPostProcesser(loader efintf.InfoReceiver,
 		kernelVec: kernelVec,
 		tm:        tm,
 		procOpt:   ppOpt,
-		host:      hostInfo,
+		hostInfo:  hostInfo,
 	}
 }
 
@@ -133,7 +134,7 @@ func (p PostProcessor) GetConcurSinkers(
 
 type DbDumper interface {
 	DumpHostInfo(
-		hostInfo rtdata.HostInfo,
+		hostInfo mimicdefs.HostInfo,
 	)
 	DumpDtuOps(
 		coords rtdata.Coords,
@@ -168,7 +169,7 @@ type DbDumper interface {
 func (p PostProcessor) DumpToDb(coord rtdata.Coords, dbe DbDumper) {
 
 	dbe.DumpHostInfo(
-		p.host,
+		p.hostInfo,
 	)
 
 	dbe.DumpDtuOps(

@@ -3,6 +3,7 @@ package efintf
 import (
 	"git.enflame.cn/hai.bai/dmaster/meta/metadata"
 	"git.enflame.cn/hai.bai/dmaster/rtinfo/rtdata"
+	"git.enflame.cn/hai.bai/dmaster/topsdev/mimic/mimicdefs"
 )
 
 type RingBufferLoader interface {
@@ -19,5 +20,5 @@ type InfoReceiver interface {
 	LoadTimepoints() ([]rtdata.HostTimeEntry, bool)
 	LoadExecScope(execUuid uint64) *metadata.ExecScope
 	LoadWildcards(checkExist func(str string) bool, notifyNew func(uint64, *metadata.ExecScope))
-	ExtractHostInfo() *rtdata.HostInfo
+	ExtractHostInfo() *mimicdefs.HostInfo
 }
