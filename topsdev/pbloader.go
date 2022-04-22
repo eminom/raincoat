@@ -177,11 +177,11 @@ func (pb pbLoader) ExtractHostInfo() *mimicdefs.HostInfo {
 	if pb.pbObj.GetInfo() != nil && pb.pbObj.GetInfo().GetVersionInfo() != nil {
 		vi := pb.pbObj.GetInfo().GetVersionInfo()
 		verInfo = mimicdefs.VersionInfo{
-			SdkVersion:       vi.GetSdkVersion(),
-			FrameworkVersion: vi.GetFrameworkVersion(),
-			// ProfileDataName: vi.ProfileDataName,
-			// ProfileDataType: vi.GetProfileVersion().ProfileDataType,
-			// ProfileDataVer:  vi.GetProfileDataVersion(),
+			SdkVersion:         vi.GetSdkVersion(),
+			FrameworkVersion:   vi.GetFrameworkVersion(),
+			ProfileDataName:    vi.GetProfileVersion().GetProfileDataName(),
+			ProfileDataType:    vi.GetProfileVersion().GetProfileDataType(),
+			ProfileDataVersion: vi.GetProfileVersion().GetProfileDataVersion(),
 		}
 	}
 
@@ -189,9 +189,16 @@ func (pb pbLoader) ExtractHostInfo() *mimicdefs.HostInfo {
 	if pb.pbObj.GetInfo() != nil && pb.pbObj.GetInfo().GetPlatformInfo() != nil {
 		for _, pl := range pb.pbObj.GetInfo().GetPlatformInfo() {
 			platInfo = append(platInfo, mimicdefs.PlatformInfo{
-				Platform:  pl.GetPlatform(),
-				OsName:    pl.GetOsName(),
-				OsVersion: pl.GetOsVersion(),
+				Platform:         pl.GetPlatform(),
+				OsName:           pl.GetOsName(),
+				OsVersion:        pl.GetOsVersion(),
+				Product:          pl.GetProduct(),
+				OsRelease:        pl.GetOsRelease(),
+				HostName:         pl.GetHostName(),
+				Arch:             pl.GetArch(),
+				CpuModel:         pl.GetCpuModel(),
+				CpuVendor:        pl.GetCpuVendor(),
+				DistributionName: pl.GetDistributionName(),
 			})
 		}
 	}
