@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # default to dorado
-ARCH="-i20"
+ARCH="-dump"
 
 TY=$1
 case x${TY} in
