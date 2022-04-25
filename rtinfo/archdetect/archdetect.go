@@ -11,13 +11,26 @@ type ArchDetector struct {
 	getter       efintf.ArchTypeGet
 }
 
+type deaultGetter struct{}
+
+func (deaultGetter) GetArchType() dtuarch.ArchType {
+	return dtuarch.EnflameI20
+}
+
+func getOrDefault(getter efintf.ArchTypeGet) efintf.ArchTypeGet {
+	if getter != nil {
+		return getter
+	}
+	return deaultGetter{}
+}
+
 func NewArchDetector(arch string,
 	forceOneTask bool,
 	getter efintf.ArchTypeGet) ArchDetector {
 	return ArchDetector{
 		arch,
 		forceOneTask,
-		getter,
+		getOrDefault(getter),
 	}
 }
 

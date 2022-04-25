@@ -4,6 +4,9 @@ all:
 install:	all
 	cp build/dmaster ${HOME}/bin
 
+linux:
+	GOARCH=amd64 GOOS=linux go build -o build_linux/dmaster
+
 pack:	all
 	cp scripts/* build
 	tar czvf dmaster.tar.gz build/*
