@@ -352,3 +352,10 @@ func (bl bufferLoader) LoadRingBufferContent(cid int, rbIdx int) []byte {
 	}
 	return chunk
 }
+
+func (bl bufferLoader) GetInputName() string {
+	if len(bl.rawfilenames) > 0 {
+		return bl.rawfilenames[0]
+	}
+	return "uname"
+}

@@ -55,6 +55,7 @@ var (
 
 	// Force onetask
 	fForceOneTask = flag.Bool("force1task", false, "force 1task for pavo")
+	fDumpToStd    = flag.Bool("stdout", false, "dump to stdout")
 )
 
 // package
@@ -189,16 +190,33 @@ func main() {
 	}
 
 	if *fDump {
+
+		var fout *os.File
+		if *fDumpToStd {
+			fout = os.Stdout
+		} else {
+			var err error
+			outName := contentLoader.GetInputName() + ".evtseq"
+			fout, err = os.Create(outName)
+			if err != nil {
+				panic(err)
+			}
+			defer (func() {
+				fout.Close()
+				fmt.Printf("event sequence dump to %v\n", outName)
+			})()
+		}
+
 		if !*fRawDpf {
 			// only decode the very first one
 			cidToDecode := 0
 			chunk := contentLoader.LoadRingBufferContent(cidToDecode, 0)
-			BinaryProcess(chunk, decoder, *fDecodeRoutineCount)
+			BinaryProcess(chunk, fout, decoder, *fDecodeRoutineCount)
 		} else {
 			// single raw file
 			filename := flag.Args()[0]
 			if chunk, err := os.ReadFile(filename); err == nil {
-				BinaryProcess(chunk, decoder, *fDecodeRoutineCount)
+				BinaryProcess(chunk, fout, decoder, *fDecodeRoutineCount)
 			} else {
 				panic(fmt.Errorf("could not read %v: %v", filename, err))
 			}

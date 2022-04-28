@@ -18,7 +18,8 @@ import (
 )
 
 type pbLoader struct {
-	pbObj *topspb.ProfileData
+	pbObj     *topspb.ProfileData
+	inputName string
 }
 
 func NewPbLoader(inputFile string) (loader pbLoader, err error) {
@@ -33,9 +34,14 @@ func NewPbLoader(inputFile string) (loader pbLoader, err error) {
 		return
 	}
 	loader = pbLoader{
-		pbObj: pb,
+		pbObj:     pb,
+		inputName: inputFile,
 	}
 	return
+}
+
+func (pb pbLoader) GetInputName() string {
+	return pb.inputName
 }
 
 func (pb pbLoader) LoadTask(oneSolid bool) (taskMap map[int]*rtdata.RuntimeTask, taskIdOrder []int, ok bool) {

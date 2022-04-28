@@ -16,6 +16,6 @@ func TextProcess(decoder *codec.DecodeMaster) {
 	})
 	sess.DecodeFromTextStream(os.Stdin, decoder)
 	if *fDump {
-		sess.PrintItems(*fRaw)
+		sess.PrintItems(os.Stdout, *fRaw)
 	}
 }

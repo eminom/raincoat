@@ -126,12 +126,18 @@ func (DmaDetector) IsRecyclable(DpfEvent) bool {
 	return false
 }
 
+const VC_BITCOUNT = 6
+
 func getVcVal(v int) int {
-	const VC_BITCOUNT = 6
 	// Shift 1 to elide the start/end flag
 	// and event bits are reduced from 2 bits to 1 bit
 	// Plus the Vc bits, to form the mask bit (1+VC_BITCOUNT)
 	return (v >> 1) & ((1 << (VC_BITCOUNT + 1)) - 1)
+}
+
+func GetVcId(evtVal int) int {
+	const mask = (1 << VC_BITCOUNT) - 1
+	return (evtVal >> 2) & mask
 }
 
 func getXdmaEvt(dpf DpfEvent) int {

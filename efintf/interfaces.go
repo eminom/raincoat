@@ -10,6 +10,7 @@ import (
 type RingBufferLoader interface {
 	LoadRingBufferContent(cid int, ringbufferIdx int) []byte
 	GetRingBufferCount() int
+	GetInputName() string
 }
 
 type TaskLoader interface {

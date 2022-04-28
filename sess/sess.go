@@ -298,14 +298,14 @@ func (sess *Session) DecodeChunk(
 	}
 }
 
-func (sess Session) PrintItems(printRaw bool) {
+func (sess Session) PrintItems(out io.Writer, printRaw bool) {
 	if printRaw {
 		for _, v := range sess.items {
-			fmt.Printf("%-50v : %v\n", v.ToString(), v.RawRepr())
+			fmt.Fprintf(out, "%-50v : %v\n", v.ToString(), v.RawRepr())
 		}
 	} else {
 		for _, v := range sess.items {
-			fmt.Println(v.ToString())
+			fmt.Fprintf(out, "%v\n", v.ToString())
 		}
 	}
 }

@@ -73,6 +73,13 @@ func toStartEndStr(evtFlag int) string {
 	return "unk"
 }
 
+func dmaEventTypeToString(evt int) string {
+	if evt&2 == 2 {
+		return "VC"
+	}
+	return "ENG"
+}
+
 func (d DpfEvent) ToString() string {
 	if d.Flag == 0 {
 		switch d.EngineTypeCode {
@@ -86,6 +93,14 @@ func (d DpfEvent) ToString() string {
 				d.EngineTy, d.ClusterID, d.EngineIndex, d.Context,
 				d.Event>>1, toStartEndStr(d.Event&1), d.PacketID, d.Cycle,
 			)
+		case EngCat_CDMA, EngCat_SDMA:
+			return fmt.Sprintf(
+				"%-6v %-2v %-2v %-2v event=%-4v evt=%-9v vc=%-3v pid=%v  ts=%-14d",
+				d.EngineTy, d.ClusterID, d.EngineIndex, d.Context,
+				d.Event,
+				ToDmaEventStr(d.Event),
+				GetVcId(d.Event),
+				d.PacketID, d.Cycle)
 		}
 		return fmt.Sprintf("%-10v %-2v %-2v %-2v event=%-4v pid=%v ts=%-14d",
 			d.EngineTy, d.ClusterID, d.EngineIndex, d.Context, d.Event, d.PacketID, d.Cycle)
