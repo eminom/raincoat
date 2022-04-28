@@ -59,8 +59,9 @@ func NewPostProcesser(loader efintf.InfoReceiver,
 	)
 	taskVec := rtdata.NewOpEventQueue(rtdata.NewTaskActCollector(curAlgo),
 		codec.TaskDetector{})
+	dmaDetector := codec.DmaDetector{}
 	dmaVec := rtdata.NewOpEventQueue(rtdata.NewDmaCollector(curAlgo),
-		codec.DmaDetector{},
+		&dmaDetector,
 	)
 	kernelVec := rtdata.NewOpEventQueue(rtdata.NewKernelActCollector(curAlgo),
 		codec.SipDetector{},
@@ -299,6 +300,13 @@ func (p *PostProcessor) DoPostProcessing() {
 		tr.DumpToFile("dtuop_trace.json")
 
 		startDmaTs := time.Now()
+
+		if evtFilt := p.dmaVec.GetEventFilter(); evtFilt != nil {
+			if dmaDetector, ok := evtFilt.(*codec.DmaDetector); ok {
+				ignoreCount := dmaDetector.IdmaPrefetchCount
+				fmt.Printf("DMA events up to %v are safely ignored\n", ignoreCount)
+			}
+		}
 		p.rtDict.CookDma(p.dmaVec.DmaActivity(), p.curAlgo)
 
 		fmt.Printf("dma cook and save to db cost %v\n", time.Since(startDmaTs))

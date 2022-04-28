@@ -52,6 +52,10 @@ func NewOpEventQueue(act ActCollector,
 	return &rv
 }
 
+func (q EventQueue) GetEventFilter() EventFilter {
+	return q.evtFilter
+}
+
 func (q EventQueue) GetEngineTypeCodes() []codec.EngineTypeCode {
 	return q.evtFilter.GetEngineTypes()
 }

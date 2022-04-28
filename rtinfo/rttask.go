@@ -906,6 +906,9 @@ func (rtm *RuntimeTaskManager) CookDma(
 	fmt.Printf("   %v are skipped\n", skippedDmaCount)
 	fmt.Printf("   Cdma error: %v, Sdma error: %v\n",
 		cdmaErrCount, sdmaErrCount)
+	if errDmaCount == 0 {
+		fmt.Printf("# DMA all restored successfully\n")
+	}
 	return nil
 }
 

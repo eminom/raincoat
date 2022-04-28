@@ -99,7 +99,7 @@ func (d DpfEvent) ToString() string {
 				d.EngineTy, d.ClusterID, d.EngineIndex, d.Context,
 				d.Event,
 				ToDmaEventStr(d.Event),
-				GetVcId(d.Event),
+				GetDmaVcId(d.Event),
 				d.PacketID, d.Cycle)
 		}
 		return fmt.Sprintf("%-10v %-2v %-2v %-2v event=%-4v pid=%v ts=%-14d",

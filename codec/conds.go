@@ -11,7 +11,9 @@ func isDebugOpPacket(evt DpfEvent) bool {
 
 type FwPktDetector struct{}
 type DbgPktDetector struct{}
-type DmaDetector struct{}
+type DmaDetector struct {
+	IdmaPrefetchCount int
+}
 type SipDetector struct{}
 type TaskDetector struct{}
 
@@ -115,10 +117,14 @@ func (DmaDetector) GetEngineTypes() []EngineTypeCode {
 // bit8: b'0
 // bit9~31(23 bit packet id)
 // And there is no terminator for Dma acts
-func (DmaDetector) IsStarterMark(evt DpfEvent) (bool, bool, bool) {
+func (dmaD *DmaDetector) IsStarterMark(evt DpfEvent) (bool, bool, bool) {
 	evtCode := evt.Event & 3
-	return evtCode == DmaVcExecStart || evtCode == DmaBusyStart,
-		evtCode == DmaVcExecEnd || evtCode == DmaBusyEnd,
+	mustIgnore := GetDmaVcId(evt.Event) == 16 && evt.EngineTypeCode == EngCat_SDMA
+	if mustIgnore {
+		dmaD.IdmaPrefetchCount++
+	}
+	return !mustIgnore && (evtCode == DmaVcExecStart || evtCode == DmaBusyStart),
+		!mustIgnore && (evtCode == DmaVcExecEnd || evtCode == DmaBusyEnd),
 		false
 }
 
@@ -135,7 +141,7 @@ func getVcVal(v int) int {
 	return (v >> 1) & ((1 << (VC_BITCOUNT + 1)) - 1)
 }
 
-func GetVcId(evtVal int) int {
+func GetDmaVcId(evtVal int) int {
 	const mask = (1 << VC_BITCOUNT) - 1
 	return (evtVal >> 2) & mask
 }
