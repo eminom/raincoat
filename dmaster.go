@@ -7,12 +7,14 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
 	"git.enflame.cn/hai.bai/dmaster/codec"
 	"git.enflame.cn/hai.bai/dmaster/dbexport"
 	"git.enflame.cn/hai.bai/dmaster/efintf"
+	"git.enflame.cn/hai.bai/dmaster/inspector"
 	"git.enflame.cn/hai.bai/dmaster/rtinfo/archdetect"
 	"git.enflame.cn/hai.bai/dmaster/rtinfo/infoloader"
 	"git.enflame.cn/hai.bai/dmaster/rtinfo/rtdata"
@@ -137,6 +139,11 @@ func getOutputName(a string) string {
 }
 
 func main() {
+
+	if len(flag.Args()) > 0 && strings.HasSuffix(flag.Args()[0], ".vpd") {
+		inspector.InspectMain(os.Stdout, flag.Args()[0])
+		return
+	}
 
 	var loader efintf.InfoReceiver
 	var contentLoader efintf.RingBufferLoader
