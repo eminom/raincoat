@@ -457,7 +457,15 @@ func ParseProfileSectionFromData(
 
 	// Memcpy
 	dmaInfoMap := make(map[int]metadata.DmaOp)
-	addDmaInfo := func(packetId int, dc map[string]string) {
+	addDmaInfo := func(memcpyChunk C.PbMemcpySec) {
+		packetId := int(memcpyChunk.pkt)
+		engineType := newPb.ExtractStringAt(int(memcpyChunk.engine_type))
+		engineIndx := int(memcpyChunk.engine_id)
+		// tiling mode is now -1 from sec element
+		// log.Printf("DmaEngineType code is %v, engine-idx(%v)\n",
+		// 	engineType, engineIndx)
+
+		dc := newPb.ExtractArgsAt(int(memcpyChunk.args), int(memcpyChunk.args_count))
 		if _, ok := dmaInfoMap[packetId]; ok {
 			panic(fmt.Errorf("duplicate dma packet id(in meta): %v", packetId))
 		}
@@ -465,6 +473,8 @@ func ParseProfileSectionFromData(
 		fmt.Fprintf(debugStdout, "\n")
 		dmaInfoMap[packetId] = metadata.DmaOp{
 			PktId:       packetId,
+			EngineTy:    engineType,
+			EngineIndex: engineIndx,
 			DmaOpString: dc["dma_op"],
 			Input:       dc["input"],
 			Output:      dc["output"],
@@ -477,8 +487,7 @@ func ParseProfileSectionFromData(
 		slice := rawChunk[i*elementSize:]
 		uVal := reflect.ValueOf(slice).Pointer()
 		memcpyMetaSec := *(*C.PbMemcpySec)(unsafe.Pointer(uVal))
-		dc := newPb.ExtractArgsAt(int(memcpyMetaSec.args), int(memcpyMetaSec.args_count))
-		addDmaInfo(int(memcpyMetaSec.pkt), dc)
+		addDmaInfo(memcpyMetaSec)
 	}
 
 	// SubOp

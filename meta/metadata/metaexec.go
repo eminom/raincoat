@@ -147,13 +147,16 @@ func (es ExecScope) DumpSubOpToFile() {
 }
 
 func (es ExecScope) DumpDmaToFile() {
-	filename := es.getDumpFileName("memcpy")
-	fout, err := os.Create(filename)
-	if err != nil {
-		panic(fmt.Errorf("could not open %v for: %v", filename, err))
+	typeSet := es.dmaMap.GetTypeSet()
+	for dmaEngTy := range typeSet {
+		filename := es.getDumpFileName(dmaEngTy + "_memcpy")
+		fout, err := os.Create(filename)
+		if err != nil {
+			panic(fmt.Errorf("could not open %v for: %v", filename, err))
+		}
+		es.dmaMap.FilterByEngineType(dmaEngTy).DumpToOstream(fout)
+		fout.Close()
 	}
-	defer fout.Close()
-	es.dmaMap.DumpToOstream(fout)
 }
 
 func (es ExecScope) FindOp(packetId int) (DtuOp, error) {
