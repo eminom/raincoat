@@ -54,8 +54,13 @@ func (d DmaInfoMap) DumpToOstream(fout *os.File) {
 		dmaOp := d.Info[pktId]
 		// packet id, module id, engine id. emm...
 		fmt.Fprintf(fout, "%v %v %v %v\n", pktId, 0, 0, dmaOp.DmaOpString)
-		for k, v := range dmaOp.Attrs {
-			fmt.Fprintf(fout, "  %v %v\n", k, v)
+		var keys []string
+		for k := range dmaOp.Attrs {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			fmt.Fprintf(fout, "  %v %v\n", k, dmaOp.Attrs[k])
 		}
 	}
 }
