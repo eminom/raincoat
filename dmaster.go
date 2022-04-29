@@ -141,7 +141,7 @@ func getOutputName(a string) string {
 func main() {
 
 	if len(flag.Args()) > 0 && strings.HasSuffix(flag.Args()[0], ".vpd") {
-		inspector.InspectMain(os.Stdout, flag.Args()[0])
+		inspector.InspectMain(flag.Args(), os.Stdout)
 		return
 	}
 

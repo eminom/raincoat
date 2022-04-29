@@ -10,15 +10,19 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-func InspectMemcpy(out io.Writer, db *sql.DB, engineType string) {
+const ExtraCond = " and name like \"DMA VC%%\""
+
+// const ExtraCond = " and name like \"DMA BUSY%%\""
+
+// packet id distribution
+func InspectMemcpy(out io.Writer, db *sql.DB, engineType string) map[int]int {
 	rows, err := db.Query(
-		fmt.Sprintf("SELECT distinct(tiling_mode) FROM memcpy where engine_type=\"%v\"",
+		fmt.Sprintf("SELECT distinct(tiling_mode) FROM memcpy where engine_type=\"%v\""+ExtraCond,
 			engineType),
 	)
 	if err != nil {
 		panic(err)
 	}
-
 	hasEmpty := false
 	var tilingSet = make(map[string]bool)
 	for rows.Next() {
@@ -33,11 +37,13 @@ func InspectMemcpy(out io.Writer, db *sql.DB, engineType string) {
 		}
 		tilingSet[tilingMode] = true
 	}
+	rows.Close()
 
+	//
 	tilingCount := make(map[string]int)
 	for tiling := range tilingSet {
 		rows, err = db.Query(
-			fmt.Sprintf("SELECT COUNT(*) FROM memcpy WHERE tiling_mode=\"%v\" AND engine_type=\"%v\"",
+			fmt.Sprintf("SELECT COUNT(*) FROM memcpy WHERE tiling_mode=\"%v\" AND engine_type=\"%v\""+ExtraCond,
 				tiling,
 				engineType),
 		)
@@ -52,6 +58,7 @@ func InspectMemcpy(out io.Writer, db *sql.DB, engineType string) {
 			}
 			tilingCount[tiling] = count
 		}
+		rows.Close()
 	}
 
 	var tiles []string
@@ -64,11 +71,50 @@ func InspectMemcpy(out io.Writer, db *sql.DB, engineType string) {
 		fmt.Fprintf(out, "%20v\t%v\n", t, tilingCount[t])
 	}
 
+	fmt.Fprintf(out, "### Engine type for %v in details ###\n", engineType)
+	pidSet := (func() map[int]bool {
+		cmd := fmt.Sprintf("SELECT distinct(packet_id) FROM memcpy WHERE engine_type=\"%v\""+ExtraCond, engineType)
+		rows, err := db.Query(cmd)
+		if err != nil {
+			panic(err)
+		}
+		pidSet := make(map[int]bool)
+		for rows.Next() {
+			var pktId int
+			err = rows.Scan(&pktId)
+			if err != nil {
+				panic(err)
+			}
+			pidSet[pktId] = true
+		}
+		rows.Close()
+		return pidSet
+	})()
+
+	pidCount := make(map[int]int)
+	for pid := range pidSet {
+		cmd :=
+			fmt.Sprintf("SELECT count(*) FROM memcpy WHERE packet_id=\"%v\" and engine_type=\"%v\""+ExtraCond,
+				pid, engineType)
+		rows, err := db.Query(cmd)
+		if err != nil {
+			panic(err)
+		}
+		var count int
+		for rows.Next() {
+			err = rows.Scan(&count)
+			if err != nil {
+				panic(err)
+			}
+		}
+		pidCount[pid] = count
+	}
+
 	if hasEmpty {
 		cmd := fmt.Sprintf(
-			"SELECT distinct(packet_id) FROM memcpy WHERE tiling_mode is null and engine_type=\"%v\"",
+			"SELECT distinct(packet_id) FROM memcpy WHERE (tiling_mode is null or TRIM(tiling_mode)=\"\") and engine_type=\"%v\""+ExtraCond,
 			engineType)
-		fmt.Fprintf(out, "cmd is %v\n", cmd)
+		// fmt.Fprintf(out, "cmd is %v\n", cmd)
 		rows, err = db.Query(cmd)
 		if err != nil {
 			panic(err)
@@ -93,13 +139,16 @@ func InspectMemcpy(out io.Writer, db *sql.DB, engineType string) {
 					break
 				}
 			}
+			if printCc < 0 {
+				fmt.Fprintf(out, ".... too many\n")
+			}
 		} else {
 			fmt.Fprintf(out, "all DMA meta restored\n")
 		}
 
 		// for pid := range pids {
 		// 	rows, err = db.Query(
-		// 		fmt.Sprintf("SELECT count(*) from memcpy where tiling_mode=\"\" and engine_type=\"%v\" and packet_id=%v",
+		// 		fmt.Sprintf("SELECT count(*) from memcpy where (TRIM(tiling_mode)=\"\" or tiling_mode is null) and engine_type=\"%v\" and packet_id=%v",
 		// 			engineType, pid),
 		// 	)
 		// 	if err != nil {
@@ -113,14 +162,16 @@ func InspectMemcpy(out io.Writer, db *sql.DB, engineType string) {
 		// 		}
 		// 		fmt.Fprintf(out, "%v counts to %v\n", pid, count)
 		// 	}
+		//  rows.Close()
 		// }
 	}
 	fmt.Fprintf(out, "\n")
+	return pidCount
 }
 
 func GetDistinctEngineTypes(db *sql.DB) map[string]bool {
 	rows, err := db.Query(
-		"SELECT distinct(engine_type) FROM memcpy",
+		"SELECT DISTINCT(engine_type) FROM memcpy",
 	)
 	if err != nil {
 		panic(err)
@@ -137,7 +188,7 @@ func GetDistinctEngineTypes(db *sql.DB) map[string]bool {
 	return rv
 }
 
-func InspectMain(out io.Writer, targetName string) {
+func InspectXdma(out io.Writer, targetName string) map[string]map[int]int {
 	db, err := sql.Open("sqlite3", targetName)
 	if err != nil {
 		log.Fatal(err)
@@ -149,8 +200,81 @@ func InspectMain(out io.Writer, targetName string) {
 	for e := range engines {
 		engineArr = append(engineArr, e)
 	}
+
+	distri := make(map[string]map[int]int)
 	sort.Strings(engineArr)
 	for _, engine := range engineArr {
-		InspectMemcpy(out, db, engine)
+		dis := InspectMemcpy(out, db, engine)
+		distri[engine] = dis
+	}
+	return distri
+}
+
+func InspectMain(files []string, out io.Writer) {
+	var disArr []map[string]map[int]int
+	for i := 0; i < len(files); i++ {
+		dis := InspectXdma(out, files[i])
+		disArr = append(disArr, dis)
+	}
+
+	doCmp := func(uObj, vObj string, lhs, rhs map[string]map[int]int) {
+		allEngine := make(map[string]bool)
+		for k := range lhs {
+			allEngine[k] = true
+		}
+		for k := range rhs {
+			allEngine[k] = true
+		}
+
+		for k := range allEngine {
+			fmt.Printf("# For engine(%v)\n", k)
+			if _, ok := lhs[k]; !ok {
+				fmt.Fprintf(out, "  %v is missing for %v\n", k, uObj)
+				continue
+			}
+			if _, ok := rhs[k]; !ok {
+				fmt.Fprintf(out, "  %v is missing for %v\n", k, vObj)
+				continue
+			}
+			lset, rset := lhs[k], rhs[k]
+			allPids := make(map[int]bool)
+			for p := range lset {
+				allPids[p] = true
+			}
+			for p := range rset {
+				allPids[p] = true
+			}
+			diffCount := 0
+			sameCount := 0
+			for p := range allPids {
+				if lset[p] != rset[p] {
+					diffCount++
+					if diffCount < 5 {
+						fmt.Printf("  %v Pid(%v) diffs in %v, %v\n", k, p, lset[p], rset[p])
+					}
+				} else {
+					sameCount++
+				}
+			}
+			if diffCount == 0 && sameCount > 0 {
+				fmt.Fprintf(out, "  Entries distribution are the same, %v in all\n",
+					sameCount)
+			} else {
+				fmt.Fprintf(out, "  Same entries count: %v\n", sameCount)
+				fmt.Fprintf(out, "  Diff entries count: %v\n", diffCount)
+			}
+		}
+	}
+
+	n := len(disArr)
+	for i := 0; i < n; i++ {
+		u := files[i]
+		us := disArr[i]
+		for j := i + 1; j < n; j++ {
+			v := files[j]
+			vs := disArr[j]
+			fmt.Printf("# Compare \"%v\" to \"%v\"\n", u, v)
+			doCmp(u, v, us, vs)
+		}
 	}
 }
