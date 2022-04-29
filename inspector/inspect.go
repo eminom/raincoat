@@ -1,6 +1,7 @@
 package inspector
 
 import (
+	"bytes"
 	"database/sql"
 	"fmt"
 	"io"
@@ -210,62 +211,96 @@ func InspectXdma(out io.Writer, targetName string) map[string]map[int]int {
 	return distri
 }
 
+// return true:  two map are exactly the same
+func compareDicts(uObj, vObj string, lhs, rhs map[string]map[int]int, out io.Writer) bool {
+	isSame := true
+
+	allEngine := make(map[string]bool)
+	for k := range lhs {
+		allEngine[k] = true
+	}
+	for k := range rhs {
+		allEngine[k] = true
+	}
+	for k := range allEngine {
+		fmt.Fprintf(out, "# For engine(%v)\n", k)
+		if _, ok := lhs[k]; !ok {
+			fmt.Fprintf(out, "  %v is missing for %v\n", k, uObj)
+			isSame = false
+			continue
+		}
+		if _, ok := rhs[k]; !ok {
+			fmt.Fprintf(out, "  %v is missing for %v\n", k, vObj)
+			isSame = false
+			continue
+		}
+		lset, rset := lhs[k], rhs[k]
+		allPids := make(map[int]bool)
+		for p := range lset {
+			allPids[p] = true
+		}
+		for p := range rset {
+			allPids[p] = true
+		}
+		diffCount := 0
+		sameCount := 0
+		for p := range allPids {
+			if lset[p] != rset[p] {
+				diffCount++
+				if diffCount < 5 {
+					fmt.Fprintf(out, "  %v Pid(%v) diffs in %v, %v\n", k, p, lset[p], rset[p])
+				}
+			} else {
+				sameCount++
+			}
+		}
+		if diffCount == 0 && sameCount > 0 {
+			fmt.Fprintf(out, "  Entries distribution are the same, %v in all\n",
+				sameCount)
+		} else {
+			fmt.Fprintf(out, "  Same entries count: %v\n", sameCount)
+			fmt.Fprintf(out, "  Diff entries count: %v\n", diffCount)
+		}
+
+		if diffCount > 0 {
+			isSame = false
+		}
+	}
+	return isSame
+}
+
+func countElement(distr map[string]map[int]int) int {
+	rv := 0
+	for _, dis := range distr {
+		for _, cc := range dis {
+			rv += cc
+		}
+	}
+	return rv
+}
+
+type CmpRecord struct {
+	TextLog    string
+	Filename   string
+	EntryCount int
+}
+
 func InspectMain(files []string, out io.Writer) {
 	var disArr []map[string]map[int]int
+
+	var inspectRes []CmpRecord
 	for i := 0; i < len(files); i++ {
-		dis := InspectXdma(out, files[i])
+		textOut := bytes.NewBuffer(nil)
+		dis := InspectXdma(textOut, files[i])
 		disArr = append(disArr, dis)
+		inspectRes = append(inspectRes, CmpRecord{
+			TextLog:    textOut.String(),
+			Filename:   files[i],
+			EntryCount: countElement(dis),
+		})
 	}
 
-	doCmp := func(uObj, vObj string, lhs, rhs map[string]map[int]int) {
-		allEngine := make(map[string]bool)
-		for k := range lhs {
-			allEngine[k] = true
-		}
-		for k := range rhs {
-			allEngine[k] = true
-		}
-
-		for k := range allEngine {
-			fmt.Printf("# For engine(%v)\n", k)
-			if _, ok := lhs[k]; !ok {
-				fmt.Fprintf(out, "  %v is missing for %v\n", k, uObj)
-				continue
-			}
-			if _, ok := rhs[k]; !ok {
-				fmt.Fprintf(out, "  %v is missing for %v\n", k, vObj)
-				continue
-			}
-			lset, rset := lhs[k], rhs[k]
-			allPids := make(map[int]bool)
-			for p := range lset {
-				allPids[p] = true
-			}
-			for p := range rset {
-				allPids[p] = true
-			}
-			diffCount := 0
-			sameCount := 0
-			for p := range allPids {
-				if lset[p] != rset[p] {
-					diffCount++
-					if diffCount < 5 {
-						fmt.Printf("  %v Pid(%v) diffs in %v, %v\n", k, p, lset[p], rset[p])
-					}
-				} else {
-					sameCount++
-				}
-			}
-			if diffCount == 0 && sameCount > 0 {
-				fmt.Fprintf(out, "  Entries distribution are the same, %v in all\n",
-					sameCount)
-			} else {
-				fmt.Fprintf(out, "  Same entries count: %v\n", sameCount)
-				fmt.Fprintf(out, "  Diff entries count: %v\n", diffCount)
-			}
-		}
-	}
-
+	anyDiff := false
 	n := len(disArr)
 	for i := 0; i < n; i++ {
 		u := files[i]
@@ -273,8 +308,22 @@ func InspectMain(files []string, out io.Writer) {
 		for j := i + 1; j < n; j++ {
 			v := files[j]
 			vs := disArr[j]
-			fmt.Printf("# Compare \"%v\" to \"%v\"\n", u, v)
-			doCmp(u, v, us, vs)
+			textOut := bytes.NewBuffer(nil)
+			fmt.Fprintf(textOut, "# Compare \"%v\" to \"%v\"\n", u, v)
+			isEqual := compareDicts(u, v, us, vs, textOut)
+			if isEqual {
+				fmt.Fprintf(out, "# \"%v\" and \"%v\" are the same, in %v entries\n", u, v, inspectRes[i].EntryCount)
+			} else {
+				anyDiff = true
+				fmt.Fprint(out, textOut.String())
+			}
+		}
+	}
+
+	if anyDiff {
+		for _, res := range inspectRes {
+			fmt.Fprintf(out, "# Res for %v\n", res.Filename)
+			fmt.Fprint(out, res.TextLog)
 		}
 	}
 }
