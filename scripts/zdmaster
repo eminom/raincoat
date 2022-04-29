@@ -24,7 +24,7 @@ if [[ -z ${DEVID} ]]; then
   exit 1
 fi
 
-CFG=$(efsmt ${EOPT} -d ${DEVID} -reg TS.*DPF_RING*|grep DPF_RING_CFG|awk '{print $NF}')
+CFG=$(sudo efsmt ${EOPT} -d ${DEVID} -reg TS.*DPF_RING*|grep DPF_RING_CFG|awk '{print $NF}')
 CFGV=$(python3 -c "print('0x%x' % int('${CFG}', 16))" 2>/dev/null)
 if [[ x$? != x0 ]]; then
   echo could not parse configure register properly 1>&2
@@ -38,13 +38,13 @@ if [[ x${CFGV} != x0x0 ]]; then
   fi
 fi
 
-START=$(efsmt ${EOPT} -d ${DEVID} -reg TS.*DPF_RING*|grep DPF_RING_BASE_LOW|awk '{print $NF}')
+START=$(sudo efsmt ${EOPT} -d ${DEVID} -reg TS.*DPF_RING*|grep DPF_RING_BASE_LOW|awk '{print $NF}')
 if [[ -z ${START} ]]; then
   echo need dump start addr
   exit 1
 fi
 
-PROD=$(efsmt ${EOPT} -d ${DEVID} -reg TS.*DPF_RING*|grep DPF_RING_PROD|awk '{print $NF}')
+PROD=$(sudo efsmt ${EOPT} -d ${DEVID} -reg TS.*DPF_RING*|grep DPF_RING_PROD|awk '{print $NF}')
 if [[ -z ${PROD} ]]; then
   echo size parsing error
   exit 1
@@ -56,6 +56,8 @@ PRODx4="0x$(python3 -c "print('%x' % (int('${PROD}', 16) * 4))")"
 echo \# dump dtu ${DEVID} from ${START} for ${PRODx4}
 
 #sudo efsmt -d ${DEVID} -dmem dump ${START} ${PRODx4}|tail -n +6 | tee ${OUTNAME}
-sudo efsmt -d ${DEVID} -dmem dump ${START} ${PRODx4} >  ${OUTNAME}
+# dump to file by efsmt directly
+set +x
+sudo efsmt -d ${DEVID} -dmem dump ${START} ${PRODx4} ${OUTNAME}
 
 echo dumped to ${OUTNAME}
