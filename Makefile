@@ -1,3 +1,7 @@
+
+
+RELEASE_DATE=$(shell date +%H%M%S_%Y%m%d)
+
 all:
 	go build -o build/dmaster
 
@@ -14,3 +18,8 @@ pack:	all
 
 exec:
 	xgo --targets=windows/amd64 .
+
+linux_release:
+	go build -o release.01/dmaster
+	tar czvf "dmaster_${RELEASE_DATE}.tar.gz" release.01/dmaster
+	rm -rf release.01
