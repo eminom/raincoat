@@ -48,5 +48,11 @@ func (ad ArchDetector) GetArch() string {
 // OneTask: strictly
 // Only pavo can be one-tasked
 func (ad ArchDetector) GetOneTaskFlag() bool {
-	return ad.getter.GetArchType() == dtuarch.EnflameT20 && ad.forceOneTask
+	isOneTask := false
+	archTy := ad.getter.GetArchType()
+	if (archTy == dtuarch.EnflameUnknownArch || archTy == dtuarch.EnflameT20) &&
+		ad.forceOneTask {
+		isOneTask = true
+	}
+	return isOneTask
 }

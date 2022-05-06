@@ -192,7 +192,7 @@ func (r *RuntimeTaskManager) LoadMeta(
 
 func (r RuntimeTaskManager) FindExecFor(execUuid uint64) metadata.ExecScope {
 	exec, ok := r.execKnowledge.FindExecScope(execUuid)
-	assert.Assert(ok, "Must be there")
+	assert.Assert(ok, "0x%x exec must be there", execUuid)
 	return exec
 }
 
