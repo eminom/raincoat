@@ -251,7 +251,7 @@ func (dbs *DbSession) DumpFwActs(
 				str, _ := rtdata.ToCQMEventString(act.Start.Event)
 				return str
 			}
-			return fmt.Sprintf("Engine(%v)", act.Start.EngineTy)
+			return fmt.Sprintf("Engine(%s)", act.Start.EngineTypeCode)
 		}
 		rowName := getName(act)
 		name := nc.GetIndexedName(
@@ -280,7 +280,7 @@ func (dbs *DbSession) DumpFwActs(
 			fw.AddFwTrace(dbs.idx, nodeID, deviceID, act.Start.ClusterID, contextID, name,
 				startHostTime, endHostTime, endHostTime-startHostTime,
 				act.StartCycle(), act.EndCycle(), act.EndCycle()-act.StartCycle(),
-				packetID, act.Start.EngineTy,
+				packetID, act.Start.EngineTypeCode.String(),
 				act.Start.EngineIndex, rowName,
 			)
 			dbs.itemStat.fwOpCount++
@@ -346,7 +346,7 @@ func (dbs *DbSession) DumpDmaActs(
 			packetID, contextID := act.Start.PacketID, act.Start.Context
 
 			name, _ := rtdata.ToDmaEventString(act.Start.Event)
-			tilingMode := act.Start.EngineTy // Unknown tiling mode(Slice,Transpose, etc)
+			tilingMode := act.Start.EngineTypeCode.String() // Unknown tiling mode(Slice,Transpose, etc)
 			if act.IsDmaMetaRefValid() {
 				dmaMeta := act.GetDmaMeta()
 				tilingMode = dmaMeta.DmaOpString
@@ -356,7 +356,7 @@ func (dbs *DbSession) DumpDmaActs(
 				contextID, name,
 				startHostTime, endHostTime, endHostTime-startHostTime,
 				act.StartCycle(), act.EndCycle(), uint64(act.Duration()),
-				packetID, act.Start.EngineTy,
+				packetID, act.Start.EngineTypeCode.String(),
 				tilingMode,
 				act.GetEngineIndex(),
 				act.GetVcId(),
@@ -414,7 +414,7 @@ func (dbs *DbSession) DumpKernelActs(
 				contextID, name,
 				startHostTime, endHostTime, endHostTime-startHostTime,
 				act.StartCycle(), act.EndCycle(), uint64(act.Duration()),
-				packetID, act.Start.EngineTy,
+				packetID, act.Start.EngineTypeCode.String(),
 				act.GetEngineIndex(), rowName,
 			)
 			dbs.itemStat.kernelOpCount++

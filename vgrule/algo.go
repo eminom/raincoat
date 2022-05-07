@@ -17,7 +17,7 @@ type EngineOrder interface {
 }
 
 type MasterValueDecoder interface {
-	DecodeMasterValue(int) (string, int, int)
+	DecodeMasterValue(int) (codec.EngineTypeCode, int, int)
 }
 
 type ActMatchAlgo interface {
@@ -36,7 +36,7 @@ func NewDoradoRule(decoder MasterValueDecoder) *doradoRule {
 	return &doradoRule{mDecoder: decoder}
 }
 
-func (a doradoRule) DecodeMasterValue(val int) (string, int, int) {
+func (a doradoRule) DecodeMasterValue(val int) (codec.EngineTypeCode, int, int) {
 	return a.mDecoder.DecodeMasterValue(val)
 }
 

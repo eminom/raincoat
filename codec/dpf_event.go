@@ -29,13 +29,12 @@ type DpfEvent struct {
 	Payload  int
 	Cycle    uint64
 
-	EngineTy      string
-	EngineUniqIdx int
-	EngineIndex   int
-	ClusterID     int
-
-	OffsetIndex    int // Offset int the DPF buffer from the beginning
 	EngineTypeCode EngineTypeCode
+	EngineUniqIdx  int
+	EngineIndex    int
+	ClusterID      int
+
+	OffsetIndex int // Offset int the DPF buffer from the beginning
 }
 
 // This field is at-most 31-bit width
@@ -84,29 +83,29 @@ func (d DpfEvent) ToString() string {
 	if d.Flag == 0 {
 		switch d.EngineTypeCode {
 		case EngCat_PCIE:
-			return fmt.Sprintf("%-10v %-10v ts=%v",
-				d.EngineTy,
+			return fmt.Sprintf("%-10s %-10v ts=%v",
+				d.EngineTypeCode,
 				d.DpfSyncIndex(),
 				d.Cycle)
 		case EngCat_TS:
-			return fmt.Sprintf("%-6v %-2v %-2v %-2v stream=%v %v pid=%v ts=%-14d",
-				d.EngineTy, d.ClusterID, d.EngineIndex, d.Context,
+			return fmt.Sprintf("%-6s %-2v %-2v %-2v stream=%v %v pid=%v ts=%-14d",
+				d.EngineTypeCode, d.ClusterID, d.EngineIndex, d.Context,
 				d.Event>>1, toStartEndStr(d.Event&1), d.PacketID, d.Cycle,
 			)
 		case EngCat_CDMA, EngCat_SDMA:
 			return fmt.Sprintf(
-				"%-6v %-2v %-2v %-2v event=%-4v evt=%-9v vc=%-3v pid=%v  ts=%-14d",
-				d.EngineTy, d.ClusterID, d.EngineIndex, d.Context,
+				"%-6s %-2v %-2v %-2v event=%-4v evt=%-9v vc=%-3v pid=%v  ts=%-14d",
+				d.EngineTypeCode, d.ClusterID, d.EngineIndex, d.Context,
 				d.Event,
 				ToDmaEventStr(d.Event),
 				GetDmaVcId(d.Event),
 				d.PacketID, d.Cycle)
 		}
-		return fmt.Sprintf("%-10v %-2v %-2v %-2v event=%-4v pid=%v ts=%-14d",
-			d.EngineTy, d.ClusterID, d.EngineIndex, d.Context, d.Event, d.PacketID, d.Cycle)
+		return fmt.Sprintf("%-10s %-2v %-2v %-2v event=%-4v pid=%v ts=%-14d",
+			d.EngineTypeCode, d.ClusterID, d.EngineIndex, d.Context, d.Event, d.PacketID, d.Cycle)
 	}
-	return fmt.Sprintf("%-6v %-2v %-5v event=%-3v payload=%v ts=%-14d",
-		d.EngineTy, d.ClusterID, d.EngineIndex, d.Event, d.Payload, d.Cycle)
+	return fmt.Sprintf("%-6s %-2v %-5v event=%-3v payload=%v ts=%-14d",
+		d.EngineTypeCode, d.ClusterID, d.EngineIndex, d.Event, d.Payload, d.Cycle)
 }
 
 func (d DpfEvent) RawRepr() string {
@@ -135,16 +134,16 @@ func (decoder *DecodeMaster) createFormatV1(vals []uint32) (DpfEvent, error) {
 		return DpfEvent{}, errDpfItemDecodeErr
 	}
 	return DpfEvent{
-		RawValue:      copyFrom(vals),
-		Flag:          0,
-		PacketID:      int(packet_id),
-		Event:         int(event),
-		Context:       ctx,
-		EngineUniqIdx: engUniqIdx,
-		EngineTy:      decoder.EngUniqueIndexToTypeName(engUniqIdx),
-		EngineIndex:   engIdx,
-		Cycle:         ts,
-		ClusterID:     clusterID,
+		RawValue:       copyFrom(vals),
+		Flag:           0,
+		PacketID:       int(packet_id),
+		Event:          int(event),
+		Context:        ctx,
+		EngineUniqIdx:  engUniqIdx,
+		EngineTypeCode: decoder.EngUniqueIndexToTypeName(engUniqIdx),
+		EngineIndex:    engIdx,
+		Cycle:          ts,
+		ClusterID:      clusterID,
 	}, nil
 }
 
@@ -161,15 +160,15 @@ func (decoder *DecodeMaster) createFormatV2(vals []uint32) (DpfEvent, error) {
 		return DpfEvent{}, errDpfItemDecodeErr
 	}
 	return DpfEvent{
-		RawValue:      copyFrom(vals),
-		Flag:          1,
-		Event:         int(event),
-		Payload:       int(payload),
-		EngineUniqIdx: engUniqIdx,
-		EngineTy:      decoder.EngUniqueIndexToTypeName(engUniqIdx),
-		EngineIndex:   engineIdx,
-		Cycle:         ts,
-		ClusterID:     clusterID,
+		RawValue:       copyFrom(vals),
+		Flag:           1,
+		Event:          int(event),
+		Payload:        int(payload),
+		EngineUniqIdx:  engUniqIdx,
+		EngineTypeCode: decoder.EngUniqueIndexToTypeName(engUniqIdx),
+		EngineIndex:    engineIdx,
+		Cycle:          ts,
+		ClusterID:      clusterID,
 	}, nil
 }
 
@@ -187,6 +186,5 @@ func (decoder *DecodeMaster) NewDpfEvent(
 		return decoder.createFormatV2(vals)
 	}()
 	dpf.OffsetIndex = offsetIdx
-	dpf.EngineTypeCode = ToEngineTypeCode(dpf.EngineTy)
 	return
 }

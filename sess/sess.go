@@ -164,7 +164,7 @@ func (sess Session) ProcessItems(vs []uint32,
 	}
 	var toAdd = true
 	if len(sess.sessOpt.EngineFilter) > 0 &&
-		!strings.HasPrefix(item.EngineTy, sess.sessOpt.EngineFilter) {
+		!strings.HasPrefix(item.EngineTypeCode.String(), sess.sessOpt.EngineFilter) {
 		toAdd = false
 	}
 	if toAdd {

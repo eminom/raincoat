@@ -878,9 +878,9 @@ func (rtm *RuntimeTaskManager) CookDma(
 			if !shallSkipErrDma(curAct.Start) {
 				errDmaCount++
 				if errDmaCount < errPrintLimit {
-					fmt.Printf("error for no meta dma packet id = %v, %v\n",
+					fmt.Printf("error for no meta dma packet id = %v, %s\n",
 						curAct.Start.PacketID,
-						curAct.Start.EngineTy,
+						curAct.Start.EngineTypeCode,
 					)
 				} else if errDmaCount == errPrintLimit {
 					fmt.Printf("too many dma errors\n")

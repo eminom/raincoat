@@ -46,28 +46,28 @@ func (d DpfEngineT) UniqueEngIdx() int {
 }
 
 type EngineTypeIndexMap struct {
-	fromIdxToString map[int]string
+	fromIdxToTypeCode map[int]EngineTypeCode
 }
 
 func newEngineTypeIndexMap(infos []DpfEngineT) EngineTypeIndexMap {
-	fromIdxToString := make(map[int]string)
+	fromIdxToTypeCode := make(map[int]EngineTypeCode)
 	for _, info := range infos {
 		u := info.UniqueEngIdx()
-		if _, ok := fromIdxToString[u]; ok {
+		if _, ok := fromIdxToTypeCode[u]; ok {
 			panic("invalid engine index value: duplicated")
 		}
-		fromIdxToString[u] = info.EngType
+		fromIdxToTypeCode[u] = ToEngineTypeCode(info.EngType)
 	}
 	return EngineTypeIndexMap{
-		fromIdxToString: fromIdxToString,
+		fromIdxToTypeCode: fromIdxToTypeCode,
 	}
 }
 
-func (e EngineTypeIndexMap) Lookup(engineUniqIdx int) string {
-	if nameStr, ok := e.fromIdxToString[engineUniqIdx]; ok {
+func (e EngineTypeIndexMap) Lookup(engineUniqIdx int) EngineTypeCode {
+	if nameStr, ok := e.fromIdxToTypeCode[engineUniqIdx]; ok {
 		return nameStr
 	}
-	return "Unknown"
+	return EngCat_UNKNOWN
 }
 
 var (
@@ -319,11 +319,11 @@ func NewDecodeMaster(arch string) *DecodeMaster {
 	}
 }
 
-func (md *DecodeMaster) EngUniqueIndexToTypeName(engineUniqIdx int) string {
+func (md *DecodeMaster) EngUniqueIndexToTypeName(engineUniqIdx int) EngineTypeCode {
 	return md.engIdxToNameMap.Lookup(engineUniqIdx)
 }
 
-func (md *DecodeMaster) DecodeMasterValue(masterVal int) (string, int, int) {
+func (md *DecodeMaster) DecodeMasterValue(masterVal int) (EngineTypeCode, int, int) {
 	lo, hi := int64(masterVal&0x1f), int64((masterVal>>5)&0x1f)
 	engineIdx, mVal, clusterId := md.decoder(lo, hi)
 	assert.Assert(mVal == masterVal, "Yes")
@@ -437,7 +437,7 @@ func ToEngineTypeCode(engingDesc string) EngineTypeCode {
 	return EngCat_UNKNOWN
 }
 
-func (e EngineTypeCode) ToString() string {
+func (e EngineTypeCode) String() string {
 	switch e {
 	case EngCat_SIP:
 		return ENGINE_SIP

@@ -9,8 +9,8 @@ func TestCodecBasic(t *testing.T) {
 	end := int(EngCat_UNKNOWN)
 	for i := start; i <= end; i++ {
 		v := EngineTypeCode(i)
-		t.Logf("%v: %v", v.ToString(), v)
-		if ToEngineTypeCode(v.ToString()) != v {
+		t.Logf("%v: %v", v.String(), v)
+		if ToEngineTypeCode(v.String()) != v {
 			t.Fatalf("error codec for %v\n", v)
 			t.Fail()
 		}
