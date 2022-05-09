@@ -47,6 +47,7 @@ var (
 	// if PbMode is enabled:
 	fDumpmeta = flag.Bool("dumpmeta", false, "dump meta in pbmode")
 	fExec     = flag.Bool("exec", false, "dump from executable")
+	fCheckFlg = flag.Bool("checkf", false, "check format only")
 
 	//decode go routine count
 	fDecodeRoutineCount = flag.Int("subr", 7, "sub process count")
@@ -158,8 +159,9 @@ func main() {
 
 	if len(flag.Args()) >= 1 {
 		if *fExec {
-			inputFile := flag.Args()[0]
-			topsdev.DumpSectionsFromExecutable(inputFile)
+			for _, inputFile := range flag.Args() {
+				topsdev.DumpSectionsFromExecutable(inputFile, *fCheckFlg)
+			}
 			return
 		}
 

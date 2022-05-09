@@ -143,6 +143,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"reflect"
 	"sort"
 	"unsafe"
@@ -242,10 +243,16 @@ type RawDataSet struct {
 	rawCopy []byte
 }
 
-func NewProfileSecPipBoy(rawData []byte) ProfileSecPipBoy {
+func DetectFormatCode(rawData []byte) int {
 	uVal := reflect.ValueOf(rawData).Pointer()
 	sec := *(*C.ProfileSection)(unsafe.Pointer(uVal))
 	dumpProfSec(sec)
+	return int(sec.flag)
+}
+
+func NewProfileSecPipBoy(rawData []byte) ProfileSecPipBoy {
+	uVal := reflect.ValueOf(rawData).Pointer()
+	sec := *(*C.ProfileSection)(unsafe.Pointer(uVal))
 
 	profileSectionSize := int(sec.profile_section_header_size)
 	perSubSecSize := int(C.GetProfileSubSectionSize())
@@ -318,6 +325,10 @@ func (ps *ProfileSecPipBoy) initStringPool() {
 	ps.stringPool = stringRaw
 }
 
+func (ps ProfileSecPipBoy) GetFormatCode() int {
+	return int(ps.sec.flag)
+}
+
 func (ps ProfileSecPipBoy) Pkt2OpCount() int {
 	return ps.pkt2opRec.count
 }
@@ -374,14 +385,20 @@ func ParseProfileSection(
 	debugStdout io.Writer,
 ) *metadata.ExecScope {
 	data := pb.GetData()
-	return ParseProfileSectionFromData(data, pb.GetExecUuid(), debugStdout)
+	rv, _ := ParseProfileSectionFromData(data, pb.GetExecUuid(), debugStdout)
+	return rv
 }
 
 func ParseProfileSectionFromData(
 	data []byte,
 	execUuid uint64,
 	debugStdout io.Writer,
-) *metadata.ExecScope {
+) (*metadata.ExecScope, int) {
+	fc := DetectFormatCode(data)
+	if fc != 1 {
+		fmt.Fprintf(os.Stderr, "format(%v) is not supported\n", fc)
+		return nil, fc
+	}
 
 	newPb := NewProfileSecPipBoy(data)
 
@@ -521,7 +538,7 @@ func ParseProfileSectionFromData(
 			Info: dmaInfoMap,
 		},
 		subOpInfoMap,
-	)
+	), fc
 }
 
 func doAssertOnProfileSection() {

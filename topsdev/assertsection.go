@@ -12,6 +12,7 @@ import "C"
 import (
 	"encoding/binary"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"reflect"
@@ -41,8 +42,8 @@ func NewAssertRtDict(rawData ExecRawData) AssertRtDict {
 	uVal := reflect.ValueOf(slice).Pointer()
 	assertHead := *(*C.KernelAssertInfoSec)(unsafe.Pointer(uVal))
 	totSize := int(assertHead.size)
-	fmt.Printf("assertion total size is %v\n", totSize)
-	fmt.Printf("chunk size is %v\n", len(chunk))
+	fmt.Fprintf(io.Discard, "assertion total size is %v\n", totSize)
+	fmt.Fprintf(io.Discard, "chunk size is %v\n", len(chunk))
 
 	// skip size
 	chunk = chunk[8:]

@@ -44,6 +44,7 @@ import "C"
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"reflect"
@@ -115,7 +116,7 @@ func LoadSectionsFromExec(filename string) []ExecRawData {
 		uVal1 := reflect.ValueOf(piece).Pointer()
 		shSec := *(*C.SectionHeader)(unsafe.Pointer(uVal1))
 		if shSec.sh_type == SHT_PROFILE {
-			log.Printf("%v(SHT_PROFILE) detected", SHT_PROFILE)
+			// log.Printf("%v(SHT_PROFILE) detected", SHT_PROFILE)
 			offset := int(shSec.sh_offset)
 			chunkSize := int(shSec.sh_size)
 			sli := chunk[offset : offset+chunkSize]
@@ -125,7 +126,7 @@ func LoadSectionsFromExec(filename string) []ExecRawData {
 				DataType:  SHT_PROFILE,
 			})
 		} else if shSec.sh_type == SHT_KERN_ASSERT_INFO {
-			log.Printf("%v(SHT_KERN_ASSERT_INFO) detected", SHT_KERN_ASSERT_INFO)
+			// log.Printf("%v(SHT_KERN_ASSERT_INFO) detected", SHT_KERN_ASSERT_INFO)
 			offset := int(shSec.sh_offset)
 			chunkSize := int(shSec.sh_size)
 			sli := chunk[offset : offset+chunkSize]
@@ -135,21 +136,30 @@ func LoadSectionsFromExec(filename string) []ExecRawData {
 				DataType:  SHT_KERN_ASSERT_INFO,
 			})
 		} else {
-			fmt.Printf("sec type %v\n", shSec)
+			fmt.Fprintf(io.Discard, "sec type %v\n", shSec)
 		}
 	}
 	return rawVec
 }
 
-func DumpSectionsFromExecutable(filename string) {
+func DumpSectionsFromExecutable(filename string, checkFormatOnly bool) {
 	chunkVec := LoadSectionsFromExec(filename)
 	for _, execRaw := range chunkVec {
 		switch execRaw.DataType {
 		case SHT_PROFILE:
-			execScope := ParseProfileSectionFromData(execRaw.DataChunk,
+
+			execScope, fc := ParseProfileSectionFromData(execRaw.DataChunk,
 				execRaw.ExecUuid,
-				os.Stdout,
+				io.Discard,
 			)
+
+			if checkFormatOnly {
+				fmt.Printf("ProfSec for %v is type-%v\n", filename, fc)
+				break
+			}
+			if execScope == nil {
+				break
+			}
 			execScope.DumpDtuOpToFile()
 			execScope.DumpDmaToFile()
 			execScope.DumpPktOpMapToFile()
