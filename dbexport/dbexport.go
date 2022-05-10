@@ -45,10 +45,11 @@ type ItemStat struct {
 	cmdInfoCount  int
 	verInfoCount  int
 	platformCount int
+	cpuOpCount    int
 }
 
 func (item ItemStat) GetOpCount() int {
-	return item.dtuOpCount + item.taskActCount
+	return item.dtuOpCount + item.taskActCount + item.cpuOpCount
 }
 
 type DbSession struct {
@@ -159,6 +160,30 @@ func (dbs *DbSession) DumpDtuOps(
 		dtuOpCount,
 		dbs.targetName,
 	)
+}
+
+func (dbs *DbSession) DumpCpuOpTrace(
+	coords rtdata.Coords,
+	cpuOps []rtdata.CpuOpAct,
+	rowName string,
+) {
+	dos := NewDtuOpSession(dbs.dbObject)
+	defer dos.Close()
+	nodeID := coords.NodeID
+	deviceID := coords.DeviceID
+	clusterID := -1 // Make it into general
+	ctxID := 0
+	for _, act := range cpuOps {
+		name := act.Name
+		dos.AddDtuOp(dbs.idx, nodeID, deviceID, clusterID, ctxID, name,
+			act.StartTimestamp, act.EndTimestamp, act.EndTimestamp-act.StartTimestamp,
+			0, 0, 0,
+			-1, name,
+			act.Cat,
+		)
+	}
+	dbs.itemStat.cpuOpCount += len(cpuOps)
+	log.Printf("# %v CPU Ops haven been dumped", len(cpuOps))
 }
 
 func (dbs *DbSession) DumpTaskVec(

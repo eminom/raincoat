@@ -151,8 +151,8 @@ func (es ExecScope) DumpDmaToFile() {
 	typeSet := es.dmaMap.GetTypeSet()
 	for dmaEngTy := range typeSet {
 		// there is a type name "sip launch", with a space in it
-		dmaEngTy := strings.Replace(dmaEngTy, " ", "_", -1)
-		filename := es.getDumpFileName(dmaEngTy + "_memcpy")
+		filename := es.getDumpFileName(
+			strings.Replace(dmaEngTy, " ", "_", -1) + "_memcpy")
 		fout, err := os.Create(filename)
 		if err != nil {
 			panic(fmt.Errorf("could not open %v for: %v", filename, err))

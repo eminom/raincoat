@@ -21,6 +21,7 @@ type PostProcessOpt struct {
 	DumpSipBusy bool
 	SeqIdx      int
 	NoSubop     bool
+	CpuOps      []rtdata.CpuOpAct
 }
 
 type PostProcessor struct {
@@ -165,6 +166,11 @@ type DbDumper interface {
 		tm *rtinfo.TimelineManager,
 		rowName string,
 	)
+	DumpCpuOpTrace(
+		coords rtdata.Coords,
+		cpuOps []rtdata.CpuOpAct,
+		rowName string,
+	)
 }
 
 func (p PostProcessor) DumpToDb(coord rtdata.Coords, dbe DbDumper) {
@@ -176,6 +182,11 @@ func (p PostProcessor) DumpToDb(coord rtdata.Coords, dbe DbDumper) {
 	dbe.DumpDtuOps(
 		coord,
 		p.dtuOps, p.tm,
+	)
+	dbe.DumpCpuOpTrace(
+		coord,
+		p.procOpt.CpuOps,
+		"CPU Op",
 	)
 
 	dbe.DumpTaskVec(

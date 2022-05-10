@@ -116,6 +116,37 @@ func (pb pbLoader) DumpMeta() {
 	}
 }
 
+// utils for KVData
+func extractStringValueByKey(args []*topspb.KVData, key string) string {
+	for _, kv := range args {
+		if kv.GetK() == key {
+			return kv.GetStringV()
+		}
+	}
+	return ""
+}
+
+func (pb pbLoader) DumpCpuOpTrace(inputNameHint string) {
+	fout, err := os.Create(fmt.Sprintf("%v_cpuop.pbdumptxt", inputNameHint))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error open cpu op trace file for record: %v\n", err)
+		return
+	}
+	defer fout.Close()
+
+	for _, cpuOp := range pb.pbObj.Cpu.Events {
+		// expecting Backend
+		cpuOpCatName := cpuOp.GetName()
+		fmt.Printf("%v\n", cpuOpCatName)
+		for _, ev := range (*cpuOp).Event {
+			startTs := ev.GetStartTimestamp()
+			endTs := ev.GetEndTimestamp()
+			opName := extractStringValueByKey(ev.GetArgs(), "op_name")
+			fmt.Fprintf(fout, "%v %v %v\n", opName, startTs, endTs)
+		}
+	}
+}
+
 func (pb pbLoader) DumpRuntimeInformation(inputNameHint string) {
 	pb.dumpTimepoints(inputNameHint)
 	pb.dumpRuntimeTasks(inputNameHint)
@@ -264,6 +295,24 @@ func NewPbComplex(name string) (
 
 func (pb PbComplex) GetRingBufferCount() int {
 	return 1
+}
+
+func (pb PbComplex) GetCpuOpTraceSeq() []rtdata.CpuOpAct {
+	var cpuOps []rtdata.CpuOpAct
+	for _, cpuOp := range pb.pbObj.Cpu.Events {
+		name := cpuOp.GetName() // expecting BACKEND
+		for _, evt := range cpuOp.Event {
+			opName := extractStringValueByKey(evt.GetArgs(), "op_name")
+			startTs, endTs := evt.GetStartTimestamp(), evt.GetEndTimestamp()
+			cpuOps = append(cpuOps, rtdata.CpuOpAct{
+				Cat:            name,
+				Name:           opName,
+				StartTimestamp: uint64(startTs),
+				EndTimestamp:   uint64(endTs),
+			})
+		}
+	}
+	return cpuOps
 }
 
 func (pb PbComplex) LoadRingBufferContent(cid int, idx int) []byte {

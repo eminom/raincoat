@@ -13,6 +13,10 @@ type RingBufferLoader interface {
 	GetInputName() string
 }
 
+type CpuOpTraceLoader interface {
+	GetCpuOpTraceSeq() []rtdata.CpuOpAct
+}
+
 type TaskLoader interface {
 	LoadTask(oneSolid bool) (map[int]*rtdata.RuntimeTask, []int, bool)
 }

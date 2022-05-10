@@ -175,6 +175,7 @@ func main() {
 			if *fDumpmeta {
 				pbLoader.DumpMeta()
 				pbLoader.DumpRuntimeInformation(inputName)
+				pbLoader.DumpCpuOpTrace(inputName)
 				pbLoader.DumpMisc(inputName)
 				return
 			}
@@ -244,12 +245,19 @@ func main() {
 		cidToDecode := 0
 		chunk := contentLoader.LoadRingBufferContent(cidToDecode, fileIdx)
 		sess := sess.NewSessBroadcaster(loader)
+
+		var cpuOps []rtdata.CpuOpAct
+		if cpuOpLoader, ok := contentLoader.(efintf.CpuOpTraceLoader); ok {
+			cpuOps = cpuOpLoader.GetCpuOpTraceSeq()
+		}
+
 		sess.DecodeChunk(chunk, decoder, *fDecodeRoutineCount)
 		outputChan <- DoProcess(*fJob, sess, curAlgo, PostProcessOpt{
 			OneTask:     archDetector.GetOneTaskFlag(),
 			DumpSipBusy: *fSipBusy,
 			SeqIdx:      fileIdx,
 			NoSubop:     *fNoSubop,
+			CpuOps:      cpuOps,
 		})
 	}
 	for i := 0; i < rbCount; i++ {
