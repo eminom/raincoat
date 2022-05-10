@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"strings"
 
 	"git.enflame.cn/hai.bai/dmaster/efintf/efconst"
 )
@@ -149,6 +150,8 @@ func (es ExecScope) DumpSubOpToFile() {
 func (es ExecScope) DumpDmaToFile() {
 	typeSet := es.dmaMap.GetTypeSet()
 	for dmaEngTy := range typeSet {
+		// there is a type name "sip launch", with a space in it
+		dmaEngTy := strings.Replace(dmaEngTy, " ", "_", -1)
 		filename := es.getDumpFileName(dmaEngTy + "_memcpy")
 		fout, err := os.Create(filename)
 		if err != nil {
