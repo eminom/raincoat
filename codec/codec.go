@@ -1,6 +1,12 @@
 package codec
 
-import "git.enflame.cn/hai.bai/dmaster/assert"
+import (
+	"fmt"
+	"io"
+	"sort"
+
+	"git.enflame.cn/hai.bai/dmaster/assert"
+)
 
 /*
 Descriptive in C++
@@ -274,6 +280,100 @@ func init() {
 	// Build from this descriptive lang
 	doradoEngIdxMap = newEngineTypeIndexMap(doradoDpfTy)
 	pavoEngIdxMap = newEngineTypeIndexMap(pavoDpfTy)
+}
+
+type MidRec struct {
+	name      string
+	dc        map[int]int
+	toIdxFunc func(int, int) int
+	decode    func(int) (int, int)
+}
+
+func NewMidRec(name string, toIdxFunc func(int, int) int,
+	decode func(int) (int, int)) *MidRec {
+	return &MidRec{
+		name:      name,
+		dc:        make(map[int]int),
+		toIdxFunc: toIdxFunc,
+		decode:    decode,
+	}
+}
+
+func (m *MidRec) PickAt(cid, eid int, mid int) {
+	idx := m.toIdxFunc(cid, eid)
+	if _, ok := m.dc[idx]; ok {
+		panic(fmt.Errorf("duplicate entry for %v(%v,%v)", m.name, cid, eid))
+	}
+	m.dc[idx] = mid
+}
+
+type EngElement struct {
+	str string
+	idx int
+}
+
+type EngElements []EngElement
+
+func (e EngElements) Len() int {
+	return len(e)
+}
+func (e EngElements) Swap(i, j int) {
+	e[i], e[j] = e[j], e[i]
+}
+
+func (e EngElements) Less(i, j int) bool {
+	return e[i].idx < e[j].idx
+}
+
+func GenDictForDorado(out io.Writer) {
+	genDictForDorado(doradoDpfTy, "doradoMid", out)
+}
+
+func genDictForDorado(midCodec []DpfEngineT, prefix string, out io.Writer) {
+	// from idx to Mid
+	dispatch := map[string]*MidRec{
+		ENGINE_CDMA: NewMidRec("cdma",
+			func(cid, eid int) int { return cid*4 + eid },
+			func(idx int) (int, int) { return idx / 4, idx % 4 }),
+		ENGINE_SDMA: NewMidRec("sdma",
+			func(cid, eid int) int { return cid*12 + eid },
+			func(idx int) (int, int) { return idx / 12, idx % 12 }),
+		ENGINE_SIP: NewMidRec("sip",
+			func(cid, eid int) int { return cid*12 + eid },
+			func(idx int) (int, int) { return idx / 12, idx % 12 }),
+		ENGINE_CQM: NewMidRec("cqm",
+			func(cid, eid int) int { return cid*3 + eid },
+			func(idx int) (int, int) { return idx / 3, idx % 3 }),
+		ENGINE_GSYNC: NewMidRec("gsync",
+			func(cid, eid int) int { return cid*3 + eid },
+			func(idx int) (int, int) { return idx / 3, idx % 3 }),
+	}
+
+	for _, v := range doradoDpfTy {
+		if dict, ok := dispatch[v.EngType]; ok {
+			dict.PickAt(v.ClusterID, v.EngineId, v.UniqueEngIdx())
+		}
+	}
+
+	for engTy, disp := range dispatch {
+		fmt.Fprintf(out, "%v.%v = map[int]int{ \n", prefix, engTy)
+
+		var earr EngElements
+		for idx, mid := range disp.dc {
+			cid, eid := disp.decode(idx)
+			str := fmt.Sprintf("%v : %v, // (%v, %v)", idx, mid, cid, eid)
+			earr = append(earr, EngElement{
+				str: str,
+				idx: idx,
+			})
+		}
+		sort.Sort(earr)
+		for _, e := range earr {
+			fmt.Fprintf(out, "%v\n", e.str)
+		}
+
+		fmt.Fprintf(out, "}\n")
+	}
 }
 
 func getEngInfo(lo, hi int, dpfInfo []DpfEngineT) (int, int, int) {
