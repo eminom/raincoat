@@ -329,6 +329,30 @@ func GenDictForDorado(out io.Writer) {
 	genDictForDorado(doradoDpfTy, "doradoMid", out)
 }
 
+type MidCheckout interface {
+	CheckoutFor(string)
+}
+
+type DoradoMidCheckout struct{}
+
+func (DoradoMidCheckout) CheckoutFor(name string) {
+	for _, ent := range doradoDpfTy {
+		if ent.EngType == name {
+			fmt.Printf("Dorado: %v: %v\n", name, ent.UniqueEngIdx())
+		}
+	}
+}
+
+type PavoMidCheckout struct{}
+
+func (PavoMidCheckout) CheckoutFor(name string) {
+	for _, ent := range pavoDpfTy {
+		if ent.EngType == name {
+			fmt.Printf("Pavo: %v: %v\n", name, ent.UniqueEngIdx())
+		}
+	}
+}
+
 func genDictForDorado(midCodec []DpfEngineT, prefix string, out io.Writer) {
 	// from idx to Mid
 	dispatch := map[string]*MidRec{
