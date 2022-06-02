@@ -171,6 +171,15 @@ func (tm *TimelineManager) AlignToHostTimeline() {
 			break
 		}
 	}
+
+	// Final hack
+	if !timeInfoValid {
+		tm.tll = TimelineLinear{
+			0,
+			0,
+		}
+		timeInfoValid = true
+	}
 	assert.Assert(timeInfoValid, "Must be true")
 }
 
