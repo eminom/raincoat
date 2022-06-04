@@ -326,7 +326,7 @@ func (e EngElements) Less(i, j int) bool {
 }
 
 func GenDictForDorado(out io.Writer) {
-	genDictForDorado(doradoDpfTy, "doradoMid", out)
+	genDictForDorado(doradoDpfTy, out)
 }
 
 type MidCheckout interface {
@@ -353,7 +353,11 @@ func (PavoMidCheckout) CheckoutFor(name string) {
 	}
 }
 
-func genDictForDorado(midCodec []DpfEngineT, prefix string, out io.Writer) {
+func genDictForDorado(midCodec []DpfEngineT, out io.Writer) {
+	const prefix = "mi"
+	fmt.Fprintln(out, "// Generate automatically")
+	fmt.Fprintf(out, "func initMidInfo(mi *MidInfoMan) {\n")
+	defer fmt.Fprintln(out, "} // done initMIdInfoMan")
 	// from idx to Mid
 	dispatch := map[string]*MidRec{
 		ENGINE_CDMA: NewMidRec("cdma",
@@ -380,12 +384,12 @@ func genDictForDorado(midCodec []DpfEngineT, prefix string, out io.Writer) {
 	}
 
 	for engTy, disp := range dispatch {
-		fmt.Fprintf(out, "%v.%v = map[int]int{ \n", prefix, engTy)
+		fmt.Fprintf(out, "  %v.%v = map[int]int{ \n", prefix, engTy)
 
 		var earr EngElements
 		for idx, mid := range disp.dc {
 			cid, eid := disp.decode(idx)
-			str := fmt.Sprintf("%v : %v, // (%v, %v)", idx, mid, cid, eid)
+			str := fmt.Sprintf("    %v : %v, // (%v, %v)", idx, mid, cid, eid)
 			earr = append(earr, EngElement{
 				str: str,
 				idx: idx,
@@ -396,7 +400,7 @@ func genDictForDorado(midCodec []DpfEngineT, prefix string, out io.Writer) {
 			fmt.Fprintf(out, "%v\n", e.str)
 		}
 
-		fmt.Fprintf(out, "}\n")
+		fmt.Fprintf(out, "  }\n")
 	}
 }
 
