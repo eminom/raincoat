@@ -213,7 +213,8 @@ func main() {
 			}
 			defer (func() {
 				fout.Close()
-				fmt.Printf("event sequence dump to %v\n", outName)
+				log.Printf("event sequence dump to %v\n", outName)
+				fmt.Printf("%v\n", outName)
 			})()
 		}
 
