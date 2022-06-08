@@ -86,8 +86,6 @@ func genDictForDorado(midCodec []DpfEngineT, out io.Writer) {
 					cid, eid := disp.decode(idx)
 					return fmt.Sprintf("%v, // %v, %v", mid, cid, eid)
 				}}).Parse(midInfoSrcTmpl))
-
-	fmt.Printf("yes, just before\n")
 	sourceTextTmpl.Execute(out, dispatch)
 
 }
