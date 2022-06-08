@@ -284,18 +284,34 @@ func init() {
 
 type MidRec struct {
 	name      string
-	dc        map[int]int
+	dc        map[int]int // from 0 to last one
 	toIdxFunc func(int, int) int
 	decode    func(int) (int, int)
+
+	midToIndex map[int]int
+	ValueSeq   []int
 }
 
-func NewMidRec(name string, toIdxFunc func(int, int) int,
-	decode func(int) (int, int)) *MidRec {
+func genIndexerFunc(enginePerCluster int) func(int, int) int {
+	return func(cid, eid int) int {
+		return cid*enginePerCluster + eid
+	}
+}
+
+func genDecoder(enginePerCluster int) func(int) (int, int) {
+	return func(idx int) (int, int) {
+		cid := idx / enginePerCluster
+		eid := idx % enginePerCluster
+		return cid, eid
+	}
+}
+
+func NewMidRec(name string, eCount int) *MidRec {
 	return &MidRec{
 		name:      name,
 		dc:        make(map[int]int),
-		toIdxFunc: toIdxFunc,
-		decode:    decode,
+		toIdxFunc: genIndexerFunc(eCount),
+		decode:    genDecoder(eCount),
 	}
 }
 
@@ -307,8 +323,23 @@ func (m *MidRec) PickAt(cid, eid int, mid int) {
 	m.dc[idx] = mid
 }
 
+func (m *MidRec) Sumup() {
+	var seq []int
+	midToIdx := make(map[int]int)
+	for k, mid := range m.dc {
+		seq = append(seq, k)
+		midToIdx[mid] = k
+	}
+	sort.Ints(seq)
+	var vals []int
+	for _, v := range seq {
+		vals = append(vals, m.dc[v])
+	}
+	m.ValueSeq = vals
+	m.midToIndex = midToIdx
+}
+
 type EngElement struct {
-	str string
 	idx int
 }
 
@@ -350,57 +381,6 @@ func (PavoMidCheckout) CheckoutFor(name string) {
 		if ent.EngType == name {
 			fmt.Printf("Pavo: %v: %v\n", name, ent.UniqueEngIdx())
 		}
-	}
-}
-
-func genDictForDorado(midCodec []DpfEngineT, out io.Writer) {
-	const prefix = "mi"
-	fmt.Fprintln(out, "// Generate automatically")
-	fmt.Fprintf(out, "func initMidInfo(mi *MidInfoMan) {\n")
-	defer fmt.Fprintln(out, "} // done initMIdInfoMan")
-	// from idx to Mid
-	dispatch := map[string]*MidRec{
-		ENGINE_CDMA: NewMidRec("cdma",
-			func(cid, eid int) int { return cid*4 + eid },
-			func(idx int) (int, int) { return idx / 4, idx % 4 }),
-		ENGINE_SDMA: NewMidRec("sdma",
-			func(cid, eid int) int { return cid*12 + eid },
-			func(idx int) (int, int) { return idx / 12, idx % 12 }),
-		ENGINE_SIP: NewMidRec("sip",
-			func(cid, eid int) int { return cid*12 + eid },
-			func(idx int) (int, int) { return idx / 12, idx % 12 }),
-		ENGINE_CQM: NewMidRec("cqm",
-			func(cid, eid int) int { return cid*3 + eid },
-			func(idx int) (int, int) { return idx / 3, idx % 3 }),
-		ENGINE_GSYNC: NewMidRec("gsync",
-			func(cid, eid int) int { return cid*3 + eid },
-			func(idx int) (int, int) { return idx / 3, idx % 3 }),
-	}
-
-	for _, v := range doradoDpfTy {
-		if dict, ok := dispatch[v.EngType]; ok {
-			dict.PickAt(v.ClusterID, v.EngineId, v.UniqueEngIdx())
-		}
-	}
-
-	for engTy, disp := range dispatch {
-		fmt.Fprintf(out, "  %v.%v = map[int]int{ \n", prefix, engTy)
-
-		var earr EngElements
-		for idx, mid := range disp.dc {
-			cid, eid := disp.decode(idx)
-			str := fmt.Sprintf("    %v : %v, // (%v, %v)", idx, mid, cid, eid)
-			earr = append(earr, EngElement{
-				str: str,
-				idx: idx,
-			})
-		}
-		sort.Sort(earr)
-		for _, e := range earr {
-			fmt.Fprintf(out, "%v\n", e.str)
-		}
-
-		fmt.Fprintf(out, "  }\n")
 	}
 }
 
