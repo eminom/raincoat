@@ -217,6 +217,14 @@ func NewDoradoCdmaAffinity(
 	cdmaAffinity []*topspb.EngineAffinity,
 	arch codec.ArchTarget) DoradoCdmaAffinity {
 	affinityMap := make([]int, arch.CdmaPerC*arch.ClusterPerD)
+
+	def := affinity.DoradoCdmaAffinityDefault{}
+	for cid := 0; cid < arch.ClusterPerD; cid++ {
+		for eid := 0; eid < arch.CdmaPerC; eid++ {
+			affinityMap[cid*arch.CdmaPerC+eid] = def.GetCdmaIdxToPg(cid, eid)
+		}
+	}
+
 	for _, cdma := range cdmaAffinity {
 		idx := arch.CdmaPerC*int(cdma.GetClusterId()) +
 			int(cdma.GetEngineId())
