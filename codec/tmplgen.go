@@ -16,20 +16,22 @@ const (
 )
 
 type ArchTarget struct {
-	CdmaPerC  int
-	SdmaPerC  int
-	SipPerC   int
-	CqmPerC   int
-	GsyncPerC int
+	CdmaPerC    int
+	SdmaPerC    int
+	SipPerC     int
+	CqmPerC     int
+	GsyncPerC   int
+	ClusterPerD int
 }
 
 func NewDoradoArchTarget() ArchTarget {
 	return ArchTarget{
-		CdmaPerC:  4,
-		SdmaPerC:  12,
-		SipPerC:   12,
-		CqmPerC:   3,
-		GsyncPerC: 3,
+		CdmaPerC:    4,
+		SdmaPerC:    12,
+		SipPerC:     12,
+		CqmPerC:     3,
+		GsyncPerC:   3,
+		ClusterPerD: 2,
 	}
 }
 

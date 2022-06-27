@@ -177,6 +177,7 @@ func main() {
 				pbLoader.DumpRuntimeInformation(inputName)
 				pbLoader.DumpCpuOpTrace(inputName)
 				pbLoader.DumpMisc(inputName)
+				fmt.Fprintf(os.Stderr, "dumpmeta done\n")
 				return
 			}
 
@@ -235,7 +236,7 @@ func main() {
 		return
 	}
 
-	curAlgo := vgrule.NewDoradoRule(decoder)
+	curAlgo := vgrule.NewDoradoRule(decoder, loader.GetCdmaAffinity())
 
 	// Start concurrency
 	rbCount := contentLoader.GetRingBufferCount()

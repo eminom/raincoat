@@ -4,4 +4,4 @@ rm -rfv lib/profile
 
 mkdir -p lib/profile/topspti/proto
 
-cp -v ~/rWork/tops/sdk/lib/profile/topspti/proto/*.proto lib/profile/topspti/proto
+cp -v ~/lWork/tops/sdk/lib/profile/topspti/proto/*.proto lib/profile/topspti/proto

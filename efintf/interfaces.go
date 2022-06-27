@@ -1,6 +1,7 @@
 package efintf
 
 import (
+	"git.enflame.cn/hai.bai/dmaster/efintf/affinity"
 	"git.enflame.cn/hai.bai/dmaster/meta/dtuarch"
 	"git.enflame.cn/hai.bai/dmaster/meta/metadata"
 	"git.enflame.cn/hai.bai/dmaster/rtinfo/rtdata"
@@ -28,6 +29,7 @@ type ArchTypeGet interface {
 type InfoReceiver interface {
 	TaskLoader
 	ArchTypeGet
+	GetCdmaAffinity() affinity.CdmaAffinitySet
 	LoadTimepoints() ([]rtdata.HostTimeEntry, bool)
 	LoadExecScope(execUuid uint64) *metadata.ExecScope
 	LoadWildcards(checkExist func(str string) bool, notifyNew func(uint64, *metadata.ExecScope))

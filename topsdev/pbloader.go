@@ -9,6 +9,8 @@ import (
 	"sort"
 	"strings"
 
+	"git.enflame.cn/hai.bai/dmaster/codec"
+	"git.enflame.cn/hai.bai/dmaster/efintf/affinity"
 	"git.enflame.cn/hai.bai/dmaster/meta/dtuarch"
 	"git.enflame.cn/hai.bai/dmaster/meta/metadata"
 	"git.enflame.cn/hai.bai/dmaster/rtinfo/infoloader"
@@ -137,7 +139,7 @@ func (pb pbLoader) DumpCpuOpTrace(inputNameHint string) {
 	for _, cpuOp := range pb.pbObj.Cpu.Events {
 		// expecting Backend
 		cpuOpCatName := cpuOp.GetName()
-		fmt.Printf("%v\n", cpuOpCatName)
+		fmt.Fprintf(os.Stderr, "%v\n", cpuOpCatName)
 		for _, ev := range (*cpuOp).Event {
 			startTs := ev.GetStartTimestamp()
 			endTs := ev.GetEndTimestamp()
@@ -150,6 +152,7 @@ func (pb pbLoader) DumpCpuOpTrace(inputNameHint string) {
 func (pb pbLoader) DumpRuntimeInformation(inputNameHint string) {
 	pb.dumpTimepoints(inputNameHint)
 	pb.dumpRuntimeTasks(inputNameHint)
+	pb.dumpPgAffinityInfo(inputNameHint)
 }
 
 func (pb pbLoader) DumpMisc(inputNameHint string) {
@@ -186,6 +189,57 @@ func (pb pbLoader) dumpRuntimeTasks(inputNameHint string) {
 			task.GetPgMask(),
 		)
 	}
+}
+
+func (pb pbLoader) dumpPgAffinityInfo(inputNameHint string) {
+	affInfo := pb.pbObj.Dtu.Runtime.GetAffinity()
+	if affInfo == nil {
+		return
+	}
+	outName := fmt.Sprintf("%v_affinity_.pbdumptxt", inputNameHint)
+	fout, err := os.Create(outName)
+	if err != nil {
+		panic(fmt.Errorf("could not open %v: %v", outName, err))
+	}
+	defer fout.Close()
+	fmt.Fprintf(fout, "engine cluster_id engine_id pg_order\n")
+	for _, cdma := range affInfo.CdmaAffinity {
+		fmt.Fprintf(fout, "cdma %v %v %v\n", cdma.GetClusterId(), cdma.GetEngineId(), cdma.GetPgId())
+	}
+}
+
+type DoradoCdmaAffinity struct {
+	toPgIdx    []int
+	archTarget codec.ArchTarget
+}
+
+func NewDoradoCdmaAffinity(
+	cdmaAffinity []*topspb.EngineAffinity,
+	arch codec.ArchTarget) DoradoCdmaAffinity {
+	affinityMap := make([]int, arch.CdmaPerC*arch.ClusterPerD)
+	for _, cdma := range cdmaAffinity {
+		idx := arch.CdmaPerC*int(cdma.GetClusterId()) +
+			int(cdma.GetEngineId())
+		affinityMap[idx] = int(cdma.GetPgId())
+	}
+	return DoradoCdmaAffinity{
+		toPgIdx:    affinityMap,
+		archTarget: arch,
+	}
+}
+
+func (c2p DoradoCdmaAffinity) GetCdmaIdxToPg(cid int, eid int) int {
+	idx := cid*c2p.archTarget.CdmaPerC + eid
+	return c2p.toPgIdx[idx]
+}
+
+func (pb pbLoader) GetCdmaAffinity() affinity.CdmaAffinitySet {
+	affInfo := pb.pbObj.Dtu.Runtime.GetAffinity()
+	if affInfo == nil {
+		return affinity.DoradoCdmaAffinityDefault{}
+	}
+	return NewDoradoCdmaAffinity(affInfo.GetCdmaAffinity(),
+		codec.NewDoradoArchTarget())
 }
 
 func (pb pbLoader) dumpMisc(inputNameHint string) {

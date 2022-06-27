@@ -5,6 +5,7 @@ import (
 
 	"git.enflame.cn/hai.bai/dmaster/assert"
 	"git.enflame.cn/hai.bai/dmaster/codec"
+	"git.enflame.cn/hai.bai/dmaster/efintf/affinity"
 )
 
 type EngineOrder interface {
@@ -29,11 +30,16 @@ type ActMatchAlgo interface {
 }
 
 type doradoRule struct {
-	mDecoder MasterValueDecoder
+	mDecoder     MasterValueDecoder
+	cdmaAffinity affinity.CdmaAffinitySet
 }
 
-func NewDoradoRule(decoder MasterValueDecoder) *doradoRule {
-	return &doradoRule{mDecoder: decoder}
+func NewDoradoRule(decoder MasterValueDecoder,
+	cdmaAffinity affinity.CdmaAffinitySet) *doradoRule {
+	return &doradoRule{
+		mDecoder:     decoder,
+		cdmaAffinity: cdmaAffinity,
+	}
 }
 
 func (a doradoRule) DecodeMasterValue(val int) (codec.EngineTypeCode, int, int) {
@@ -62,7 +68,7 @@ func (a doradoRule) GetEngineOrder(dpf codec.DpfEvent) int {
 }
 
 func (a doradoRule) GetCdmaPgBitOrder(dpf codec.DpfEvent) int {
-	return a.GetEngineOrder(dpf)
+	return a.cdmaAffinity.GetCdmaIdxToPg(dpf.ClusterID, dpf.EngineIndex)
 }
 
 /*

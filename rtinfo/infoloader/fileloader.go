@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"git.enflame.cn/hai.bai/dmaster/efintf"
+	"git.enflame.cn/hai.bai/dmaster/efintf/affinity"
 	"git.enflame.cn/hai.bai/dmaster/meta/dtuarch"
 	"git.enflame.cn/hai.bai/dmaster/meta/metadata"
 	"git.enflame.cn/hai.bai/dmaster/rtinfo/rtdata"
@@ -52,6 +53,10 @@ func NewMetaFileLoader(startup string, oneTaskMode bool) *metaFileLoader {
 
 func (metaFileLoader) GetArchType() dtuarch.ArchType {
 	return dtuarch.EnflameUnknownArch
+}
+
+func (metaFileLoader) GetCdmaAffinity() affinity.CdmaAffinitySet {
+	return affinity.DoradoCdmaAffinityDefault{}
 }
 
 func (d metaFileLoader) GetMetaStartupPath() string {
