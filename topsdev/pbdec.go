@@ -7,16 +7,15 @@ import (
 	"os"
 
 	"git.enflame.cn/hai.bai/dmaster/topsdev/proto/pbdef/topspb"
-	"github.com/golang/protobuf/proto"
 )
 
 func ParseFromChunk(body []byte) (*topspb.ProfileData, error) {
-	var data topspb.ProfileData
-	err := proto.Unmarshal(body, &data)
-	if err == nil {
-		return &data, nil
+	so := SerialObj{data: body}
+	pb, err := so.DecodeProfileData()
+	if err != nil {
+		return nil, err
 	}
-	return nil, err
+	return pb, nil
 }
 
 func dumpTask(pb *topspb.ProfileData) {
