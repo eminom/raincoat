@@ -39,6 +39,8 @@ const (
 	ENGINE_UNKNOWN   = "UNKNOWN"
 )
 
+const MAX_MASTER_ID_VALUE = 1024
+
 type DpfEngineT struct {
 	ClusterID int
 	MasterHi  int
@@ -282,7 +284,12 @@ func init() {
 	pavoEngIdxMap = newEngineTypeIndexMap(pavoDpfTy)
 }
 
+type ArchArgs struct {
+	EngineCountPerC int
+}
+
 type MidRec struct {
+	ArchArgs
 	name      string
 	dc        map[int]int // from 0 to last one
 	toIdxFunc func(int, int) int
@@ -308,6 +315,7 @@ func genDecoder(enginePerCluster int) func(int) (int, int) {
 
 func NewMidRec(name string, eCount int) *MidRec {
 	return &MidRec{
+		ArchArgs:  ArchArgs{EngineCountPerC: eCount},
 		name:      name,
 		dc:        make(map[int]int),
 		toIdxFunc: genIndexerFunc(eCount),
@@ -321,6 +329,15 @@ func (m *MidRec) PickAt(cid, eid int, mid int) {
 		panic(fmt.Errorf("duplicate entry for %v(%v,%v)", m.name, cid, eid))
 	}
 	m.dc[idx] = mid
+}
+
+func (m MidRec) MidFor(cid, eid int) int {
+	idx := m.toIdxFunc(cid, eid)
+	rv := -1
+	if val, ok := m.dc[idx]; ok {
+		rv = val
+	}
+	return rv
 }
 
 func (m *MidRec) Sumup() {
@@ -358,6 +375,10 @@ func (e EngElements) Less(i, j int) bool {
 
 func GenDictForDorado(out io.Writer) {
 	genDictForDorado(doradoDpfTy, out)
+}
+
+func GenAffinityMapForDorado(out io.Writer) {
+	genCompleteMapForDorado(doradoDpfTy, out)
 }
 
 type MidCheckout interface {
