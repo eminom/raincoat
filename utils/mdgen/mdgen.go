@@ -8,6 +8,7 @@ import (
 )
 
 var (
+	fEng = flag.Bool("eng", false, "engine show")
 	fKmd = flag.Bool("kmd", false, "gen affinity for kmd")
 )
 
@@ -16,6 +17,11 @@ func init() {
 }
 
 func main() {
+
+	if *fEng {
+		codec.GenEngineTypeMapForDorado(os.Stdout)
+		return
+	}
 
 	if *fKmd {
 		codec.GenAffinityMapForDorado(os.Stdout)

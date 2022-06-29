@@ -39,8 +39,6 @@ const (
 	ENGINE_UNKNOWN   = "UNKNOWN"
 )
 
-const MAX_MASTER_ID_VALUE = 1024
-
 type DpfEngineT struct {
 	ClusterID int
 	MasterHi  int
@@ -379,6 +377,10 @@ func GenDictForDorado(out io.Writer) {
 
 func GenAffinityMapForDorado(out io.Writer) {
 	genCompleteMapForDorado(doradoDpfTy, out)
+}
+
+func GenEngineTypeMapForDorado(out io.Writer) {
+	genEngineTypeMapSrcForDorado(doradoDpfTy, out)
 }
 
 type MidCheckout interface {
