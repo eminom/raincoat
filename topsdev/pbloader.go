@@ -9,8 +9,8 @@ import (
 	"sort"
 	"strings"
 
-	"git.enflame.cn/hai.bai/dmaster/codec"
 	"git.enflame.cn/hai.bai/dmaster/efintf/affinity"
+	"git.enflame.cn/hai.bai/dmaster/efintf/archtarget"
 	"git.enflame.cn/hai.bai/dmaster/meta/dtuarch"
 	"git.enflame.cn/hai.bai/dmaster/meta/metadata"
 	"git.enflame.cn/hai.bai/dmaster/rtinfo/infoloader"
@@ -208,37 +208,16 @@ func (pb pbLoader) dumpPgAffinityInfo(inputNameHint string) {
 	}
 }
 
-type DoradoCdmaAffinity struct {
-	toPgIdx    []int
-	archTarget codec.ArchTarget
-}
-
-func NewDoradoCdmaAffinity(
-	cdmaAffinity []*topspb.EngineAffinity,
-	arch codec.ArchTarget) DoradoCdmaAffinity {
-	affinityMap := make([]int, arch.CdmaPerC*arch.ClusterPerD)
-
-	def := affinity.DoradoCdmaAffinityDefault{}
-	for cid := 0; cid < arch.ClusterPerD; cid++ {
-		for eid := 0; eid < arch.CdmaPerC; eid++ {
-			affinityMap[cid*arch.CdmaPerC+eid] = def.GetCdmaIdxToPg(cid, eid)
-		}
-	}
-
+func ToCdmaAffinity(cdmaAffinity []*topspb.EngineAffinity) []affinity.CdmaAffinity {
+	var ret []affinity.CdmaAffinity
 	for _, cdma := range cdmaAffinity {
-		idx := arch.CdmaPerC*int(cdma.GetClusterId()) +
-			int(cdma.GetEngineId())
-		affinityMap[idx] = int(cdma.GetPgId())
+		ret = append(ret, affinity.CdmaAffinity{
+			PgIndex: int(cdma.GetPgId()),
+			Cid:     int(cdma.GetClusterId()),
+			Eid:     int(cdma.GetEngineId()),
+		})
 	}
-	return DoradoCdmaAffinity{
-		toPgIdx:    affinityMap,
-		archTarget: arch,
-	}
-}
-
-func (c2p DoradoCdmaAffinity) GetCdmaIdxToPg(cid int, eid int) int {
-	idx := cid*c2p.archTarget.CdmaPerC + eid
-	return c2p.toPgIdx[idx]
+	return ret
 }
 
 func (pb pbLoader) GetCdmaAffinity() affinity.CdmaAffinitySet {
@@ -246,8 +225,8 @@ func (pb pbLoader) GetCdmaAffinity() affinity.CdmaAffinitySet {
 	if affInfo == nil {
 		return affinity.DoradoCdmaAffinityDefault{}
 	}
-	return NewDoradoCdmaAffinity(affInfo.GetCdmaAffinity(),
-		codec.NewDoradoArchTarget())
+	return affinity.NewDoradoCdmaAffinity(ToCdmaAffinity(affInfo.GetCdmaAffinity()),
+		archtarget.NewDoradoArchTarget())
 }
 
 func (pb pbLoader) dumpMisc(inputNameHint string) {

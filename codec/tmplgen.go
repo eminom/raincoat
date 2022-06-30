@@ -5,6 +5,9 @@ import (
 	"html/template"
 	"io"
 	"log"
+
+	"git.enflame.cn/hai.bai/dmaster/efintf/affinity"
+	"git.enflame.cn/hai.bai/dmaster/efintf/archtarget"
 )
 
 const (
@@ -14,28 +17,6 @@ const (
 	Dorado_CqmCountPerCluster   = 3
 	Dorado_GsyncCountPerCluster = 3
 )
-
-type ArchTarget struct {
-	CdmaPerC    int
-	SdmaPerC    int
-	SipPerC     int
-	CqmPerC     int
-	GsyncPerC   int
-	ClusterPerD int
-	MaxMasterId int
-}
-
-func NewDoradoArchTarget() ArchTarget {
-	return ArchTarget{
-		CdmaPerC:    4,
-		SdmaPerC:    12,
-		SipPerC:     12,
-		CqmPerC:     3,
-		GsyncPerC:   3,
-		ClusterPerD: 2,
-		MaxMasterId: 1024,
-	}
-}
 
 type EngineInfo struct {
 	ClusterID  int
@@ -48,17 +29,9 @@ func (e EngineInfo) ToString() string {
 }
 
 type ArchDispatcher struct {
-	ArchTarget
+	archtarget.ArchTarget
 	dispatch map[string]*MidRec
 	revMap   map[int]EngineInfo // From master id to engine info
-}
-
-func (ad ArchDispatcher) GetClusterCount() int {
-	return ad.ClusterPerD
-}
-
-func (ad ArchDispatcher) GetMaxMasterId() int {
-	return ad.MaxMasterId
 }
 
 func (ad ArchDispatcher) CheckOut(mid int) (string, bool) {
@@ -70,7 +43,7 @@ func (ad ArchDispatcher) CheckOut(mid int) (string, bool) {
 }
 
 func MakeCollectDispatch(
-	archTarget ArchTarget,
+	archTarget archtarget.ArchTarget,
 	masterSeq []DpfEngineT) ArchDispatcher {
 	dispatch := map[string]*MidRec{
 		ENGINE_CDMA:  NewMidRec("cdma", archTarget.CdmaPerC),
@@ -114,7 +87,7 @@ func initMidInfo(mi *MidInfoMan) {
 
 func genDictForDorado(midCodec []DpfEngineT, out io.Writer) {
 	// Prepares
-	dispatch := MakeCollectDispatch(NewDoradoArchTarget(), doradoDpfTy)
+	dispatch := MakeCollectDispatch(archtarget.NewDoradoArchTarget(), doradoDpfTy)
 
 	sourceTextTmpl := template.Must(
 		template.New("master-id-map").Funcs(
@@ -144,7 +117,7 @@ int affinity_map[] = {
 `
 
 func genCompleteMapForDorado(midCodec []DpfEngineT, out io.Writer) {
-	target := NewDoradoArchTarget()
+	target := archtarget.NewDoradoArchTarget()
 	dispatch := MakeCollectDispatch(target, doradoDpfTy)
 	srcTmpl := template.Must(
 		template.New("kmdaffinity").Funcs(
@@ -160,7 +133,7 @@ func genCompleteMapForDorado(midCodec []DpfEngineT, out io.Writer) {
 	srcTmpl.Execute(out, genAffnityMapForDorado(target, dispatch))
 }
 
-func genAffnityMapForDorado(target ArchTarget, archDisp ArchDispatcher) []int {
+func genAffnityMapForDorado(target archtarget.ArchTarget, archDisp ArchDispatcher) []int {
 
 	affinityMap := make([]int, archDisp.MaxMasterId)
 	for i := 0; i < len(affinityMap); i++ {
@@ -182,31 +155,28 @@ func genAffnityMapForDorado(target ArchTarget, archDisp ArchDispatcher) []int {
 	// CDMA(0, 3) belongs to 000111
 	// CDMA(1, 3) belongs to 111000
 	// And with some distortion(introduced in June. 2022)
+
+	// {pg, cluster, cdma}
+	// {0, 0, 2}, {1, 0, 0}, {2, 0, 3}, {3, 1, 1}, {4, 1, 0}, {5, 1, 3},
+
+	cdmaAffSet := affinity.NewDoradoCdmaAffinityVersioning(archDisp.ArchTarget)
 	iterateOn(dispatch[ENGINE_CDMA], func(cid, eid, mval int) int {
-		var pgIdx int
-		if eid == 3 {
-			pgIdx = cid * 3
-		} else {
-			// TODO: (hardcode with version)
-			pgIdx = cid*3 + eid
-		}
-		return pgIdx
+		return cdmaAffSet.GetCdmaIdxToPg(cid, eid)
 	})
-	iterateOn(dispatch[ENGINE_CQM], func(cid, eid, mval int) int {
+
+	calcDoradoCqmGsync := func(cid, eid, mval int) int {
 		return cid*3 + eid
-	})
-	iterateOn(dispatch[ENGINE_GSYNC], func(cid, eid, mval int) int {
-		return cid*3 + eid
-	})
+	}
+	iterateOn(dispatch[ENGINE_CQM], calcDoradoCqmGsync)
+	iterateOn(dispatch[ENGINE_GSYNC], calcDoradoCqmGsync)
+
 	// SIP(0, 0~3) belongs to 000001
 	// SIP(0, 4~7) belongs to 000010
-	iterateOn(dispatch[ENGINE_SIP], func(cid, eid, mval int) int {
+	calcDoradoSip := func(cid, eid, mval int) int {
 		return cid*3 + eid/4
-	})
-	// SDAM, same as SIP
-	iterateOn(dispatch[ENGINE_SDMA], func(cid, eid, mval int) int {
-		return cid*3 + eid/4
-	})
+	}
+	iterateOn(dispatch[ENGINE_SIP], calcDoradoSip)
+	iterateOn(dispatch[ENGINE_SDMA], calcDoradoSip)
 	return affinityMap
 }
 
@@ -227,7 +197,7 @@ int kEngineTypes[] = {
 `
 
 func genEngineTypeMapSrcForDorado(midCodec []DpfEngineT, out io.Writer) {
-	dispatch := MakeCollectDispatch(NewDoradoArchTarget(), doradoDpfTy)
+	dispatch := MakeCollectDispatch(archtarget.NewDoradoArchTarget(), doradoDpfTy)
 	srcTmpl := template.Must(template.New("mid-to-engty").Funcs(
 		template.FuncMap{"IndexToComment": func(mid int) string {
 			if engInfo, ok := dispatch.revMap[mid]; ok {
