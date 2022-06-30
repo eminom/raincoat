@@ -44,6 +44,10 @@ type PostProcessor struct {
 	hostInfo   mimicdefs.HostInfo
 }
 
+type DumpOpt struct {
+	CpuOp bool
+}
+
 func NewPostProcesser(loader efintf.InfoReceiver,
 	curAlgo vgrule.ActMatchAlgo,
 	enableExtendedTimeline bool,
@@ -173,7 +177,8 @@ type DbDumper interface {
 	)
 }
 
-func (p PostProcessor) DumpToDb(coord rtdata.Coords, dbe DbDumper) {
+func (p PostProcessor) DumpToDb(coord rtdata.Coords,
+	dOpt DumpOpt, dbe DbDumper) {
 
 	dbe.DumpHostInfo(
 		p.hostInfo,
@@ -183,11 +188,14 @@ func (p PostProcessor) DumpToDb(coord rtdata.Coords, dbe DbDumper) {
 		coord,
 		p.dtuOps, p.tm,
 	)
-	dbe.DumpCpuOpTrace(
-		coord,
-		p.procOpt.CpuOps,
-		"CPU Op",
-	)
+
+	if dOpt.CpuOp {
+		dbe.DumpCpuOpTrace(
+			coord,
+			p.procOpt.CpuOps,
+			"CPU Op",
+		)
+	}
 
 	dbe.DumpTaskVec(
 		coord,

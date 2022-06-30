@@ -59,6 +59,9 @@ var (
 	// Force onetask
 	fForceOneTask = flag.Bool("force1task", false, "force 1task for pavo")
 	fDumpToStd    = flag.Bool("stdout", false, "dump to stdout")
+
+	// Dump option control(which ones are imported into vpd)
+	fDumpCpuOp = flag.Bool("dcpuop", false, "dump cpu op trace")
 )
 
 // package
@@ -288,8 +291,11 @@ func main() {
 		NodeID:   0,
 		DeviceID: 0,
 	}
+	var dOpt = DumpOpt{
+		CpuOp: *fDumpCpuOp,
+	}
 	for i := 0; i < rbCount; i++ {
-		ps[i].DumpToDb(coord, dbObj)
+		ps[i].DumpToDb(coord, dOpt, dbObj)
 		coord.DeviceID++
 	}
 
