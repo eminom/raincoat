@@ -10,6 +10,13 @@ type ArchTarget struct {
 	MaxMasterId int
 }
 
+type ArchPgTarget struct {
+	ArchTarget
+	SipPerPg             int
+	SipPgGroupPerCluster int
+	MaxPgOrderIndex      int
+}
+
 func (at ArchTarget) GetCdmaCount() int {
 	return at.ClusterPerD * at.CdmaPerC
 }
@@ -20,4 +27,8 @@ func (at ArchTarget) GetMaxMasterId() int {
 
 func (ad ArchTarget) GetClusterCount() int {
 	return ad.ClusterPerD
+}
+
+func (ad ArchPgTarget) GetMaxPgOrderIndex() int {
+	return ad.MaxPgOrderIndex
 }

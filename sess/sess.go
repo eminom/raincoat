@@ -19,6 +19,7 @@ import (
 	"git.enflame.cn/hai.bai/dmaster/codec"
 	"git.enflame.cn/hai.bai/dmaster/efintf"
 	"git.enflame.cn/hai.bai/dmaster/efintf/sessintf"
+	"git.enflame.cn/hai.bai/dmaster/vgrule"
 )
 
 var (
@@ -308,6 +309,29 @@ func (sess Session) PrintItems(out io.Writer, printRaw bool) {
 			fmt.Fprintf(out, "%v\n", v.ToString())
 		}
 	}
+}
+
+func (sess Session) CalcStat(engOrder vgrule.EngineOrder) {
+
+	pgMax := engOrder.GetMaxPgOrderIndex()
+	var pgStat = make([]PgStatInfo, pgMax)
+	for i := 0; i < pgMax; i++ {
+		pgStat[i] = NewPgStatInfo(1<<i, engOrder)
+	}
+
+	for _, v := range sess.items {
+		pgIdx := engOrder.GetEngineOrderIndex(v)
+		if pgIdx >= 0 {
+			pgStat[pgIdx].Tick(v.EngineUniqIdx)
+		}
+	}
+
+	for _, pgS := range pgStat {
+		if !pgS.IsEmpty() {
+			pgS.DumpInfo(os.Stderr)
+		}
+	}
+
 }
 
 type SessBroadcaster struct {

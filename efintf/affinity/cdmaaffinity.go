@@ -58,3 +58,7 @@ func NewDoradoCdmaAffinityVersioning(target archtarget.ArchTarget) DoradoCdmaAff
 		{0, 0, 2}, {1, 0, 0}, {2, 0, 3}, {3, 1, 1}, {4, 1, 0}, {5, 1, 3},
 	}, target)
 }
+
+func NewDoradoCdmaAffinityDefault() DoradoCdmaAffinity {
+	return NewDoradoCdmaAffinityVersioning(archtarget.NewDoradoArchTarget())
+}

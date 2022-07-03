@@ -56,7 +56,7 @@ func (metaFileLoader) GetArchType() dtuarch.ArchType {
 }
 
 func (metaFileLoader) GetCdmaAffinity() affinity.CdmaAffinitySet {
-	return affinity.DoradoCdmaAffinityDefault{}
+	return affinity.NewDoradoCdmaAffinityDefault()
 }
 
 func (d metaFileLoader) GetMetaStartupPath() string {

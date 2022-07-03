@@ -5,12 +5,14 @@ import (
 
 	"git.enflame.cn/hai.bai/dmaster/codec"
 	"git.enflame.cn/hai.bai/dmaster/sess"
+	"git.enflame.cn/hai.bai/dmaster/vgrule"
 )
 
 func BinaryProcess(chunk []byte,
 	out io.Writer,
 	decoder *codec.DecodeMaster,
-	decodeGr int) {
+	decodeGr int,
+	engineOrder vgrule.EngineOrder) {
 
 	sess := sess.NewSession(sess.SessionOpt{
 		Debug:        *fDebug,
@@ -20,4 +22,5 @@ func BinaryProcess(chunk []byte,
 	})
 	sess.DecodeChunk(chunk, decoder, decodeGr)
 	sess.PrintItems(out, *fRaw)
+	sess.CalcStat(engineOrder)
 }

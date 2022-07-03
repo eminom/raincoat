@@ -61,7 +61,7 @@ func (ot OrderTask) AbleToMatchCqm(evt codec.DpfEvent, a vgrule.EngineOrder) boo
 	if efconst.IsAllZeroPgMask(ot.refToTask.PgMask) {
 		return true
 	}
-	return ot.refToTask.MatchCqm(a.GetEngineOrder(evt))
+	return ot.refToTask.MatchCqm(a.GetCqmEngineOrder(evt))
 }
 
 func (ot OrderTask) AbleToMatchSip(evt codec.DpfEvent, a vgrule.EngineOrder) bool {

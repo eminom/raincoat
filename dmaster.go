@@ -197,6 +197,9 @@ func main() {
 	archDetector := archdetect.NewArchDetector(*fArch, *fForceOneTask, loader)
 	decoder := codec.NewDecodeMaster(archDetector.GetArch())
 
+	// Dumping are now equiped with statistics work
+	curAlgo := vgrule.NewDoradoRule(decoder, loader.GetCdmaAffinity())
+
 	// The very ancient way
 	if len(flag.Args()) == 0 {
 		TextProcess(decoder)
@@ -226,20 +229,18 @@ func main() {
 			// only decode the very first one
 			cidToDecode := 0
 			chunk := contentLoader.LoadRingBufferContent(cidToDecode, 0)
-			BinaryProcess(chunk, fout, decoder, *fDecodeRoutineCount)
+			BinaryProcess(chunk, fout, decoder, *fDecodeRoutineCount, curAlgo)
 		} else {
 			// single raw file
 			filename := flag.Args()[0]
 			if chunk, err := os.ReadFile(filename); err == nil {
-				BinaryProcess(chunk, fout, decoder, *fDecodeRoutineCount)
+				BinaryProcess(chunk, fout, decoder, *fDecodeRoutineCount, curAlgo)
 			} else {
 				panic(fmt.Errorf("could not read %v: %v", filename, err))
 			}
 		}
 		return
 	}
-
-	curAlgo := vgrule.NewDoradoRule(decoder, loader.GetCdmaAffinity())
 
 	// Start concurrency
 	rbCount := contentLoader.GetRingBufferCount()

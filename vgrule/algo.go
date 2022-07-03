@@ -8,13 +8,21 @@ import (
 	"git.enflame.cn/hai.bai/dmaster/efintf/affinity"
 )
 
+type EngineMaterIdStringMap interface {
+	CheckoutEngineString(int) string
+}
+
 type EngineOrder interface {
-	GetEngineOrder(dpf codec.DpfEvent) int
+	EngineMaterIdStringMap
+	GetEngineOrderIndex(codec.DpfEvent) int
+	GetCqmEngineOrder(codec.DpfEvent) int
 	GetSipEngineOrder(codec.DpfEvent) int
 	GetCdmaPgBitOrder(codec.DpfEvent) int
 	GetSdmaPgBitOrder(codec.DpfEvent) int
 	MapPgMaskBitsToCdmaEngineMask(pgMask int) int
 	MapPgMaskBitsToSdmaEngineMask(pgMask int) int
+	GetMaxPgOrderIndex() int
+	GetMaxMasterId() int
 }
 
 type MasterValueDecoder interface {
@@ -30,6 +38,7 @@ type ActMatchAlgo interface {
 }
 
 type doradoRule struct {
+	codec.ArchDispatcher
 	mDecoder     MasterValueDecoder
 	cdmaAffinity affinity.CdmaAffinitySet
 }
@@ -37,8 +46,9 @@ type doradoRule struct {
 func NewDoradoRule(decoder MasterValueDecoder,
 	cdmaAffinity affinity.CdmaAffinitySet) *doradoRule {
 	return &doradoRule{
-		mDecoder:     decoder,
-		cdmaAffinity: cdmaAffinity,
+		ArchDispatcher: codec.MakeDoradoCollectDispatch(),
+		mDecoder:       decoder,
+		cdmaAffinity:   cdmaAffinity,
 	}
 }
 
@@ -60,11 +70,30 @@ func (a doradoRule) DecodeChan(chNum int) (int, int) {
 }
 
 /*
+For now only 5 kinds of engines are bound to Pg
+*/
+func (a doradoRule) GetEngineOrderIndex(dpf codec.DpfEvent) int {
+	switch dpf.EngineTypeCode {
+	case codec.EngCat_CDMA:
+		return a.GetCdmaPgBitOrder(dpf)
+	case codec.EngCat_GSYNC,
+		codec.EngCat_CQM:
+		return a.GetCqmEngineOrder(dpf)
+	case codec.EngCat_SIP:
+		return a.GetSipEngineOrder(dpf)
+	case codec.EngCat_SDMA:
+		return a.GetSdmaPgBitOrder(dpf)
+	}
+	// negative shift is not allowed in Golang
+	return -1
+}
+
+/*
 Get engine order for CQM/GSYNC
 6 pg, 6 CQM/GSYNC (master engine)
 */
-func (a doradoRule) GetEngineOrder(dpf codec.DpfEvent) int {
-	return dpf.EngineIndex + 3*dpf.ClusterID
+func (a doradoRule) GetCqmEngineOrder(dpf codec.DpfEvent) int {
+	return dpf.EngineIndex + a.CqmPerC*dpf.ClusterID
 }
 
 func (a doradoRule) GetCdmaPgBitOrder(dpf codec.DpfEvent) int {
@@ -77,7 +106,7 @@ func (a doradoRule) GetCdmaPgBitOrder(dpf codec.DpfEvent) int {
   SIP 8~11 pgbit  100   ---> into 2
 */
 func (a doradoRule) GetSipEngineOrder(dpf codec.DpfEvent) int {
-	return dpf.EngineIndex/4 + 3*dpf.ClusterID
+	return dpf.EngineIndex/a.SipPerPg + a.SipPgGroupPerCluster*dpf.ClusterID
 }
 
 /*
@@ -88,7 +117,7 @@ func (a doradoRule) GetSipEngineOrder(dpf codec.DpfEvent) int {
 Going to fit into the 1 of the 6 bits (6 PGs for dorado)
 */
 func (a doradoRule) GetSdmaPgBitOrder(dpf codec.DpfEvent) int {
-	return dpf.EngineIndex/4 + 3*dpf.ClusterID
+	return dpf.EngineIndex/a.SipPerPg + a.SipPgGroupPerCluster*dpf.ClusterID
 }
 
 func (a doradoRule) MapPgMaskBitsToCdmaEngineMask(pgMask int) int {

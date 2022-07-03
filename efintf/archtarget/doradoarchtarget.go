@@ -11,3 +11,15 @@ func NewDoradoArchTarget() ArchTarget {
 		MaxMasterId: 1024,
 	}
 }
+
+func NewDoradoArchPgTarget() ArchPgTarget {
+	baseTarget := NewDoradoArchTarget()
+	const DoradoSipPerPg = 4
+	SipPgGroupPerCluster := baseTarget.SipPerC / DoradoSipPerPg
+	return ArchPgTarget{
+		ArchTarget:           baseTarget,
+		SipPerPg:             DoradoSipPerPg,
+		SipPgGroupPerCluster: SipPgGroupPerCluster,
+		MaxPgOrderIndex:      6,
+	}
+}
