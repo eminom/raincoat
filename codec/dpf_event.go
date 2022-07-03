@@ -42,6 +42,14 @@ func (d DpfEvent) DpfSyncIndex() int {
 	return int(d.RawValue[0] >> 1)
 }
 
+func (d DpfEvent) PcieWord0() string {
+	val := int(d.RawValue[0])
+	taskId := int(val >> 24)
+	val &= (1 << 24) - 1
+	val >>= 1
+	return fmt.Sprintf("task(%v) %v", taskId, val)
+}
+
 func (d DpfEvent) DpfSyncIndexMasked() int {
 	val := int(d.RawValue[0])
 	// 4 27 1
@@ -85,7 +93,7 @@ func (d DpfEvent) ToString() string {
 		case EngCat_PCIE:
 			return fmt.Sprintf("%-10s %-10v ts=%v",
 				d.EngineTypeCode,
-				d.DpfSyncIndex(),
+				d.PcieWord0(),
 				d.Cycle)
 		case EngCat_TS:
 			return fmt.Sprintf("%-6s %-2v %-2v %-2v stream=%v %v pid=%v ts=%-14d",

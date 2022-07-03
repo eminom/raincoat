@@ -135,7 +135,10 @@ func (pb pbLoader) DumpCpuOpTrace(inputNameHint string) {
 		return
 	}
 	defer fout.Close()
-
+	if pb.pbObj.GetCpu() == nil {
+		fmt.Fprintf(os.Stderr, "optional CPU is not present\n")
+		return
+	}
 	for _, cpuOp := range pb.pbObj.Cpu.Events {
 		// expecting Backend
 		cpuOpCatName := cpuOp.GetName()
@@ -339,6 +342,10 @@ func (pb PbComplex) GetRingBufferCount() int {
 }
 
 func (pb PbComplex) GetCpuOpTraceSeq() []rtdata.CpuOpAct {
+	if pb.pbObj.GetCpu() == nil {
+		fmt.Fprintf(os.Stderr, "optional CPU is not present\n")
+		return nil
+	}
 	var cpuOps []rtdata.CpuOpAct
 	for _, cpuOp := range pb.pbObj.Cpu.Events {
 		name := cpuOp.GetName() // expecting BACKEND
