@@ -4,6 +4,7 @@ import (
 	"io"
 
 	"git.enflame.cn/hai.bai/dmaster/codec"
+	"git.enflame.cn/hai.bai/dmaster/meta/dtuarch"
 	"git.enflame.cn/hai.bai/dmaster/sess"
 	"git.enflame.cn/hai.bai/dmaster/vgrule"
 )
@@ -22,5 +23,9 @@ func BinaryProcess(chunk []byte,
 	})
 	sess.DecodeChunk(chunk, decoder, decodeGr)
 	sess.PrintItems(out, *fRaw)
-	sess.CalcStat(engineOrder)
+
+	// Do pg statistics automatically for Dorado
+	if decoder.Arch == dtuarch.DoradoNameTrait {
+		sess.CalcStat(engineOrder)
+	}
 }
