@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"html/template"
 	"os"
+	"strconv"
 
 	"git.enflame.cn/hai.bai/dmaster/rtinfo/rtdata"
 )
@@ -13,7 +14,7 @@ const pythonDebugOpTmpl = `
 
 def LoadOps():
   opVec = [ \
-  {{range $_, $Item :=.}} [ {{ ExtractOpId $Item }}, {{ $Item.Start.Cycle }}, {{ $Item.End.Cycle}}, ],
+  {{range $_, $Item :=.}} [ {{ExtractOpId $Item}}, "{{ExtractOpName $Item}}", {{$Item.Start.Cycle}}, {{$Item.End.Cycle}}, ],
   {{end}}
   ]
   return opVec
@@ -28,9 +29,14 @@ func DumpOpsToPythonDebugCode(dtuOps []rtdata.OpActivity) {
 
 	srcTmpl := template.Must(
 		template.New("python-debug-op").Funcs(template.FuncMap{
+			"ExtractOpName": func(dtuOp rtdata.OpActivity) string {
+				return dtuOp.GetOp().OpName
+			},
 			"ExtractOpId": func(dtuOp rtdata.OpActivity) string {
-				opInfo := dtuOp.GetOp()
-				return fmt.Sprintf("[%v, '%v']", opInfo.OpId, opInfo.OpName)
+				return strconv.Itoa(dtuOp.GetOp().OpId)
+			},
+			"html": func(str string) string {
+				return str
 			},
 		}).Parse(pythonDebugOpTmpl))
 	err = srcTmpl.Execute(fout, dtuOps)
