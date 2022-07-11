@@ -21,6 +21,7 @@ type PostProcessOpt struct {
 	DumpSipBusy bool
 	SeqIdx      int
 	NoSubop     bool
+	DumpOpDebug bool
 	CpuOps      []rtdata.CpuOpAct
 }
 
@@ -294,6 +295,11 @@ func (p *PostProcessor) DoPostProcessing() {
 				p.rtDict.CopyTaskVec(),
 			)
 		}
+
+		if p.procOpt.DumpOpDebug {
+			DumpOpsToPythonDebugCode(dtuOps)
+		}
+
 		tr.DumpTaskVec(p.taskActMap,
 			p.rtDict.GetOrderedTaskVec(),
 			p.tm,

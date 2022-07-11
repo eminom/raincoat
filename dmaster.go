@@ -62,6 +62,9 @@ var (
 
 	// Dump option control(which ones are imported into vpd)
 	fDumpCpuOp = flag.Bool("dcpuop", false, "dump cpu op trace")
+
+	// Dump op time info(cycles) into python format
+	fDumpOpDebug = flag.Bool("dumpopdebug", false, "dump op cycle info for debug")
 )
 
 // package
@@ -264,6 +267,7 @@ func main() {
 			SeqIdx:      fileIdx,
 			NoSubop:     *fNoSubop,
 			CpuOps:      cpuOps,
+			DumpOpDebug: *fDumpOpDebug,
 		})
 	}
 	for i := 0; i < rbCount; i++ {
