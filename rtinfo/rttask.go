@@ -512,7 +512,7 @@ func (rtm *RuntimeTaskManager) GenerateTaskOps(
 		}
 		taskId := task.GetTaskID()
 		if _, existed := taskIdToActivity[taskId]; existed {
-			fmt.Fprintf(os.Stderr, "ERROR: already taken for task %v", taskId)
+			fmt.Fprintf(os.Stderr, "ERROR: already taken for task %v\n", taskId)
 			continue
 		}
 
