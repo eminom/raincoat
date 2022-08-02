@@ -111,10 +111,12 @@ func (pb pbLoader) DumpMeta() {
 	// it may crash
 	for _, seri := range pb.pbObj.Dtu.Meta.GetExecutableProfileSerialize() {
 		execMeta := ParseProfileSection(seri, DummyStdout{})
-		execMeta.DumpDtuOpToFile()
-		execMeta.DumpDmaToFile()
-		execMeta.DumpPktOpMapToFile()
-		execMeta.DumpSubOpToFile()
+		if execMeta != nil {
+			execMeta.DumpDtuOpToFile()
+			execMeta.DumpDmaToFile()
+			execMeta.DumpPktOpMapToFile()
+			execMeta.DumpSubOpToFile()
+		}
 	}
 }
 

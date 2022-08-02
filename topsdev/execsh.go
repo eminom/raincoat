@@ -154,7 +154,8 @@ func DumpSectionsFromExecutable(filename string, checkFormatOnly bool) {
 			)
 
 			if checkFormatOnly {
-				fmt.Printf("ProfSec for %v is type-%v\n", filename, fc)
+				fmt.Printf("ProfSec for %v(0x%016x) is type-%v\n",
+					filename, execRaw.ExecUuid, fc)
 				break
 			}
 			if execScope == nil {

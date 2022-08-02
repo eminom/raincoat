@@ -396,7 +396,8 @@ func ParseProfileSectionFromData(
 ) (*metadata.ExecScope, int) {
 	fc := DetectFormatCode(data)
 	if fc != 1 {
-		fmt.Fprintf(os.Stderr, "format(%v) is not supported\n", fc)
+		fmt.Fprintf(os.Stderr,
+			"exec 0x%016x: format(%v) is not supported\n", execUuid, fc)
 		return nil, fc
 	}
 
