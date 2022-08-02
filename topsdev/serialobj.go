@@ -3,6 +3,7 @@ package topsdev
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"log"
 
 	"git.enflame.cn/hai.bai/dmaster/topsdev/proto/pbdef/topspb"
@@ -19,8 +20,7 @@ const (
 )
 
 var (
-	errUnexpectedTypeCode = errors.New("unexpected type-code")
-	errUnableToDecodePb   = errors.New("unable to decode pb")
+	errUnableToDecodePb = errors.New("unable to decode pb")
 )
 
 func (s *SerialObj) decodeUint64() uint64 {
@@ -40,7 +40,7 @@ func (s *SerialObj) DecodeTypeCode() int {
 func (s *SerialObj) decodeProfileData() *topspb.ProfileData {
 	ty := s.DecodeTypeCode()
 	if ty != ProfileDataTypeCode {
-		panic(errUnexpectedTypeCode)
+		panic(fmt.Errorf("expecting %v got %v", ProfileDataTypeCode, ty))
 	}
 	sz := s.DecodeLength()
 	chunk := s.data[:sz]
@@ -71,7 +71,7 @@ func (s *SerialObj) DecodeProfileData() (*topspb.ProfileData, error) {
 	for i := 0; i < packCount; i++ {
 		ty := s.DecodeTypeCode()
 		if ty != ClusterPackTypeCode {
-			return nil, errUnexpectedTypeCode
+			return nil, fmt.Errorf("expecting %v got %v", ClusterPackTypeCode, ty)
 		}
 		sz := s.DecodeLength()
 		chunk := s.data[:sz]
