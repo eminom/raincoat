@@ -3,6 +3,7 @@ package codec
 import (
 	"errors"
 	"fmt"
+	"strconv"
 )
 
 var (
@@ -42,12 +43,18 @@ func (d DpfEvent) DpfSyncIndex() int {
 	return int(d.RawValue[0] >> 1)
 }
 
+/* **
 func (d DpfEvent) PcieWord0() string {
 	val := int(d.RawValue[0])
 	taskId := int(val >> 24)
 	val &= (1 << 24) - 1
 	val >>= 1
 	return fmt.Sprintf("task(%v) %v", taskId, val)
+}
+*/
+
+func (d DpfEvent) PcieWord0() string {
+	return strconv.FormatInt(int64(d.RawValue[0]), 10)
 }
 
 func (d DpfEvent) DpfSyncIndexMasked() int {
