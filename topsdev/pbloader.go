@@ -112,12 +112,16 @@ func (pb pbLoader) DumpMeta() {
 	for _, seri := range pb.pbObj.Dtu.Meta.GetExecutableProfileSerialize() {
 		execMeta := ParseProfileSection(seri, DummyStdout{})
 		if execMeta != nil {
+			// fmt.Fprintf(os.Stdout, "ExeUuid: 0x%x\n", execMeta.GetExecUuid())
 			execMeta.DumpDtuOpToFile()
 			execMeta.DumpDmaToFile()
 			execMeta.DumpPktOpMapToFile()
 			execMeta.DumpSubOpToFile()
+			execMeta.DumpModThunkToFile()
+			fmt.Fprintf(os.Stdout, "\n")
 		}
 	}
+
 }
 
 // utils for KVData

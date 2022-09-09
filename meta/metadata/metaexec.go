@@ -26,18 +26,21 @@ type ExecScope struct {
 	opMap     map[int]DtuOp
 	dmaMap    DmaInfoMap
 	subOpMap  map[int][]SubOpMeta
+	modThMap  map[string]ModThunk
 }
 
 func NewExecScope(execUuid uint64,
 	pktIdToOp map[int]int, opMap map[int]DtuOp,
 	dmaMap DmaInfoMap,
-	subOpMap map[int][]SubOpMeta) *ExecScope {
+	subOpMap map[int][]SubOpMeta,
+	modThMap map[string]ModThunk) *ExecScope {
 	return &ExecScope{
 		execUuid,
 		pktIdToOp,
 		opMap,
 		dmaMap,
 		subOpMap,
+		modThMap,
 	}
 }
 
@@ -47,6 +50,17 @@ func (es ExecScope) getDumpFileName(name string) string {
 	)
 	hi32 := es.execUuid >> 32
 	return fmt.Sprintf("0x%08x_%v.%v", hi32, name, dumpFileSuffix)
+}
+
+func (es ExecScope) getModThunkName(name string) string {
+	const (
+		dumpFileSuffix = "hlirdump"
+	)
+	hi32 := es.execUuid >> 32
+	if len(name) > 0 {
+		name = "_" + name
+	}
+	return fmt.Sprintf("0x%08x%v.%v", hi32, name, dumpFileSuffix)
 }
 
 func (es ExecScope) DumpPktOpMapToOstream(fout *os.File) {
@@ -144,6 +158,16 @@ func (es ExecScope) DumpSubOpToFile() {
 		es.DumpSubOpMetaToOstream(fout)
 	} else {
 		panic(fmt.Errorf("could not open %v for: %v", filename, err))
+	}
+}
+
+func (es ExecScope) DumpModThunkToFile() {
+	for key, mod := range es.modThMap {
+		outname := es.getModThunkName(key)
+		fout, err := os.Create(outname)
+		if err == nil {
+			fout.WriteString(mod.Content)
+		}
 	}
 }
 

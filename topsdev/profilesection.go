@@ -84,6 +84,7 @@ typedef struct OpMetaSec {
 
 
 typedef struct ModuleSec {
+  int type_id;
   int id;
   uint32_t name;
   uint32_t size;
@@ -146,6 +147,7 @@ import (
 	"os"
 	"reflect"
 	"sort"
+	"strings"
 	"unsafe"
 
 	"git.enflame.cn/hai.bai/dmaster/assert"
@@ -210,13 +212,16 @@ func GetSubOpMetaSecSize() uintptr {
 	return uintptr(C.GetSubOpMetaSecSize())
 }
 
-func dumpProfSec(sec C.ProfileSection) {
-	fmt.Printf("flag: %v\n", sec.flag)
-	fmt.Printf("header_size: %v\n", sec.profile_section_header_size)
-	fmt.Printf("reserved0: %x\n", sec.reserved_0)
-	fmt.Printf("reserved0: %x\n", sec.reserved_1)
-	fmt.Printf("reserved0: %x\n", sec.reserved_2)
-	fmt.Printf("sub_sections: %v\n", sec.sub_section_count)
+func dumpProfSec(sec C.ProfileSection, execUuidPrompt uint64) {
+	fmt.Printf("exec(0x%016x)\n", execUuidPrompt)
+	indent := strings.Repeat(" ", 2)
+	fmt.Printf(indent+"flag: %v\n", sec.flag)
+	fmt.Printf(indent+"header_size: %v\n", sec.profile_section_header_size)
+	fmt.Printf(indent+"reserved0: %x\n", sec.reserved_0)
+	fmt.Printf(indent+"reserved0: %x\n", sec.reserved_1)
+	fmt.Printf(indent+"reserved0: %x\n", sec.reserved_2)
+	fmt.Printf(indent+"sub_sections: %v\n", sec.sub_section_count)
+	fmt.Printf("\n")
 }
 
 type SubInfo struct {
@@ -236,6 +241,7 @@ type ProfileSecPipBoy struct {
 	memcpyRec SubInfo
 	stringRec SubInfo
 	subOpRec  SubInfo
+	moduleRec SubInfo
 }
 
 type RawDataSet struct {
@@ -243,10 +249,10 @@ type RawDataSet struct {
 	rawCopy []byte
 }
 
-func DetectFormatCode(rawData []byte) int {
+func DetectFormatCode(rawData []byte, execUuidPrompt uint64) int {
 	uVal := reflect.ValueOf(rawData).Pointer()
 	sec := *(*C.ProfileSection)(unsafe.Pointer(uVal))
-	dumpProfSec(sec)
+	dumpProfSec(sec, execUuidPrompt)
 	return int(sec.flag)
 }
 
@@ -305,6 +311,7 @@ func NewProfileSecPipBoy(rawData []byte) ProfileSecPipBoy {
 	rv.memcpyRec = retrieveFor(PROFSEC_TYPE_MEMCPY_THUNK, true)
 	rv.stringRec = retrieveFor(PROFSEC_TYPE_STRINGPOOL, true)
 	rv.subOpRec = retrieveFor(PROFSEC_TYPE_SUBOPMETATHUNK, false)
+	rv.moduleRec = retrieveFor(PROFSEC_TYPE_MODULETHUNK, false)
 
 	assert.Assert(len(rawData) == profileSectionSize+
 		int(sec.sub_section_count)*perSubSecSize+
@@ -343,6 +350,10 @@ func (ps ProfileSecPipBoy) MemcpyCount() int {
 
 func (ps ProfileSecPipBoy) SubOpCount() int {
 	return ps.subOpRec.count
+}
+
+func (ps ProfileSecPipBoy) ModuleThunkCount() int {
+	return ps.moduleRec.count
 }
 
 func (ps ProfileSecPipBoy) HeaderSize() int {
@@ -394,7 +405,7 @@ func ParseProfileSectionFromData(
 	execUuid uint64,
 	debugStdout io.Writer,
 ) (*metadata.ExecScope, int) {
-	fc := DetectFormatCode(data)
+	fc := DetectFormatCode(data, execUuid)
 	if fc != 1 {
 		fmt.Fprintf(os.Stderr,
 			"exec 0x%016x: format(%v) is not supported\n", execUuid, fc)
@@ -532,6 +543,26 @@ func ParseProfileSectionFromData(
 		sort.Sort(metadata.SubOpMetaVec(subVec))
 	}
 
+	// Module
+	moduleThunkMap := make(map[string]metadata.ModThunk)
+	rawChunk = newPb.moduleRec.rawChunk
+	elementSize = newPb.moduleRec.elementSize
+	for i := 0; i < newPb.ModuleThunkCount(); i++ {
+		slice := rawChunk[i*elementSize:]
+		uVal := reflect.ValueOf(slice).Pointer()
+		moduleSec := *(*C.ModuleSec)(unsafe.Pointer(uVal))
+		id := int(moduleSec.id)
+		name := newPb.ExtractStringAt(int(moduleSec.name))
+		content := newPb.ExtractStringAt(int(moduleSec.data))
+		modTh := metadata.NewModThunk(id, name, content)
+		key := modTh.ToNameString()
+		if _, ok := moduleThunkMap[key]; ok {
+			fmt.Fprintf(os.Stderr, "%v already exists\n", key)
+			continue
+		}
+		moduleThunkMap[key] = modTh
+	}
+
 	return metadata.NewExecScope(execUuid,
 		pkt2OpDict,
 		opInformationMap,
@@ -539,6 +570,7 @@ func ParseProfileSectionFromData(
 			Info: dmaInfoMap,
 		},
 		subOpInfoMap,
+		moduleThunkMap,
 	), fc
 }
 
