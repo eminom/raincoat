@@ -49,6 +49,8 @@ import (
 	"os"
 	"reflect"
 	"unsafe"
+
+	"git.enflame.cn/hai.bai/dmaster/meta/metadata"
 )
 
 // Remove :u64
@@ -168,4 +170,23 @@ func DumpSectionsFromExecutable(filename string, checkFormatOnly bool) {
 			NewAssertRtDict(execRaw).DumpAssertInfo()
 		}
 	}
+}
+
+func LoadExecScopeFromExec(filename string) []*metadata.ExecScope {
+	var colls []*metadata.ExecScope
+	chunkVec := LoadSectionsFromExec(filename)
+	for _, execRaw := range chunkVec {
+		switch execRaw.DataType {
+		case SHT_PROFILE:
+
+			execScope, _ := ParseProfileSectionFromData(execRaw.DataChunk,
+				execRaw.ExecUuid,
+				io.Discard,
+			)
+			if execScope != nil {
+				colls = append(colls, execScope)
+			}
+		}
+	}
+	return colls
 }

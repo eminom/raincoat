@@ -1,0 +1,5 @@
+#!/bin/bash
+
+rm -rfv lib/profile/topspti/proto
+mkdir -p lib/profile/topspti/proto
+cp -v ~/jWork/tops/sdk/lib/profile/topspti/proto/*.proto lib/profile/topspti/proto

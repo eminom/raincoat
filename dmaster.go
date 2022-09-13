@@ -164,12 +164,15 @@ func main() {
 	}
 
 	if len(flag.Args()) >= 1 {
-		if *fExec {
+		if *fExec && *fDumpmeta {
 			for _, inputFile := range flag.Args() {
 				topsdev.DumpSectionsFromExecutable(inputFile, *fCheckFlg)
 			}
 			return
 		}
+	}
+
+	if len(flag.Args()) >= 1 {
 
 		if !*fRawDpf {
 			inputName := flag.Args()[0]
@@ -190,6 +193,17 @@ func main() {
 			// Cast into content-loader
 			loader = pbLoader
 			contentLoader = &pbLoader
+		} else if *fExec {
+			// Positional arguments:
+			// [0] rawdpf file as input
+			// [1:] executable files
+			files := flag.Args()
+			if len(files) < 2 {
+				fmt.Fprintf(os.Stderr, "expecting at least one executable-file, and one raw-dpf-file\n")
+				return
+			}
+			loader = topsdev.NewExecLoader(flag.Args()[1:])
+			contentLoader = infoloader.NewContentBufferLoader(flag.Args()[0])
 		} else {
 			metaStartup := *fMetaStartup
 			loader = infoloader.NewMetaFileLoader(metaStartup, *fForceOneTask)

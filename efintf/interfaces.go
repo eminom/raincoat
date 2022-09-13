@@ -26,12 +26,16 @@ type ArchTypeGet interface {
 	GetArchType() dtuarch.ArchType
 }
 
+type ExecScopeLoader interface {
+	LoadExecScope(execUuid uint64) *metadata.ExecScope
+}
+
 type InfoReceiver interface {
 	TaskLoader
 	ArchTypeGet
+	ExecScopeLoader
 	GetCdmaAffinity() affinity.CdmaAffinitySet
 	LoadTimepoints() ([]rtdata.HostTimeEntry, bool)
-	LoadExecScope(execUuid uint64) *metadata.ExecScope
 	LoadWildcards(checkExist func(str string) bool, notifyNew func(uint64, *metadata.ExecScope))
 	ExtractHostInfo() *mimicdefs.HostInfo
 }
