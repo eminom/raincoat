@@ -50,7 +50,7 @@ func (ad ArchDetector) GetArch() string {
 func (ad ArchDetector) GetOneTaskFlag() bool {
 	isOneTask := false
 	archTy := ad.getter.GetArchType()
-	if (archTy == dtuarch.EnflameUnknownArch || archTy == dtuarch.EnflameT20) &&
+	if (archTy == dtuarch.EnflameUnknownArch || archTy == dtuarch.EnflameT20) ||
 		ad.forceOneTask {
 		isOneTask = true
 	}
