@@ -50,6 +50,14 @@ func (ad ArchDispatcher) CheckoutEngineString(mid int) string {
 	return item.ToString()
 }
 
+func (ad ArchDispatcher) MayCheckoutEngineString(mid int) (string, bool) {
+	item, ok := ad.revMap[mid]
+	if !ok {
+		return "", false
+	}
+	return item.ToString(), true
+}
+
 func MakeCollectDispatch(
 	archTarget archtarget.ArchPgTarget,
 	masterSeq []DpfEngineT) ArchDispatcher {

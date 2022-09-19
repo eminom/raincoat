@@ -10,6 +10,7 @@ import (
 
 type EngineMaterIdStringMap interface {
 	CheckoutEngineString(int) string
+	MayCheckoutEngineString(int) (string, bool)
 }
 
 type EngineOrder interface {
