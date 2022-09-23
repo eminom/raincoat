@@ -48,24 +48,30 @@ func (pb pbLoader) GetInputName() string {
 
 func (pb pbLoader) LoadTask(oneSolid bool) (taskMap map[int]*rtdata.RuntimeTask, taskIdOrder []int, ok bool) {
 	taskMap = make(map[int]*rtdata.RuntimeTask)
-	for _, task := range pb.pbObj.Dtu.Runtime.Task.TaskData {
-		// fmt.Printf("%v 0x%016x %v\n", *task.TaskId, *task.ExecUuid, *task.PgMask)
 
-		taskId := int(*task.TaskId)
-		execUuid := task.GetExecUuid()
-		pgMask := int(task.GetPgMask())
-		if _, ok := taskMap[taskId]; ok {
-			// panic(errors.New("duplicate task id"))
-			log.Printf("duplicated task id %v\n", taskId)
-			continue // do not add again
+	if pb.pbObj.GetDtu() == nil || pb.pbObj.GetDtu().GetRuntime() == nil {
+
+	} else {
+		// Or, there are tasks to be loaded
+		for _, task := range pb.pbObj.Dtu.Runtime.Task.TaskData {
+			// fmt.Printf("%v 0x%016x %v\n", *task.TaskId, *task.ExecUuid, *task.PgMask)
+
+			taskId := int(*task.TaskId)
+			execUuid := task.GetExecUuid()
+			pgMask := int(task.GetPgMask())
+			if _, ok := taskMap[taskId]; ok {
+				// panic(errors.New("duplicate task id"))
+				log.Printf("duplicated task id %v\n", taskId)
+				continue // do not add again
+			}
+			taskMap[taskId] = &rtdata.RuntimeTask{
+				RuntimeTaskBase: rtdata.RuntimeTaskBase{TaskID: taskId,
+					ExecutableUUID: execUuid,
+					PgMask:         pgMask,
+				},
+			}
+			taskIdOrder = append(taskIdOrder, taskId)
 		}
-		taskMap[taskId] = &rtdata.RuntimeTask{
-			RuntimeTaskBase: rtdata.RuntimeTaskBase{TaskID: taskId,
-				ExecutableUUID: execUuid,
-				PgMask:         pgMask,
-			},
-		}
-		taskIdOrder = append(taskIdOrder, taskId)
 	}
 
 	if len(taskIdOrder) == 0 || oneSolid {

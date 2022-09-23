@@ -4,6 +4,7 @@ RELEASE_DATE=$(shell date +%H%M%S_%Y%m%d)
 
 all:
 	go build -o build/dmaster
+	go build -o build/fake cmds/fake.go
 
 install:	all
 	cp build/dmaster ${HOME}/bin

@@ -157,3 +157,29 @@ func DecodeFile(inputFile string) (hd ProfHeader, body []byte, err error) {
 	}
 	return
 }
+
+func genProfHeaderMagic() []byte {
+	return []byte{
+		0x50, 0x4B, 0x03, 0x04, 0x14, 0x00, 0x02, 0x00,
+	}
+}
+
+func genProfHeadTag() []byte {
+	return make([]byte, int(C.TAG_SIZE))
+}
+
+func genProfHeadBNum() []byte {
+	return make([]byte, int(C.BNUM_SIZE))
+}
+
+func genProfHeadSha256() []byte {
+	return make([]byte, int(C.SHA_SIZE))
+}
+
+func genProfHeadMd5() []byte {
+	return make([]byte, int(C.MD5_SIZE))
+}
+
+func genProfHeadReserved() []byte {
+	return make([]byte, int(C.RESERVED_SIZE))
+}

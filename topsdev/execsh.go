@@ -190,3 +190,24 @@ func LoadExecScopeFromExec(filename string) []*metadata.ExecScope {
 	}
 	return colls
 }
+
+type ProfileSecElement struct {
+	execUuid   uint64
+	profSecRaw []byte
+}
+
+func LoadProfileSection(filename string) []ProfileSecElement {
+	var profs []ProfileSecElement
+	chunkVec := LoadSectionsFromExec(filename)
+	for _, execRaw := range chunkVec {
+		switch execRaw.DataType {
+		case SHT_PROFILE:
+
+			profs = append(profs, ProfileSecElement{
+				execUuid:   execRaw.ExecUuid,
+				profSecRaw: execRaw.DataChunk,
+			})
+		}
+	}
+	return profs
+}
