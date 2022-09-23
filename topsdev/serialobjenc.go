@@ -63,60 +63,55 @@ func (SerialObjEnc) makeClusterPack(rawdata []byte) []byte {
 }
 
 func (SerialObjEnc) makeProfileData(profSec []ProfileSecElement, packCount int) []byte {
-	var pb topspb.ProfileData
-
-	pb.Dtu = &topspb.DTUProfile{}
-	pb.Info = &topspb.ProfileInfo{}
-
 	cmds := "fake"
 	sdkVersion := "tops-sdk"
 	frameworkVersion := "fake-fmk"
 	profileDataName := "prof-name"
 	profileDataType := "prof-datatype"
 	profileDataVer := "prof-dataver"
+	osName := "os-name"
+	osVersion := "os-version"
+	product := "Txx"
+	platform := "Linux"
 
-	pb.Info.CommandInfo = &topspb.CommandInfo{
-		StartTimestamp: new(int64),
-		EndTimestamp:   new(int64),
-		Command:        &cmds,
+	var pb topspb.ProfileData
+	pb.Dtu = &topspb.DTUProfile{
+		Device: &topspb.DTUDeviceInfo{
+			Node2Dev: &topspb.IdMapData{
+				Id1: new(int32),
+				Id2: new(int32),
+			},
+		},
+		Meta: &topspb.DTUProfileMeta{},
+	}
+	pb.Info = &topspb.ProfileInfo{
+		PlatformInfo: []*topspb.PlatformInfo{{
+			Product:   &product,
+			Platform:  &platform,
+			OsName:    &osName,
+			OsVersion: &osVersion,
+		}},
+		VersionInfo: &topspb.VersionInfo{
+			SdkVersion:       &sdkVersion,
+			FrameworkVersion: &frameworkVersion,
+			ProfileVersion: &topspb.ProfileVersion{
+				ProfileDataName:    &profileDataName,
+				ProfileDataType:    &profileDataType,
+				ProfileDataVersion: &profileDataVer,
+			},
+		},
+		CommandInfo: &topspb.CommandInfo{
+			StartTimestamp: new(int64),
+			EndTimestamp:   new(int64),
+			Command:        &cmds,
+		},
+		ConfigInfo: &topspb.ConfigInfo{},
 	}
 
 	// profileVersion := "profile-ver"
-	pb.Info.VersionInfo = &topspb.VersionInfo{
-		SdkVersion:       &sdkVersion,
-		FrameworkVersion: &frameworkVersion,
-		ProfileVersion: &topspb.ProfileVersion{
-			ProfileDataName:    &profileDataName,
-			ProfileDataType:    &profileDataType,
-			ProfileDataVersion: &profileDataVer,
-		},
-	}
-	pb.Info.ConfigInfo = &topspb.ConfigInfo{}
-	pb.Dtu.Device = &topspb.DTUDeviceInfo{
-		Node2Dev: &topspb.IdMapData{
-			Id1: new(int32),
-			Id2: new(int32),
-		},
-	}
-	pb.Dtu.Meta = &topspb.DTUProfileMeta{}
+	// Fake the executable
 	pb.GetDtu().GetMeta().ExecutableProfileSerialize =
-		make([]*topspb.SerializeExecutableData, 1)
-
-		// Fake the executable
-	var id int32 = 1
-	name := "anonymous"
-	var profSer []*topspb.SerializeExecutableData
-	for _, prof := range profSec {
-		theId := id
-		id++
-		profSer = append(profSer, &topspb.SerializeExecutableData{
-			Id:       &theId,
-			Name:     &name,
-			Data:     prof.profSecRaw,
-			ExecUuid: &prof.execUuid,
-		})
-	}
-	pb.GetDtu().GetMeta().ExecutableProfileSerialize = profSer
+		genProfileMeta(profSec)
 
 	// set cluster pack count to 1
 	// TODO: split by size
@@ -132,6 +127,23 @@ func (SerialObjEnc) makeProfileData(profSec []ProfileSecElement, packCount int) 
 		panic(err)
 	}
 	return chunk
+}
+
+func genProfileMeta(profSec []ProfileSecElement) []*topspb.SerializeExecutableData {
+	var id int32 = 1
+	name := "anonymous"
+	var profSer []*topspb.SerializeExecutableData
+	for _, prof := range profSec {
+		theId := id
+		id++
+		profSer = append(profSer, &topspb.SerializeExecutableData{
+			Id:       &theId,
+			Name:     &name,
+			Data:     prof.profSecRaw,
+			ExecUuid: &prof.execUuid,
+		})
+	}
+	return profSer
 }
 
 func (soe SerialObjEnc) EncodeTypeCode(typeCode uint64) {
