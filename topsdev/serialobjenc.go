@@ -66,12 +66,12 @@ func (SerialObjEnc) makeProfileData(profSec []ProfileSecElement, packCount int) 
 	cmds := "fake"
 	sdkVersion := "tops-sdk"
 	frameworkVersion := "fake-fmk"
-	profileDataName := "prof-name"
+	profileDataName := "I20data"
 	profileDataType := "prof-datatype"
 	profileDataVer := "prof-dataver"
-	osName := "os-name"
-	osVersion := "os-version"
-	product := "Txx"
+	osName := "linux"
+	osVersion := "4.15"
+	product := "I20"
 	platform := "Linux"
 
 	var pb topspb.ProfileData
