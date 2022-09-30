@@ -12,19 +12,29 @@ type SerialObjEnc struct {
 	buffer *bytes.Buffer
 }
 
+type ProfileOpt struct {
+	ProcessId       int
+	ProfileSections []ProfileSecElement
+}
+
 func NewSerailObjEnc() SerialObjEnc {
 	return SerialObjEnc{
 		buffer: bytes.NewBuffer(nil),
 	}
 }
 
-func (soe SerialObjEnc) EncodeBody(rawdata []byte, profSec []ProfileSecElement) []byte {
-	if profSec == nil {
+func getInt32(value int) *int32 {
+	var v = int32(value)
+	return &v
+}
+
+func (soe SerialObjEnc) EncodeBody(rawdata []byte, profOpt ProfileOpt) []byte {
+	if profOpt.ProfileSections == nil {
 		panic("profsection must not be nil for encoding")
 	}
 
 	packCount := 1
-	rawpb := soe.makeProfileData(profSec, packCount)
+	rawpb := soe.makeProfileData(profOpt, packCount)
 	soe.EncodeTypeCode(ProfileDataTypeCode)
 	soe.EncodeLength(len(rawpb))
 	soe.buffer.Write(rawpb)
@@ -62,7 +72,7 @@ func (SerialObjEnc) makeClusterPack(rawdata []byte) []byte {
 	return chunk
 }
 
-func (SerialObjEnc) makeProfileData(profSec []ProfileSecElement, packCount int) []byte {
+func (SerialObjEnc) makeProfileData(profOpt ProfileOpt, packCount int) []byte {
 	cmds := "fake"
 	sdkVersion := "tops-sdk"
 	frameworkVersion := "fake-fmk"
@@ -106,12 +116,13 @@ func (SerialObjEnc) makeProfileData(profSec []ProfileSecElement, packCount int) 
 			Command:        &cmds,
 		},
 		ConfigInfo: &topspb.ConfigInfo{},
+		ProcessId:  getInt32(profOpt.ProcessId),
 	}
 
 	// profileVersion := "profile-ver"
 	// Fake the executable
 	pb.GetDtu().GetMeta().ExecutableProfileSerialize =
-		genProfileMeta(profSec)
+		genProfileMeta(profOpt.ProfileSections)
 
 	// set cluster pack count to 1
 	// TODO: split by size

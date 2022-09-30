@@ -4,7 +4,10 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"math/rand"
 	"os"
+	"regexp"
+	"strconv"
 	"strings"
 
 	"git.enflame.cn/hai.bai/dmaster/topsdev"
@@ -20,6 +23,20 @@ func genOutName(org string) string {
 		return org[:len(org)-4] + suffix
 	}
 	return org + suffix
+}
+
+var (
+	pidPat = regexp.MustCompile(`pid_(\d+)`)
+)
+
+func extractProcessIdFromName(name string) int {
+	sl := pidPat.FindStringSubmatchIndex(name)
+	if len(sl) >= 4 {
+		if v, err := strconv.Atoi(name[sl[2]:sl[3]]); err == nil {
+			return v
+		}
+	}
+	return rand.Intn(100000)
 }
 
 func main() {
@@ -48,8 +65,12 @@ func main() {
 	buffer.Write(enc.EncodeBuffer())
 
 	// body
+	profOpt := topsdev.ProfileOpt{
+		ProfileSections: profs,
+		ProcessId:       extractProcessIdFromName(rawdpf),
+	}
 	soe := topsdev.NewSerailObjEnc()
-	soe.EncodeBody(filerawchunk, profs)
+	soe.EncodeBody(filerawchunk, profOpt)
 	buffer.Write(soe.Bytes())
 
 	os.WriteFile(genOutName(rawdpf), buffer.Bytes(), 0444)
