@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 
 	"git.enflame.cn/hai.bai/dmaster/topsdev"
 )
@@ -12,6 +13,15 @@ import (
 func init() {
 	flag.Parse()
 }
+
+func genOutName(org string) string {
+	const suffix = ".topspti.data"
+	if strings.HasSuffix(org, ".bin") {
+		return org[:len(org)-4] + suffix
+	}
+	return org + suffix
+}
+
 func main() {
 	args := flag.Args()
 	if len(args) < 2 {
@@ -42,6 +52,6 @@ func main() {
 	soe.EncodeBody(filerawchunk, profs)
 	buffer.Write(soe.Bytes())
 
-	os.WriteFile("tmp.rawdata", buffer.Bytes(), os.ModePerm)
+	os.WriteFile(genOutName(rawdpf), buffer.Bytes(), 0444)
 
 }

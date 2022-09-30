@@ -1,0 +1,48 @@
+#!/bin/bash
+
+#set -x
+set -e
+
+ATTA="topsprof.rawdata"
+if [[ ! -f ${ATTA} ]]; then
+	echo no ${ATTA} present 1>&2
+	exit 1
+fi
+
+start_build() {
+  pushd .
+  cd ..
+  go build -o fakeraw fake.go
+  popd
+}
+
+if [[ x$1 == xbuild ]]; then
+	shift
+	start_build
+fi
+
+BINF="../fakeraw"
+if [[ ! -f ${BINF} ]]; then
+	BINF=$(which fakeraw)
+fi
+
+if [[ ! -f ${BINF} ]]; then
+  echo target binary not exists 1>&2
+  exit 1
+fi
+
+TARGETS=$(ls -1|egrep -e "^[0-9]{4}.*pid.*bin$")
+EXEC="resnet_0916.exec"
+for i in $TARGETS; do
+  ${BINF} ${i} ${EXEC}
+  # expecting name
+  INPUT=$(echo ${i}|sed -n 's/\.bin$/.topspti.data/p')
+  OUTPUT=$(echo ${i}|sed -n 's/\.bin$/.rawdata/p')
+  zip -o ${OUTPUT} ${INPUT} ${ATTA}
+  echo done generating ${OUTPUT}
+done
+
+# set +x
+# source ~/bin/pavo_utils/mastersh.sh
+# set -x
+# tops11 raw1.rawdata
