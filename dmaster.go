@@ -65,6 +65,8 @@ var (
 
 	// Dump op time info(cycles) into python format
 	fDumpOpDebug = flag.Bool("dumpopdebug", false, "dump op cycle info for debug")
+
+	fPgMaskEncoded = flag.Bool("pgmtsk", false, "pgmask is encoded in payload of task act")
 )
 
 // package
@@ -276,12 +278,13 @@ func main() {
 
 		sess.DecodeChunk(chunk, decoder, *fDecodeRoutineCount)
 		outputChan <- DoProcess(*fJob, sess, curAlgo, PostProcessOpt{
-			OneTask:     archDetector.GetOneTaskFlag(),
-			DumpSipBusy: *fSipBusy,
-			SeqIdx:      fileIdx,
-			NoSubop:     *fNoSubop,
-			CpuOps:      cpuOps,
-			DumpOpDebug: *fDumpOpDebug,
+			OneTask:       archDetector.GetOneTaskFlag(),
+			PgMaskEncoded: *fPgMaskEncoded,
+			DumpSipBusy:   *fSipBusy,
+			SeqIdx:        fileIdx,
+			NoSubop:       *fNoSubop,
+			CpuOps:        cpuOps,
+			DumpOpDebug:   *fDumpOpDebug,
 		})
 	}
 	for i := 0; i < rbCount; i++ {

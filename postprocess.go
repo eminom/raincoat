@@ -17,12 +17,13 @@ import (
 )
 
 type PostProcessOpt struct {
-	OneTask     bool
-	DumpSipBusy bool
-	SeqIdx      int
-	NoSubop     bool
-	DumpOpDebug bool
-	CpuOps      []rtdata.CpuOpAct
+	OneTask       bool
+	PgMaskEncoded bool
+	DumpSipBusy   bool
+	SeqIdx        int
+	NoSubop       bool
+	DumpOpDebug   bool
+	CpuOps        []rtdata.CpuOpAct
 }
 
 type PostProcessor struct {
@@ -54,7 +55,7 @@ func NewPostProcesser(loader efintf.InfoReceiver,
 	enableExtendedTimeline bool,
 	ppOpt PostProcessOpt,
 ) PostProcessor {
-	rtDict := rtinfo.NewRuntimeTaskManager(ppOpt.OneTask)
+	rtDict := rtinfo.NewRuntimeTaskManager(ppOpt.OneTask, ppOpt.PgMaskEncoded)
 	rtDict.LoadRuntimeTask(loader)
 
 	qm := rtdata.NewOpEventQueue(rtdata.NewOpActCollector(curAlgo),

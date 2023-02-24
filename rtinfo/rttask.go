@@ -33,10 +33,11 @@ var (
 // )
 
 type RuntimeTaskManagerBase struct {
-	taskIdToTask   map[int]*rtdata.RuntimeTask // Full runtime task info, include cyccled ones and ones without cycles
-	taskIdVec      []int                       // Full task id vec
-	tsHead         *linklist.Lnk
-	isOneSolidTask bool
+	taskIdToTask    map[int]*rtdata.RuntimeTask // Full runtime task info, include cyccled ones and ones without cycles
+	taskIdVec       []int                       // Full task id vec
+	tsHead          *linklist.Lnk
+	isOneSolidTask  bool
+	isPgMaskEncoded bool
 }
 type RuntimeTaskManager struct {
 	RuntimeTaskManagerBase
@@ -54,25 +55,42 @@ func newStatedOrderTaskVector(origin []rtdata.OrderTask) []rtdata.OrderTaskState
 	return out
 }
 
-func NewRuntimeTaskManager(oneTask bool) *RuntimeTaskManager {
+func NewRuntimeTaskManager(oneTask bool, pgMaskEncoded bool) *RuntimeTaskManager {
 	return &RuntimeTaskManager{
 		RuntimeTaskManagerBase: RuntimeTaskManagerBase{
-			tsHead:         linklist.NewLnkHead(),
-			isOneSolidTask: oneTask,
+			tsHead:          linklist.NewLnkHead(),
+			isOneSolidTask:  oneTask,
+			isPgMaskEncoded: pgMaskEncoded,
 		},
 	}
+}
+
+func (rtm RuntimeTaskManagerBase) GetTaskID(payload int) int {
+	if rtm.isPgMaskEncoded {
+		return payload >> 6
+	}
+	return payload
 }
 
 func (rtm *RuntimeTaskManagerBase) ProcessTaskActVector(
 	taskActVec rtdata.TaskActivityVec) {
 	for _, taskAct := range taskActVec {
-		taskID := taskAct.Start.Payload
+		taskID := rtm.GetTaskID(taskAct.Start.Payload)
 		if task, ok := rtm.GetTaskForId(taskID); !ok {
 			fmt.Fprintf(os.Stderr,
 				"no host site cqm launch exec info: task id(%v)\n", taskID)
 		} else {
 			rtm.updateTaskCycle(task, taskAct.Start.Cycle, taskAct.End.Cycle)
+			rtm.updatePgMaskForTask(task, taskAct.Start.Payload)
 		}
+	}
+}
+
+func (rtm *RuntimeTaskManagerBase) updatePgMaskForTask(
+	task *rtdata.RuntimeTask,
+	payload int) {
+	if rtm.isPgMaskEncoded {
+		task.PgMask = payload & ((1 << 6) - 1)
 	}
 }
 
@@ -560,7 +578,8 @@ func (rtm RuntimeTaskManager) locateTask(
 			continue
 		}
 		thatTask := vec[j]
-		if matcher.DoMatchTo(evt, thatTask, rule) &&
+		matchPg := matcher.DoMatchTo(evt, thatTask, rule)
+		if matchPg &&
 			(extraMatch == nil || extraMatch(thatTask.GetExecUuid(), evt.PacketID)) {
 			// Copy result
 			rv = thatTask
